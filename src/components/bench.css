@@ -994,6 +994,24 @@
   }
 }
 
+@media (max-width: 560px) {
+  .bench-page .bench-chip {
+    display: inline-flex;
+    min-width: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bench-notebook-entry {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .bench-compare-check {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 @media (max-width: 380px) {
   .bench-panel {
     padding: 13px;

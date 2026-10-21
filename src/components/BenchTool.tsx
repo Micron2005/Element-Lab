@@ -175,7 +175,7 @@ function RangeNumberField({
           min={min}
           max={max}
           step={step}
-          value={value}
+          value={unit === "pH" ? value.toFixed(1) : value}
           onChange={(event) => onChange(clampValue(Number(event.target.value) || 0))}
         />
         <span className="bench-unit">{unit}</span>
@@ -681,7 +681,7 @@ export default function BenchTool() {
             <p className="bench-kicker">02 · PROCESS</p>
             <h2 id="bench-conditions-heading">Conditions</h2>
           </div>
-          <span className="bench-live-value">Effective pH {livePH.toFixed(2)}</span>
+          <span className="bench-live-value">Effective pH {livePH.toFixed(1)}</span>
         </div>
         <div className="bench-condition-grid">
           <RangeNumberField

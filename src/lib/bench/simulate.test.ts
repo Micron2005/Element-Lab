@@ -225,6 +225,37 @@ describe("bench simulation", () => {
     expect(slime.tensileMPa).toBeLessThanOrEqual(1);
   });
 
+  it("explains partial borax-PVA activity at pH 7.5", () => {
+    const result = simulate(
+      experiment(
+        [
+          { id: "pva", pct: 40 },
+          { id: "water", pct: 58 },
+          { id: "borax", pct: 2 },
+        ],
+        { pH: 7.5 },
+      ),
+    );
+    const event = result.events.find((item) => item.id === "borax-pva");
+
+    expect(event?.status).toBe("partial");
+    expect(event?.activity).toBe(0.5);
+    expect(event?.reasons.join(" ")).toContain("pH 7.5");
+  });
+
+  it("gives gelatin thermo-gel a set time based on temperature", () => {
+    const parts = [
+      { id: "gelatin", pct: 40 },
+      { id: "water", pct: 60 },
+    ];
+    const roomTemperatureGel = simulate(experiment(parts, { tempC: 20 }));
+    const coldGel = simulate(experiment(parts, { tempC: 10 }));
+
+    expect(roomTemperatureGel.product).toBe("gel");
+    expect(roomTemperatureGel.setSeconds).toBe(1800);
+    expect(coldGel.setSeconds).toBe(600);
+  });
+
   it("uses volatile-solvent drying times for cast films", () => {
     const waterFilm = simulate(
       experiment(

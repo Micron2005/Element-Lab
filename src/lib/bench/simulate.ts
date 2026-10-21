@@ -120,6 +120,23 @@ function reactionMechanism(id: string, context: ReactionContext): string {
   return REACTIONS.find((reaction) => reaction.id === id)?.mechanism ?? id;
 }
 
+const GEL_SET_TIME_DEFAULTS: Record<string, number> = {
+  "alginate-calcium": 300,
+  "alginate-fe-zn": 300,
+  "borax-pva": 300,
+  "catechol-iron": 300,
+  "chitosan-solubility": 300,
+  transglutaminase: 1800,
+  "phenol-oxidase": 1800,
+  "hrp-crosslinking": 1800,
+  "genipin-amine": 1800,
+  "glutaraldehyde-amine": 1800,
+  "catechol-oxidation": 1800,
+  cyanoacrylate: 1800,
+  "pu-moisture-cure": 1800,
+  "latex-cure": 1800,
+};
+
 function eventSetSeconds(
   evaluated: EvaluatedReaction,
   context: ReactionContext,
@@ -132,7 +149,10 @@ function eventSetSeconds(
       ? 30
       : 300;
   }
-  if (reaction.setSeconds <= 0) return 0;
+  if (reaction.id === "gelatin-thermogel") {
+    return context.experiment.conditions.tempC <= 10 ? 600 : 1800;
+  }
+  if (reaction.setSeconds <= 0) return GEL_SET_TIME_DEFAULTS[reaction.id] ?? 0;
   const scaled = reaction.setSeconds / Math.max(activity, 0.01);
   switch (reaction.id) {
     case "transglutaminase":
@@ -400,7 +420,7 @@ function resultProduct(
   }
   if (experiment.conditions.forming === "extrude-air") {
     if (active.has("cyanoacrylate") && context.waterPct === 0) return "adhesive";
-    if (setSeconds <= 2 || evaporationFast) return "fiber";
+    if ((setSeconds > 0 && setSeconds <= 2) || evaporationFast) return "fiber";
     if (active.has("borax-pva")) return "slime";
     return "solution";
   }
@@ -737,7 +757,7 @@ export function simulate(experiment: Experiment): RunResult {
   const activeEventIds = new Set(evaluated.filter((event) => event.activity > 0).map((event) => event.reaction.id));
   let setSeconds = evaluated.reduce((maximum, event) => Math.max(maximum, event.setSeconds), 0);
   if (setSeconds === 0 && conditions.forming === "heat-cure") {
-    setSeconds = Math.max(0, conditions.cureMinutes * 60);
+    setSeconds = Math.max(1, conditions.cureMinutes * 60);
   } else if (setSeconds === 0 && (conditions.forming === "extrude-air" || conditions.forming === "cast-film")) {
     const hasWaterSolvent = inputParts.some((part) => part.id === "water");
     const hasVolatileSolvent = solventParts.length > 0;
@@ -756,6 +776,14 @@ export function simulate(experiment: Experiment): RunResult {
     evaporationFast,
     missingSolvent,
   );
+  if (
+    !["solution", "nothing", "clumps", "dangerous"].includes(product) &&
+    (!Number.isFinite(setSeconds) || setSeconds <= 0)
+  ) {
+    setSeconds = conditions.forming === "heat-cure"
+      ? Math.max(1, conditions.cureMinutes * 60)
+      : 300;
+  }
   const latexVulcanized =
     product === "solid" &&
     evaluated.some((event) => event.reaction.id === "latex-cure" && event.activity >= 0.5) &&

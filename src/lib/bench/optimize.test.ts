@@ -52,6 +52,28 @@ describe("best-mix optimizer", () => {
     expect(top.result.effectivePH).toBeLessThanOrEqual(9);
   });
 
+  it("gives every formed optimizer candidate a finite positive set time", () => {
+    const goals = [strengthGoal, { product: "gel" as const }];
+    const nonSolidProducts = new Set(["solution", "nothing", "clumps", "dangerous"]);
+    const options = {
+      pool: benchLibrary.map((ingredient) => ingredient.id),
+      maxIngredients: 4,
+      budget: 500,
+      seed: 7,
+    };
+
+    for (const goal of goals) {
+      const candidates = findBestMixes(goal, options);
+
+      expect(candidates.length).toBeGreaterThan(0);
+      for (const candidate of candidates) {
+        if (nonSolidProducts.has(candidate.result.product)) continue;
+        expect(Number.isFinite(candidate.result.setSeconds)).toBe(true);
+        expect(candidate.result.setSeconds).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("keeps every candidate inside a restricted ingredient pool", () => {
     const pool = ["alginate", "cacl2", "water", "glycerol"];
     const candidates = findBestMixes({}, {

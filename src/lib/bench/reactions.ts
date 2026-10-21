@@ -94,16 +94,26 @@ export function enzymeActivity(
       enzyme.optT === enzyme.minT
         ? 1
         : (temp - enzyme.minT) / (enzyme.optT - enzyme.minT);
+    if (temperatureFactor < 1) {
+      reasons.push(`temperature ${temp} °C is below the enzyme optimum of ${enzyme.optT} °C`);
+    }
   } else {
     temperatureFactor =
       enzyme.denatureT === enzyme.optT
         ? 0
         : (enzyme.denatureT - temp) / (enzyme.denatureT - enzyme.optT);
+    if (temperatureFactor > 0) {
+      reasons.push(`temperature ${temp} °C is above the enzyme optimum of ${enzyme.optT} °C`);
+    }
   }
 
   const phFactor = pHActivity(ctx.effectivePH, enzyme.pHRange, enzyme.optPH);
   if (phFactor === 0) {
     reasons.push(`pH outside enzyme range ${enzyme.pHRange[0]}–${enzyme.pHRange[1]}`);
+  } else if (phFactor < 1) {
+    reasons.push(
+      `effective pH ${ctx.effectivePH.toFixed(1)} is away from the enzyme optimum of ${enzyme.optPH}`,
+    );
   }
   let oxygenFactor = 1;
   if (enzyme.needsO2 && ctx.experiment.conditions.atmosphere !== "air") {
@@ -209,6 +219,11 @@ export const REACTIONS: Reaction[] = [
         reasons.push("calcium carbonate supplies modeled calcium only below pH 6");
       }
       if (ph === 0) reasons.push("pH outside the alginate crosslink window");
+      else if (ph < 1) {
+        reasons.push(
+          `effective pH ${ctx.effectivePH.toFixed(1)} is near the edge of the pH 4–10 alginate crosslink window`,
+        );
+      }
       if (ctx.present.has("sodium-citrate")) {
         activity *= 0.2;
         reasons.push("citrate pulls the calcium back out");
@@ -227,7 +242,11 @@ export const REACTIONS: Reaction[] = [
       present.has("alginate") && (present.has("fecl3") || present.has("zncl2")),
     fit: (ctx) => {
       const ph = windowActivity(ctx.effectivePH, 4, 10, 1);
-      const reasons = ph === 0 ? ["pH outside the alginate crosslink window"] : [];
+      const reasons = ph === 0
+        ? ["pH outside the alginate crosslink window"]
+        : ph < 1
+          ? [`effective pH ${ctx.effectivePH.toFixed(1)} is near the edge of the pH 4–10 alginate crosslink window`]
+          : [];
       return { activity: ph, reasons };
     },
     network: 0.8,
@@ -254,7 +273,13 @@ export const REACTIONS: Reaction[] = [
           : ctx.effectivePH - 7;
       return {
         activity: phFactor,
-        reasons: phFactor === 0 ? ["effective pH must reach 8; activity falls to zero at pH 7"] : [],
+        reasons: phFactor === 0
+          ? ["effective pH must reach 8; activity falls to zero at pH 7"]
+          : phFactor < 1
+            ? [
+                `pH ${ctx.effectivePH.toFixed(1)} is below 8, so only part of the borate is in its active borate-ion form, which means fewer crosslinks. Raise the pH to ≥8 for full strength.`,
+              ]
+            : [],
       };
     },
     network: 0.35,
@@ -326,6 +351,7 @@ export const REACTIONS: Reaction[] = [
       }
       const target = oxidaseTargetFactor(ctx);
       if (target === 0) reasons.push("no compatible phenol or tyrosine group is present");
+      if (target > 0 && target < 1) reasons.push("gelatin is a weaker oxidase target, so crosslink activity is reduced");
       return { activity: enzyme.activity * peroxideFactor * target, reasons };
     },
     network: 0.55,
@@ -370,7 +396,11 @@ export const REACTIONS: Reaction[] = [
       const factor = windowActivity(ctx.effectivePH, 7.5, 9, 1);
       return {
         activity: factor,
-        reasons: factor === 0 ? ["outside the pH 7.5–9 coordination window"] : [],
+        reasons: factor === 0
+          ? ["outside the pH 7.5–9 coordination window"]
+          : factor < 1
+            ? [`effective pH ${ctx.effectivePH.toFixed(1)} is near the edge of the pH 7.5–9 coordination window`]
+            : [],
       };
     },
     network: 0.6,
@@ -383,10 +413,15 @@ export const REACTIONS: Reaction[] = [
     name: "Genipin protein crosslinking",
     needs: (_exp, present) => present.has("genipin") && hasAny(present, amineTargets),
     fit: (ctx) => {
-      const factor = windowActivity(ctx.experiment.conditions.tempC, 20, 45, 5);
+      const temp = ctx.experiment.conditions.tempC;
+      const factor = windowActivity(temp, 20, 45, 5);
       return {
         activity: factor,
-        reasons: factor === 0 ? ["genipin crosslinking is modeled at 20–45 °C"] : [],
+        reasons: factor === 0
+          ? ["genipin crosslinking is modeled at 20–45 °C"]
+          : factor < 1
+            ? [`temperature ${temp} °C is near the edge of genipin's 20–45 °C crosslinking range`]
+            : [],
       };
     },
     network: 0.45,
@@ -522,9 +557,12 @@ export const REACTIONS: Reaction[] = [
       if (ctx.experiment.conditions.atmosphere !== "air" || humidity < 30) {
         return { activity: 0, reasons: ["moisture cure needs air and at least 30% humidity"] };
       }
+      const activity = clamp01((humidity - 20) / 50);
       return {
-        activity: clamp01((humidity - 20) / 50),
-        reasons: [],
+        activity,
+        reasons: activity < 1
+          ? [`humidity ${humidity}% gives partial moisture-cure activity; 70% is needed for full modeled activity`]
+          : [],
       };
     },
     network: 0.5,
