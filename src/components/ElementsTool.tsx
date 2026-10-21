@@ -1,23 +1,64 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageIntro, Panel } from "./shared";
 import { analyzeNucleus, bindingEnergy, stableZ } from "@/lib/nuclear";
+
+function tickStep(range: number, intervals: number) {
+  const roughStep = range / intervals;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  const factor = [1, 2, 2.5, 4, 5, 10].find((candidate) => candidate >= normalized) ?? 10;
+  return factor * magnitude;
+}
 
 export default function ElementsTool() {
   const [z, setZ] = useState(120);
   const [n, setN] = useState(184);
+  const [chartWidth, setChartWidth] = useState(760);
+  const chartRef = useRef<HTMLDivElement>(null);
   const report = useMemo(() => analyzeNucleus(z, n), [z, n]);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setChartWidth(Math.round(width));
+    });
+    observer.observe(chart);
+    return () => observer.disconnect();
+  }, []);
   const points = useMemo(() => {
     const low = Math.max(0, z - 10);
     const high = 2 * z + 40;
     const samples = Array.from({ length: Math.max(1, high - low + 1) }, (_, index) => low + index)
       .filter((neutrons) => z + neutrons > 0)
       .map((neutrons) => ({ n: neutrons, energy: bindingEnergy(z, neutrons) / (z + neutrons) }));
-    const x = (value: number) => 54 + ((value - low) / (high - low || 1)) * 674;
-    const y = (value: number) => 190 - (Math.max(0, Math.min(10, value)) / 10) * 164;
-    return { low, high, samples, x, y, path: samples.map((point) => `${x(point.n)},${y(point.energy)}`).join(" ") };
-  }, [z]);
+    const width = Math.max(280, chartWidth);
+    const plot = { left: 52, right: width - 18, top: 24, bottom: 208 };
+    const minimum = Math.min(...samples.map((point) => point.energy));
+    const maximum = Math.max(...samples.map((point) => point.energy));
+    const domainMin = minimum - 0.05;
+    const domainMax = maximum + 0.05;
+    const x = (value: number) => plot.left + ((value - low) / (high - low || 1)) * (plot.right - plot.left);
+    const y = (value: number) => plot.bottom - ((value - domainMin) / (domainMax - domainMin)) * (plot.bottom - plot.top);
+    const yTicks = Array.from({ length: 5 }, (_, index) => domainMax - ((domainMax - domainMin) * index) / 4);
+    const step = tickStep(high - low, 5);
+    const xTicks: number[] = [];
+    for (let value = Math.ceil(low / step) * step; value <= high; value += step) xTicks.push(value);
+    return {
+      low,
+      high,
+      width,
+      plot,
+      samples,
+      x,
+      y,
+      yTicks,
+      xTicks,
+      path: samples.map((point) => `${x(point.n)},${y(point.energy)}`).join(" "),
+    };
+  }, [z, chartWidth]);
   const snapToStable = () => {
     let mass = z + n;
     let neutrons = n;
@@ -61,15 +102,17 @@ export default function ElementsTool() {
         </div>
         <div className="stack">
           <Panel title="Binding energy curve" subtitle={`Binding energy per nucleon vs neutron count at Z = ${z}.`}>
-            <div className="chart-wrap">
-              <svg viewBox="0 0 760 235" role="img" aria-label={`Binding energy per nucleon curve for Z ${z}, with N ${n} marked`}>
-                {[0, 2, 4, 6, 8, 10].map((tick) => <g key={tick}><line x1="54" x2="728" y1={points.y(tick)} y2={points.y(tick)} stroke="#29383a" strokeWidth="1" /><text x="44" y={points.y(tick) + 4} textAnchor="end" fill="#819391" fontSize="10">{tick}</text></g>)}
-                <line x1="54" x2="728" y1="190" y2="190" stroke="#687b79" />
+            <div className="chart-wrap" ref={chartRef}>
+              <svg viewBox={`0 0 ${points.width} 260`} role="img" aria-label={`Binding energy per nucleon curve for Z ${z}, with N ${n} marked`}>
+                {points.yTicks.map((tick) => <g key={tick}><line x1={points.plot.left} x2={points.plot.right} y1={points.y(tick)} y2={points.y(tick)} stroke="#29383a" strokeWidth="1" /><text x={points.plot.left - 10} y={points.y(tick) + 4} textAnchor="end" fill="#819391" fontSize="12">{tick.toFixed(2)}</text></g>)}
+                {points.xTicks.map((tick) => <g key={tick}><line x1={points.x(tick)} x2={points.x(tick)} y1={points.plot.top} y2={points.plot.bottom} stroke="#1c292b" strokeWidth="1" /><text x={points.x(tick)} y={points.plot.bottom + 18} textAnchor="middle" fill="#819391" fontSize="12">{tick}</text></g>)}
+                <line x1={points.plot.left} x2={points.plot.right} y1={points.plot.bottom} y2={points.plot.bottom} stroke="#687b79" />
+                <line x1={points.plot.left} x2={points.plot.left} y1={points.plot.top} y2={points.plot.bottom} stroke="#687b79" />
+                {n >= points.low && n <= points.high && <line x1={points.x(n)} x2={points.x(n)} y1={points.plot.top} y2={points.plot.bottom} stroke="#f0bd69" strokeWidth="1.5" strokeDasharray="6 5" />}
                 <polyline points={points.path} fill="none" stroke="#49d5c2" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
                 {n >= points.low && n <= points.high && <circle cx={points.x(n)} cy={points.y(report.perNucleonMeV)} r="5" fill="#f0bd69" stroke="#101719" strokeWidth="2"><title>{`N = ${n}, ${report.perNucleonMeV.toFixed(2)} MeV per nucleon`}</title></circle>}
-                <text x="391" y="222" textAnchor="middle" fill="#9aacab" fontSize="11">Neutron count N</text>
-                <text x="14" y="105" textAnchor="middle" fill="#9aacab" fontSize="11" transform="rotate(-90 14 105)">MeV per nucleon</text>
-                <text x="54" y="207" fill="#819391" fontSize="9">{points.low}</text><text x="728" y="207" textAnchor="end" fill="#819391" fontSize="9">{points.high}</text>
+                <text x={(points.plot.left + points.plot.right) / 2} y="252" textAnchor="middle" fill="#9aacab" fontSize="12">Neutron count N</text>
+                <text x="16" y={(points.plot.top + points.plot.bottom) / 2} textAnchor="middle" fill="#9aacab" fontSize="12" transform={`rotate(-90 16 ${(points.plot.top + points.plot.bottom) / 2})`}>MeV per nucleon</text>
               </svg>
             </div>
             <p className="small muted" style={{ marginBottom: 0 }}>Selected nucleus: Z = {z}, N = {n}, A = {report.a}.</p>

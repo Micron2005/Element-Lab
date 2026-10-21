@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { analyze } from "@/lib/formula";
+import remarkGfm from "remark-gfm";
+import { analyze, fmtTime, hazardWord } from "@/lib/formula";
 import { byId } from "@/lib/ingredients";
 import { PageIntro, Panel } from "./shared";
 
@@ -10,6 +11,16 @@ type Message = { role: "user" | "assistant"; content: string };
 const STORAGE_KEY = "elementlab.chat";
 const welcome: Message = { role: "assistant", content: "Hi, I’m your lab partner. Ask me about a material, a formula, or what these estimates can—and can’t—tell you." };
 const prompts = ["Why would this mix fail?", "What’s missing to make it hold my weight?", "Is it safe on skin?", "Do I need a vacuum to make it?", "Could we make a new element?"];
+const cureNames: Record<string, string> = {
+  evaporation: "solvent evaporation",
+  "ionic-bath": "ionic bath",
+  moisture: "moisture",
+  anionic: "anionic polymerization",
+  shear: "shear alignment",
+  cooling: "cooling",
+  covalent: "covalent reaction",
+  none: "none",
+};
 
 function buildLabState() {
   try {
@@ -19,9 +30,25 @@ function buildLabState() {
     const result = analyze(parts);
     const ingredients = parts.map((part) => `- ${byId[part.id]?.name ?? part.id}: ${Number(part.pct).toFixed(1)}%`).join("\n");
     const checks = result.checks.length ? result.checks.map((check) => `- [${check.level}] ${check.text}`).join("\n") : "No checks raised.";
+    const cureMechanisms = result.cure.map((mechanism) => cureNames[mechanism] ?? mechanism).join(", ") || "None listed";
+    const environment = result.environment.length ? result.environment.map((line) => `- ${line}`).join("\n") : "No special requirements listed.";
     return [
       `Ingredients:\n${ingredients || "No ingredients."}`,
-      `Estimated results: strength ${result.tensileMPa.toFixed(1)} MPa; stretch ${result.elongationPct.toFixed(1)}%; toughness ${result.toughnessMJm3.toFixed(2)} MJ/m³; stickiness ${result.tack.toFixed(1)}/10; set time ${result.cureSeconds}s.`,
+      [
+        "Formula analysis:",
+        `Solids: ${result.solidsPct.toFixed(1)}%.`,
+        `Estimated results: strength ${result.tensileMPa.toFixed(1)} MPa; stretch ${result.elongationPct.toFixed(1)}%; toughness ${result.toughnessMJm3.toFixed(2)} MJ/m³; stickiness ${result.tack.toFixed(1)}/10.`,
+        `Cure mechanisms: ${cureMechanisms}.`,
+        `Set time: ${fmtTime(result.cureSeconds)}.`,
+        `Toxicity while mixing: ${hazardWord(result.wetToxicity)}.`,
+        `Toxicity once cured: ${hazardWord(result.curedToxicity)}.`,
+        `Skin hazard: ${hazardWord(result.skin)}.`,
+        `Edible: ${result.edible ? "Yes" : "No"}.`,
+        `Water behavior: ${result.water}; ${result.dissolveTime}.`,
+        `Biodegradable: ${result.biodegradable ? "Yes" : "No"}.`,
+        `Cost per kg: ${result.costPerKg.toFixed(2)}.`,
+      ].join("\n"),
+      `Environment and preparation:\n${environment}`,
       `Checks:\n${checks}`,
     ].join("\n\n");
   } catch {
@@ -78,7 +105,7 @@ export default function AssistantTool() {
       });
       const result = await response.json();
       if (response.status === 503 && result.error === "no-key") {
-        setMessages([...conversation, { role: "assistant", content: "The assistant isn’t connected yet. Add an `ANTHROPIC_API_KEY` on the server, then try again." }]);
+        setMessages([...conversation, { role: "assistant", content: "The assistant is off. Add an `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in Vercel → Project → Settings → Environment Variables, then redeploy." }]);
       } else if (!response.ok) {
         setMessages([...conversation, { role: "assistant", content: result.error ?? "I couldn’t reach the assistant just now. Please try again." }]);
       } else {
@@ -107,7 +134,25 @@ export default function AssistantTool() {
           <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> Lab partner</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>Clear chat</button></div>
           <div className="divider" />
           <div className="chat-messages" aria-live="polite">
-            {messages.map((message, index) => <article className={`message message-${message.role}`} key={`${index}-${message.role}`}><span className="metric-label">{message.role === "user" ? "YOU" : "LAB ASSISTANT"}</span><div style={{ marginTop: 5 }}><ReactMarkdown>{message.content}</ReactMarkdown></div></article>)}
+            {messages.map((message, index) => (
+              <article className={`message message-${message.role}`} key={`${index}-${message.role}`}>
+                <span className="metric-label">{message.role === "user" ? "YOU" : "LAB ASSISTANT"}</span>
+                <div style={{ marginTop: 5 }}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ children }) => (
+                        <div className="md-table">
+                          <table>{children}</table>
+                        </div>
+                      ),
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              </article>
+            ))}
             {loading && <div className="message message-assistant"><span className="metric-label">LAB ASSISTANT</span><p style={{ margin: "6px 0 0" }}>Thinking through the chemistry…</p></div>}
             <div ref={endRef} />
           </div>
