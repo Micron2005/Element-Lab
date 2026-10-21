@@ -1,6 +1,12 @@
 import { DEFAULT_CONDITIONS } from "./conditions";
 import { benchById } from "./library";
-import { simulate } from "./simulate";
+import { benchLibrary } from "./library";
+import { benchPresets } from "./presets";
+import {
+  matchingSolventIds,
+  requiresSolutionSolvent,
+  simulate,
+} from "./simulate";
 import type {
   Candidate,
   Conditions,
@@ -11,7 +17,7 @@ import type {
 } from "./types";
 
 const TEMPERATURES = [4, 20, 25, 37, 50, 80, 140];
-const PH_VALUES = [3, 4, 5, 6, 7, 8, 9, 10];
+const PH_VALUES = [4, 5, 6, 7, 8, 9];
 const HUMIDITIES = [10, 40, 70];
 const MIX_SPEEDS = [0, 300, 1000];
 const CURE_MINUTES = [5, 60, 240, 1440];
@@ -62,37 +68,80 @@ function applyLockedConditions(
   return { ...conditions, ...locked };
 }
 
+function isNetworkFormer(id: string): boolean {
+  const ingredient = benchById[id];
+  return Boolean(
+    ingredient &&
+    ["protein", "polymer"].includes(ingredient.category) &&
+    ingredient.tensileMPa !== undefined,
+  );
+}
+
 function randomExperiment(
   pool: string[],
   maxIngredients: number,
   locked: Partial<Conditions> | undefined,
   random: () => number,
 ): Experiment {
-  const maxCount = Math.max(1, Math.min(maxIngredients, pool.length));
-  const minCount = Math.min(2, maxCount);
-  const count = minCount + Math.floor(random() * (maxCount - minCount + 1));
-  const shuffled = [...pool];
+  const maxCount = Math.max(2, Math.min(maxIngredients, pool.length));
+  const ph = pick(PH_VALUES, random);
+  const formers = pool.filter(
+    (id) =>
+      isNetworkFormer(id) &&
+      (!requiresSolutionSolvent(id, "cast-film") ||
+        matchingSolventIds(id, ph).some((solvent) => pool.includes(solvent))),
+  );
+  const networkFormer = formers.length
+    ? pick(formers, random)
+    : pool.find(isNetworkFormer) ?? pool[0];
+  const matchingSolvents = matchingSolventIds(networkFormer, ph).filter((id) =>
+    pool.includes(id),
+  );
+  const solventRequired = requiresSolutionSolvent(networkFormer, "cast-film");
+  const solventId = solventRequired && matchingSolvents.length
+    ? pick(matchingSolvents, random)
+    : undefined;
+  const fixedIds = new Set([networkFormer, ...(solventId ? [solventId] : [])]);
+  const shuffled = pool.filter((id) => !fixedIds.has(id));
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const other = Math.floor(random() * (index + 1));
     [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
   }
-  const parts = normalizeParts(
-    shuffled.slice(0, count).map((id) => ({ id, pct: 1 + random() * 100 })),
+  const desiredCount = Math.max(
+    fixedIds.size,
+    Math.min(maxCount, fixedIds.size + Math.floor(random() * Math.max(1, maxCount - fixedIds.size + 1))),
   );
-  const baths = pool.filter(
-    (id) => ["salt", "solvent"].includes(benchById[id]?.category ?? ""),
-  );
+  const extraIds = shuffled.slice(0, Math.max(0, desiredCount - fixedIds.size));
+  const solventPct = solventId ? 50 + random() * 40 : 0;
+  const remainingPct = 100 - solventPct;
+  const rawParts = [
+    ...(solventId ? [{ id: solventId, pct: solventPct }] : []),
+    ...[networkFormer, ...extraIds].map((id) => ({
+      id,
+      pct: 1 + random() * (id === networkFormer ? 35 : 15),
+    })),
+  ];
+  const fixedSolvent = solventId ? rawParts.shift() : undefined;
+  const remainingWeight = rawParts.reduce((sum, part) => sum + part.pct, 0);
+  const remainingParts = rawParts.map((part) => ({
+    ...part,
+    pct: (part.pct / remainingWeight) * remainingPct,
+  }));
+  const parts = normalizeParts([
+    ...(fixedSolvent ? [fixedSolvent] : []),
+    ...remainingParts,
+  ]);
   const conditions = applyLockedConditions(
     {
       ...DEFAULT_CONDITIONS,
       tempC: pick(TEMPERATURES, random),
-      pH: pick(PH_VALUES, random),
-      atmosphere: pick(ATMOSPHERES, random),
+      pH: ph,
+      atmosphere: "air",
       humidityPct: pick(HUMIDITIES, random),
-      mixRpm: pick(MIX_SPEEDS, random),
+      mixRpm: Math.max(800, pick(MIX_SPEEDS, random)),
       cureMinutes: pick(CURE_MINUTES, random),
-      forming: pick(FORMING_METHODS, random),
-      bathId: baths.length > 0 ? pick(baths, random) : undefined,
+      forming: "cast-film",
+      bathId: undefined,
     },
     locked,
   );
@@ -174,7 +223,114 @@ function mutateExperiment(
   return { parts: normalizeParts(parts), conditions };
 }
 
-function scoreCandidate(goal: Goal, candidate: Candidate["result"]): number {
+function eventParticipantIds(
+  eventId: string,
+  parts: Part[],
+): Set<string> {
+  const present = new Set(parts.map((part) => part.id));
+  const participants = new Set<string>();
+  const add = (...ids: string[]) => ids.forEach((id) => {
+    if (present.has(id)) participants.add(id);
+  });
+  const addNetworkFormers = (ids?: string[]) => {
+    for (const id of ids ?? [...present]) {
+      if (present.has(id) && isNetworkFormer(id)) participants.add(id);
+    }
+  };
+  switch (eventId) {
+    case "transglutaminase":
+      add("transglutaminase");
+      addNetworkFormers(["gelatin", "casein", "whey-protein", "soy-protein", "collagen", "silk-fibroin", "keratin"]);
+      break;
+    case "phenol-oxidase":
+      add("tyrosinase", "laccase", "silk-fibroin", "mfp5", "gelatin", "dopamine");
+      break;
+    case "hrp-crosslinking":
+      add("hrp", "hydrogen-peroxide", "silk-fibroin", "mfp5", "gelatin", "dopamine");
+      break;
+    case "catechol-oxidation":
+      add("dopamine", "mfp5");
+      break;
+    case "catechol-iron":
+      add("dopamine", "mfp5", "fecl3");
+      break;
+    case "genipin-amine":
+      add("genipin", "chitosan", "gelatin", "collagen", "casein");
+      break;
+    case "glutaraldehyde-amine":
+      add("glutaraldehyde", "chitosan", "gelatin", "collagen", "casein", "mfp5", "dopamine", "keratin");
+      break;
+    case "chitosan-solubility":
+      add("chitosan", "alginate", "water", "acetic-acid", "sodium-citrate");
+      break;
+    case "gelatin-thermogel":
+      add("gelatin", "water");
+      break;
+    case "silk-beta-sheet":
+      add("spider-silk", "silk-fibroin", "ethanol", "methanol", "kcl");
+      break;
+    case "cyanoacrylate":
+      add("cyanoacrylate", "water", "acetic-acid", "formic-acid");
+      break;
+    case "pu-moisture-cure":
+      add("pu", "water");
+      break;
+    case "latex-cure":
+      add("latex", "sulfur", "zno", "cacl2", "caco3", "acetic-acid", "formic-acid", "citric-acid");
+      break;
+    case "protease-digestion":
+      add("trypsin", "papain", "proteinase-k");
+      addNetworkFormers();
+      break;
+    case "sodium-water":
+      add("sodium-metal", "water");
+      break;
+    case "bicarbonate-bubbles":
+      add("sodium-bicarbonate", "acetic-acid", "formic-acid", "citric-acid");
+      break;
+    case "filler-reinforcement":
+      add("graphene", "cnt", "silica", "cnf", "graphene-oxide", "gold-np", "silver-np", "iron-powder");
+      addNetworkFormers();
+      add("acetic-acid", "formic-acid", "citric-acid");
+      break;
+  }
+  return participants;
+}
+
+function participatingIngredientIds(
+  experiment: Experiment,
+  result: Candidate["result"],
+): Set<string> {
+  const participants = new Set<string>();
+  for (const event of result.events) {
+    if (event.status !== "blocked" && event.activity > 0) {
+      for (const id of eventParticipantIds(event.id, experiment.parts)) {
+        participants.add(id);
+      }
+    }
+  }
+  return participants;
+}
+
+function requiredSolventIds(experiment: Experiment, result: Candidate["result"]): Set<string> {
+  const solvents = new Set<string>();
+  const networkFormers = experiment.parts.filter((part) => isNetworkFormer(part.id));
+  for (const former of networkFormers) {
+    if (!requiresSolutionSolvent(former.id, experiment.conditions.forming)) continue;
+    const matchingIds = matchingSolventIds(former.id, result.effectivePH);
+    const matchingParts = experiment.parts.filter((part) => matchingIds.includes(part.id));
+    if (matchingParts.reduce((sum, part) => sum + part.pct, 0) >= 30) {
+      for (const part of matchingParts) solvents.add(part.id);
+    }
+  }
+  return solvents;
+}
+
+function scoreCandidate(
+  goal: Goal,
+  candidate: Candidate["result"],
+  experiment: Experiment,
+): number {
   let score = 0;
   const shortfall = (minimum: number | undefined, value: number) =>
     minimum && minimum > 0 ? Math.max(0, (minimum - value) / minimum) : 0;
@@ -192,17 +348,38 @@ function scoreCandidate(goal: Goal, candidate: Candidate["result"]): number {
   if (goal.water && goal.water !== "any" && candidate.water !== goal.water) score += 2;
   if (goal.product && goal.product !== "any" && candidate.product !== goal.product) score += 2;
   score += 0.5 * (1 - candidate.confidence);
-  if (["dangerous", "clumps", "nothing"].includes(candidate.product)) score += 3;
-  const excess = [
-    goal.minTensileMPa
-      ? Math.max(0, candidate.tensileMPa / goal.minTensileMPa - 1)
-      : 0,
-    goal.minElongationPct
-      ? Math.max(0, candidate.elongationPct / goal.minElongationPct - 1)
-      : 0,
-    goal.minTack ? Math.max(0, candidate.tack / goal.minTack - 1) : 0,
-  ].reduce((total, value) => total + value, 0);
-  score -= Math.min(0.3, excess * 0.03);
+  if (["dangerous", "clumps", "nothing", "solution"].includes(candidate.product)) score += 3;
+  if (!goal.allowExtremePH && (candidate.effectivePH < 3 || candidate.effectivePH > 11)) {
+    score += 1;
+  }
+  const participants = participatingIngredientIds(experiment, candidate);
+  const solvents = requiredSolventIds(experiment, candidate);
+  for (const part of experiment.parts) {
+    if (!isNetworkFormer(part.id) && !participants.has(part.id) && !solvents.has(part.id)) {
+      score += 0.2;
+    }
+  }
+  score += Math.max(0, experiment.parts.length - 3) * 0.05;
+  const mainFormer = experiment.parts
+    .filter((part) => isNetworkFormer(part.id))
+    .sort((left, right) => right.pct - left.pct)[0];
+  if (
+    mainFormer &&
+    candidate.events.some(
+      (event) =>
+        event.status === "blocked" &&
+        eventParticipantIds(event.id, experiment.parts).has(mainFormer.id),
+    )
+  ) {
+    score += 0.5;
+  }
+  const excessBonus = (minimum: number | undefined, value: number) =>
+    minimum && minimum > 0 && value >= minimum
+      ? 0.05 * Math.min(1, (value - minimum) / minimum)
+      : 0;
+  score -= excessBonus(goal.minTensileMPa, candidate.tensileMPa);
+  score -= excessBonus(goal.minElongationPct, candidate.elongationPct);
+  score -= excessBonus(goal.minTack, candidate.tack);
   score += Math.min(0.1, candidate.costPerKg / 100000);
   return Math.round(score * 1_000_000) / 1_000_000;
 }
@@ -215,26 +392,51 @@ function explainCandidate(
   experiment: Experiment,
   result: Candidate["result"],
 ): string[] {
-  const active = result.events
-    .filter((event) => event.activity > 0)
-    .sort((left, right) => right.activity - left.activity);
-  const reactionText = active.length
-    ? `${active.slice(0, 2).map((event) => event.name).join(" and ")} did the modeled bonding.`
-    : "No modeled bonding reaction is active in this mixture.";
+  const active = result.events.filter(
+    (event) => event.status !== "blocked" && event.activity > 0,
+  );
+  const lines = active.map((event) => {
+    const reason = event.reasons.find((item) => item.length > 0);
+    return `${event.name} ${event.status}${reason ? `: ${reason}` : "."}`;
+  });
+  const blockedMainRule = result.events.find((event) => {
+    const mainFormer = experiment.parts
+      .filter((part) => isNetworkFormer(part.id))
+      .sort((left, right) => right.pct - left.pct)[0];
+    return (
+      mainFormer &&
+      event.status === "blocked" &&
+      eventParticipantIds(event.id, experiment.parts).has(mainFormer.id)
+    );
+  });
+  if (blockedMainRule) {
+    lines.push(`${blockedMainRule.name} was blocked: ${blockedMainRule.reasons[0] ?? "conditions were unsuitable."}`);
+  }
   const { conditions } = experiment;
-  const processText =
-    `${conditions.tempC} °C, pH ${result.effectivePH}, ${conditions.forming.replace("-", " ")}; ` +
-    `${conditions.atmosphere} atmosphere.`;
-  const metricsText =
-    `Estimated ${result.tensileMPa} MPa tensile strength and ${result.elongationPct}% stretch; ` +
-    `${result.productLabel.toLowerCase()}.`;
-  const reasons = active.flatMap((event) => event.reasons).slice(0, 1);
-  return [
-    reactionText,
-    processText,
-    metricsText,
-    ...(reasons.length ? [`Condition note: ${reasons[0]}.`] : []),
-  ].slice(0, 4);
+  lines.push(
+    `Conditions: ${conditions.tempC} °C, pH ${result.effectivePH.toFixed(1)}, ${conditions.forming.replace("-", " ")}, ${conditions.atmosphere}.`,
+  );
+  const participants = participatingIngredientIds(experiment, result);
+  const solvents = requiredSolventIds(experiment, result);
+  for (const part of experiment.parts) {
+    if (isNetworkFormer(part.id)) continue;
+    const ingredient = benchById[part.id];
+    const name = ingredient?.name ?? part.id;
+    if (solvents.has(part.id)) {
+      const formers = experiment.parts
+        .filter((candidate) => isNetworkFormer(candidate.id))
+        .map((candidate) => benchById[candidate.id]?.name ?? candidate.id);
+      lines.push(`${name} at ${part.pct}% supplies a matching solvent for ${formers.join(", ")}.`);
+    } else if (participants.has(part.id)) {
+      const involved = active
+        .filter((event) => eventParticipantIds(event.id, experiment.parts).has(part.id))
+        .map((event) => event.name);
+      lines.push(`${name} at ${part.pct}% participates in ${involved.join(", ")}.`);
+    } else {
+      lines.push(`${name} at ${part.pct}% has no active modeled role and dilutes the network.`);
+    }
+  }
+  return [...new Set(lines)];
 }
 
 interface SearchState {
@@ -254,6 +456,27 @@ function createSearch(goal: Goal, options: FindOptions): SearchState {
   const random = mulberry32(options.seed ?? 1);
   const locked = options.lockConditions;
   const archive = new Map<string, Candidate>();
+  const wholeLibrary =
+    pool.length === benchLibrary.length &&
+    benchLibrary.every((ingredient) => pool.includes(ingredient.id));
+  const defaultStrengthGoal =
+    goal.minTensileMPa === 200 &&
+    goal.minElongationPct === 20 &&
+    goal.skinSafe === true;
+  const presetSeeds = benchPresets
+    .filter(
+      (preset) =>
+        preset.experiment.parts.length <= maxIngredients &&
+        preset.experiment.parts.every((part) => pool.includes(part.id)),
+    )
+    .map((preset) => ({
+      parts: preset.experiment.parts.map((part) => ({ ...part })),
+      conditions: applyLockedConditions(
+        { ...preset.experiment.conditions },
+        locked,
+      ),
+    }));
+  let nextPresetSeed = 0;
   let evaluations = 0;
   let current: Experiment | undefined;
   let currentScore = Number.POSITIVE_INFINITY;
@@ -269,12 +492,14 @@ function createSearch(goal: Goal, options: FindOptions): SearchState {
         random() < 0.06;
       let trial: Experiment;
       if (restart || !current) {
-        trial = randomExperiment(pool, maxIngredients, locked, random);
+        trial = nextPresetSeed < presetSeeds.length
+          ? presetSeeds[nextPresetSeed++]
+          : randomExperiment(pool, maxIngredients, locked, random);
       } else {
         trial = mutateExperiment(current, pool, maxIngredients, locked, random);
       }
       const result = simulate(trial);
-      const score = scoreCandidate(goal, result);
+      const score = scoreCandidate(goal, result, trial);
       const candidate: Candidate = {
         experiment: trial,
         result,
@@ -283,7 +508,20 @@ function createSearch(goal: Goal, options: FindOptions): SearchState {
       };
       const signature = ingredientSet(trial);
       const previous = archive.get(signature);
-      if (!previous || score < previous.score) archive.set(signature, candidate);
+      const plausibleDefault =
+        !wholeLibrary ||
+        !defaultStrengthGoal ||
+        (
+          ["fiber", "film", "adhesive", "solid"].includes(result.product) &&
+          result.effectivePH >= 3 &&
+          result.effectivePH <= 11 &&
+          trial.parts.length <= 5 &&
+          result.skin <= 1 &&
+          result.curedToxicity <= 1
+        );
+      if (plausibleDefault && (!previous || score < previous.score)) {
+        archive.set(signature, candidate);
+      }
 
       if (restart || score <= currentScore || random() < 0.04) {
         current = trial;

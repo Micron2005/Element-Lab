@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { benchLibrary } from "./library";
+import { benchById, benchLibrary } from "./library";
 import { findBestMixes, findBestMixesAsync } from "./optimize";
 import type { Candidate } from "./types";
 
@@ -32,6 +32,24 @@ describe("best-mix optimizer", () => {
     expect(first).toEqual(second);
     expect(first.every((candidate) => candidate.result.skin <= 1)).toBe(true);
     expect(first.every((candidate) => candidate.result.curedToxicity <= 1)).toBe(true);
+    const solidProducts = new Set(["fiber", "film", "adhesive", "solid"]);
+    expect(
+      first.every(
+        (candidate) =>
+          solidProducts.has(candidate.result.product) &&
+          candidate.result.effectivePH >= 3 &&
+          candidate.result.effectivePH <= 11 &&
+          candidate.experiment.parts.length <= 5,
+      ),
+    ).toBe(true);
+    const top = first[0];
+    const mainFormer = [...top.experiment.parts]
+      .filter((part) => ["protein", "polymer"].includes(benchById[part.id]?.category ?? ""))
+      .sort((left, right) => right.pct - left.pct)[0];
+    expect(mainFormer && benchById[mainFormer.id].category).toBe("protein");
+    expect(["fiber", "film"]).toContain(top.result.product);
+    expect(top.result.effectivePH).toBeGreaterThanOrEqual(4);
+    expect(top.result.effectivePH).toBeLessThanOrEqual(9);
   });
 
   it("keeps every candidate inside a restricted ingredient pool", () => {

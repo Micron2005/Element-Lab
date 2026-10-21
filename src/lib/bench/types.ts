@@ -156,6 +156,7 @@ export interface Goal {
   edible?: boolean;
   water?: "any" | "resists" | "dissolves";
   maxCostPerKg?: number;
+  allowExtremePH?: boolean;
   product?: "any" | "fiber" | "film" | "gel" | "adhesive";
 }
 

@@ -787,6 +787,24 @@
   font-size: 0.79rem;
 }
 
+.bench-target-status {
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.bench-target-status.is-met {
+  color: #b6f0d0;
+  background: #173a2a;
+}
+
+.bench-target-status.is-missed {
+  color: #ffe0a6;
+  background: #44351c;
+}
+
 .bench-candidate-parts {
   margin: 10px 0 3px;
   color: #e1eded;

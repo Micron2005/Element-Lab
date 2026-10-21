@@ -97,7 +97,38 @@ function hazardLabel(value: number): string {
 }
 
 function showTime(seconds: number): string {
-  return seconds > 0 ? fmtTime(seconds) : "Not modeled";
+  return seconds > 0 ? fmtTime(seconds) : "Doesn't set on its own";
+}
+
+function formatMPa(value: number): string {
+  return value >= 100 ? Math.round(value).toString() : value.toFixed(1);
+}
+
+function formatPercent(value: number): string {
+  return Math.round(value).toString();
+}
+
+function formatTack(value: number): string {
+  return value.toFixed(1);
+}
+
+function formatToughness(value: number): string {
+  return Number(value.toPrecision(2)).toString();
+}
+
+function formatCost(value: number): string {
+  return value < 10 ? value.toFixed(2) : Math.round(value).toString();
+}
+
+function isNotSolid(product: RunResult["product"]): boolean {
+  return ["solution", "nothing", "clumps", "dangerous"].includes(product);
+}
+
+function formattedMechanicalValue(
+  result: RunResult,
+  value: string,
+): string {
+  return isNotSolid(result.product) ? "— · not a solid" : value;
 }
 
 function makeNotebookId(): string {
@@ -184,7 +215,43 @@ function GoalNumberField({
 }
 
 function conditionSummary(conditions: Conditions): string {
-  return `${conditions.tempC} °C · pH ${conditions.pH} · ${conditions.pressureKPa} kPa · ${conditions.forming}`;
+  return `${conditions.tempC} °C · pH ${conditions.pH.toFixed(1)} · ${conditions.pressureKPa} kPa · ${conditions.forming}`;
+}
+
+function candidateTargetStatus(goal: Goal, result: RunResult): {
+  label: string;
+  met: boolean;
+} {
+  const misses: string[] = [];
+  if (goal.minTensileMPa && result.tensileMPa < goal.minTensileMPa) {
+    misses.push(`strength (needs ${formatMPa(goal.minTensileMPa)}, got ${formatMPa(result.tensileMPa)} MPa)`);
+  }
+  if (goal.minElongationPct && result.elongationPct < goal.minElongationPct) {
+    misses.push(`stretch (needs ${formatPercent(goal.minElongationPct)}%, got ${formatPercent(result.elongationPct)}%)`);
+  }
+  if (goal.minTack && result.tack < goal.minTack) {
+    misses.push(`tack (needs ${formatTack(goal.minTack)}, got ${formatTack(result.tack)})`);
+  }
+  if (goal.maxSetSeconds && result.setSeconds > goal.maxSetSeconds) {
+    misses.push(`set time (max ${showTime(goal.maxSetSeconds)}, got ${showTime(result.setSeconds)})`);
+  }
+  if (goal.maxCostPerKg && result.costPerKg > goal.maxCostPerKg) {
+    misses.push(`cost (max $${formatCost(goal.maxCostPerKg)}/kg, got $${formatCost(result.costPerKg)}/kg)`);
+  }
+  if (goal.skinSafe && (result.skin > 1 || result.curedToxicity > 1)) {
+    misses.push("skin safety");
+  }
+  if (goal.edible && !result.edible) misses.push("edible");
+  if (goal.water && goal.water !== "any" && result.water !== goal.water) {
+    misses.push(`water behavior (needs ${goal.water})`);
+  }
+  if (goal.product && goal.product !== "any" && result.product !== goal.product) {
+    misses.push(`product (needs ${goal.product})`);
+  }
+  return {
+    label: misses.length ? `Misses: ${misses.join("; ")}` : "Meets all targets",
+    met: misses.length === 0,
+  };
 }
 
 function partsSummary(experiment: Experiment): string {
@@ -769,7 +836,7 @@ export default function BenchTool() {
         <p className="bench-condition-note">
           Water boils at {waterBoilingPointC(experiment.conditions.pressureKPa).toFixed(1)} °C at
           this pressure. Set pH {experiment.conditions.pH.toFixed(1)} → effective pH{" "}
-          {livePH.toFixed(2)}.
+          {livePH.toFixed(1)}.
         </p>
       </section>
 
@@ -814,12 +881,12 @@ export default function BenchTool() {
               </span>
             </div>
             <div className="bench-metric-grid">
-              <Metric label="Tensile strength" value={`${result.tensileMPa} MPa`} />
-              <Metric label="Stretch" value={`${result.elongationPct}%`} />
-              <Metric label="Stickiness" value={`${result.tack}/10`} />
-              <Metric label="Toughness" value={`${result.toughnessMJm3} MJ/m³`} />
+              <Metric label="Tensile strength" value={formattedMechanicalValue(result, `${formatMPa(result.tensileMPa)} MPa`)} />
+              <Metric label="Stretch" value={formattedMechanicalValue(result, `${formatPercent(result.elongationPct)}%`)} />
+              <Metric label="Stickiness" value={formattedMechanicalValue(result, `${formatTack(result.tack)}/10`)} />
+              <Metric label="Toughness" value={formattedMechanicalValue(result, `${formatToughness(result.toughnessMJm3)} MJ/m³`)} />
               <Metric label="Set time" value={showTime(result.setSeconds)} />
-              <Metric label="Cost estimate" value={`$${result.costPerKg}/kg`} />
+              <Metric label="Cost estimate" value={`$${formatCost(result.costPerKg)}/kg`} />
             </div>
             <div className="bench-safety-grid">
               <SafetyMetric label="Toxicity while mixing" value={hazardLabel(result.wetToxicity)} />
@@ -1052,14 +1119,16 @@ export default function BenchTool() {
                 <div className="bench-candidate-head">
                   <span className="bench-rank">#{index + 1}</span>
                   <span className="badge bench-category-badge">{candidate.result.productLabel}</span>
-                  <span className="bench-score">Score {candidate.score.toFixed(3)}</span>
+                  <span className={`bench-target-status ${candidateTargetStatus(goal, candidate.result).met ? "is-met" : "is-missed"}`}>
+                    {candidateTargetStatus(goal, candidate.result).label}
+                  </span>
                 </div>
                 <p className="bench-candidate-parts">{partsSummary(candidate.experiment)}</p>
                 <p className="bench-candidate-conditions">{conditionSummary(candidate.experiment.conditions)}</p>
                 <div className="bench-candidate-metrics">
-                  <span>{candidate.result.tensileMPa} MPa</span>
-                  <span>{candidate.result.elongationPct}% stretch</span>
-                  <span>{candidate.result.tack}/10 tack</span>
+                  <span>{formattedMechanicalValue(candidate.result, `${formatMPa(candidate.result.tensileMPa)} MPa`)}</span>
+                  <span>{formattedMechanicalValue(candidate.result, `${formatPercent(candidate.result.elongationPct)}% stretch`)}</span>
+                  <span>{formattedMechanicalValue(candidate.result, `${formatTack(candidate.result.tack)}/10 tack`)}</span>
                   <span>{showTime(candidate.result.setSeconds)}</span>
                 </div>
                 <ul>
@@ -1129,11 +1198,49 @@ export default function BenchTool() {
                   right={conditionSummary(comparison[1].experiment.conditions)}
                 />
                 <CompareRow label="Product" left={comparison[0].result.productLabel} right={comparison[1].result.productLabel} />
-                <NumericCompareRow label="Tensile (MPa)" left={comparison[0].result.tensileMPa} right={comparison[1].result.tensileMPa} />
-                <NumericCompareRow label="Stretch (%)" left={comparison[0].result.elongationPct} right={comparison[1].result.elongationPct} />
-                <NumericCompareRow label="Tack (/10)" left={comparison[0].result.tack} right={comparison[1].result.tack} />
-                <NumericCompareRow label="Set time (s)" left={comparison[0].result.setSeconds} right={comparison[1].result.setSeconds} />
-                <NumericCompareRow label="Cost ($/kg)" left={comparison[0].result.costPerKg} right={comparison[1].result.costPerKg} />
+                <NumericCompareRow
+                  label="Tensile (MPa)"
+                  left={comparison[0].result.tensileMPa}
+                  right={comparison[1].result.tensileMPa}
+                  format={formatMPa}
+                  leftSolid={!isNotSolid(comparison[0].result.product)}
+                  rightSolid={!isNotSolid(comparison[1].result.product)}
+                />
+                <NumericCompareRow
+                  label="Stretch (%)"
+                  left={comparison[0].result.elongationPct}
+                  right={comparison[1].result.elongationPct}
+                  format={formatPercent}
+                  leftSolid={!isNotSolid(comparison[0].result.product)}
+                  rightSolid={!isNotSolid(comparison[1].result.product)}
+                />
+                <NumericCompareRow
+                  label="Tack (/10)"
+                  left={comparison[0].result.tack}
+                  right={comparison[1].result.tack}
+                  format={formatTack}
+                  leftSolid={!isNotSolid(comparison[0].result.product)}
+                  rightSolid={!isNotSolid(comparison[1].result.product)}
+                />
+                <NumericCompareRow
+                  label="Toughness (MJ/m³)"
+                  left={comparison[0].result.toughnessMJm3}
+                  right={comparison[1].result.toughnessMJm3}
+                  format={formatToughness}
+                  leftSolid={!isNotSolid(comparison[0].result.product)}
+                  rightSolid={!isNotSolid(comparison[1].result.product)}
+                />
+                <CompareRow
+                  label="Set time"
+                  left={showTime(comparison[0].result.setSeconds)}
+                  right={showTime(comparison[1].result.setSeconds)}
+                />
+                <NumericCompareRow
+                  label="Cost ($/kg)"
+                  left={comparison[0].result.costPerKg}
+                  right={comparison[1].result.costPerKg}
+                  format={formatCost}
+                />
                 <CompareRow
                   label="Safety"
                   left={`Mix ${hazardLabel(comparison[0].result.wetToxicity)}, cured ${hazardLabel(comparison[0].result.curedToxicity)}, skin ${hazardLabel(comparison[0].result.skin)}`}
@@ -1164,7 +1271,9 @@ export default function BenchTool() {
                 >
                   <strong>{entry.name}</strong>
                   <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                  <span>{entry.result.productLabel} · {entry.result.tensileMPa} MPa · {entry.result.elongationPct}% stretch</span>
+                  <span>
+                    {entry.result.productLabel} · {formattedMechanicalValue(entry.result, `${formatMPa(entry.result.tensileMPa)} MPa`)} · {formattedMechanicalValue(entry.result, `${formatPercent(entry.result.elongationPct)}% stretch`)}
+                  </span>
                   <small>{partsSummary(entry.experiment)}</small>
                 </button>
               </article>
@@ -1222,18 +1331,28 @@ function NumericCompareRow({
   label,
   left,
   right,
+  format,
+  leftSolid = true,
+  rightSolid = true,
 }: {
   label: string;
   left: number;
   right: number;
+  format: (value: number) => string;
+  leftSolid?: boolean;
+  rightSolid?: boolean;
 }) {
   const delta = Math.round((right - left) * 100) / 100;
+  const change =
+    !leftSolid || !rightSolid
+      ? "—"
+      : `${delta > 0 ? "+" : ""}${format(delta)}`;
   return (
     <tr>
       <th scope="row">{label}</th>
-      <td>{left}</td>
-      <td>{right}</td>
-      <td>{delta > 0 ? "+" : ""}{delta}</td>
+      <td>{leftSolid ? format(left) : "— (not a solid)"}</td>
+      <td>{rightSolid ? format(right) : "— (not a solid)"}</td>
+      <td>{change}</td>
     </tr>
   );
 }

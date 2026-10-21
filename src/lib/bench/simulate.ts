@@ -23,6 +23,45 @@ const roundTo = (value: number, decimals = 2) => {
 const partAmount = (experiment: Experiment, id: string) =>
   experiment.parts.reduce((total, part) => total + (part.id === id ? Math.max(0, part.pct) : 0), 0);
 
+const solutionSolvents: Record<string, string[]> = {
+  "spider-silk": ["water", "hfip"],
+  "silk-fibroin": ["water", "hfip"],
+  pva: ["water"],
+  alginate: ["water"],
+  chitosan: ["water"],
+  gelatin: ["water"],
+  mfp5: ["water"],
+  collagen: ["water", "hfip"],
+  casein: ["water"],
+  "whey-protein": ["water"],
+  "soy-protein": ["water"],
+  zein: ["ethanol", "hfip"],
+  keratin: ["hfip"],
+  "hyaluronic-acid": ["water"],
+  nylon66: ["hfip"],
+};
+const solventExemptions = new Set(["latex", "pu", "cyanoacrylate", "pib"]);
+
+export function matchingSolventIds(id: string, ph = 7): string[] {
+  if (id === "chitosan" && ph > 6.5) return [];
+  return solutionSolvents[id] ?? [];
+}
+
+export function requiresSolutionSolvent(id: string, forming: Experiment["conditions"]["forming"]): boolean {
+  if (solventExemptions.has(id) || (id === "nylon66" && forming === "heat-cure")) {
+    return false;
+  }
+  return id in solutionSolvents;
+}
+
+export function matchingSolventPct(experiment: Experiment, id: string, ph = 7): number {
+  const solvents = new Set(matchingSolventIds(id, ph));
+  return experiment.parts.reduce(
+    (total, part) => total + (solvents.has(part.id) ? Math.max(0, part.pct) : 0),
+    0,
+  );
+}
+
 function productLabel(product: Product): string {
   const labels: Record<Product, string> = {
     nothing: "No useful solid",
@@ -86,7 +125,14 @@ function eventSetSeconds(
   context: ReactionContext,
 ): number {
   const { reaction, activity } = evaluated;
-  if (activity <= 0 || reaction.setSeconds <= 0) return 0;
+  if (activity <= 0) return 0;
+  if (reaction.id === "silk-beta-sheet") {
+    return context.experiment.conditions.forming.startsWith("extrude") ||
+      Boolean(context.experiment.conditions.bathId)
+      ? 30
+      : 300;
+  }
+  if (reaction.setSeconds <= 0) return 0;
   const scaled = reaction.setSeconds / Math.max(activity, 0.01);
   switch (reaction.id) {
     case "transglutaminase":
@@ -328,6 +374,7 @@ function resultProduct(
   warnings: Warning[],
   setSeconds: number,
   evaporationFast: boolean,
+  missingSolvent: boolean,
 ): Product {
   const active = new Set(evaluated.filter((event) => event.activity > 0).map((event) => event.reaction.id));
   if (active.has("sodium-water")) return "dangerous";
@@ -340,6 +387,7 @@ function resultProduct(
   ) {
     return "clumps";
   }
+  if (missingSolvent) return "clumps";
   if (experiment.conditions.forming === "cast-film") return "film";
   if (experiment.conditions.forming === "heat-cure") return "solid";
   if (experiment.conditions.forming === "extrude-bath") {
@@ -386,6 +434,15 @@ export function simulate(experiment: Experiment): RunResult {
     conditions: { ...experiment.conditions },
   };
   const ph = effectivePH(partsExperiment);
+  const missingSolventParts = inputParts.filter((part) => {
+    const ingredient = benchById[part.id];
+    return (
+      ["protein", "polymer"].includes(ingredient.category) &&
+      requiresSolutionSolvent(part.id, partsExperiment.conditions.forming) &&
+      matchingSolventPct(partsExperiment, part.id, ph) < 30
+    );
+  });
+  const missingSolvent = missingSolventParts.length > 0;
   const present = new Set(inputParts.map((part) => part.id));
   if (experiment.conditions.forming === "extrude-bath" && experiment.conditions.bathId) {
     present.add(experiment.conditions.bathId);
@@ -456,6 +513,12 @@ export function simulate(experiment: Experiment): RunResult {
   const warnings: Warning[] = [];
   if (!inputParts.some((part) => ["protein", "polymer"].includes(benchById[part.id]?.category ?? ""))) {
     warnings.push({ level: "bad", text: "No structural polymer or protein is present." });
+  }
+  if (missingSolvent) {
+    warnings.push({
+      level: "warn",
+      text: "Dry powder: nothing here dissolves it, so it can't be spun or cast.",
+    });
   }
   const solidsPct = inputParts.reduce((total, part) => {
     return total + (benchById[part.id].category === "solvent" ? 0 : part.pct);
@@ -531,20 +594,28 @@ export function simulate(experiment: Experiment): RunResult {
   let tensileBase = 0;
   let elongationBase = 0;
   let structuralWeight = 0;
+  const contributingParts = inputParts.filter((part) => {
+    const ingredient = benchById[part.id];
+    return (
+      ["protein", "polymer"].includes(ingredient.category) &&
+      ingredient.tensileMPa !== undefined &&
+      (!requiresSolutionSolvent(part.id, conditions.forming) ||
+        matchingSolventPct(partsExperiment, part.id, ph) >= 30)
+    );
+  });
+  const contributingIds = new Set(contributingParts.map((part) => part.id));
   const proteaseStrengthFactor = proteaseEvent?.activity
     ? 1 - 0.85 * proteaseEvent.activity
     : 1;
   for (const part of inputParts) {
     const ingredient = benchById[part.id];
-    if (
-      !["protein", "polymer"].includes(ingredient.category) ||
-      ingredient.tensileMPa === undefined
-    ) continue;
+    if (!contributingIds.has(part.id)) continue;
+    const baseTensile = ingredient.tensileMPa ?? 0;
     let componentFactor = 1;
     if (ingredient.id === "chitosan" && ph > 6.5) componentFactor *= 0.2;
     if (ingredient.category === "protein" && conditions.tempC > 80) componentFactor *= 0.3;
     if (ingredient.category === "protein") componentFactor *= proteaseStrengthFactor;
-    tensileBase += part.pct * ingredient.tensileMPa * componentFactor;
+    tensileBase += part.pct * baseTensile * componentFactor;
     elongationBase += part.pct * (ingredient.elongationPct ?? 0) * componentFactor;
     structuralWeight += part.pct;
   }
@@ -553,11 +624,39 @@ export function simulate(experiment: Experiment): RunResult {
     elongationBase /= structuralWeight;
   }
   const solidsFraction = clamp(solidsPct / 100, 0, 1);
+  const consumedSolids = new Map<string, number>();
+  const consumedByRule: Record<string, string[]> = {
+    "alginate-calcium": ["cacl2", "caco3"],
+    "alginate-fe-zn": ["fecl3", "zncl2"],
+    "borax-pva": ["borax"],
+    "catechol-iron": ["fecl3"],
+    "chitosan-solubility": ["sodium-citrate"],
+    "silk-beta-sheet": ["kcl"],
+    "latex-cure": ["sulfur", "zno", "cacl2", "caco3"],
+    "bicarbonate-bubbles": ["sodium-bicarbonate"],
+  };
+  for (const event of evaluated) {
+    if (event.activity <= 0) continue;
+    for (const id of consumedByRule[event.reaction.id] ?? []) {
+      consumedSolids.set(id, Math.max(consumedSolids.get(id) ?? 0, event.activity));
+    }
+  }
+  const networkFormerMass = contributingParts.reduce((total, part) => total + part.pct, 0);
+  const nonNetworkSolids = inputParts.reduce((total, part) => {
+    const ingredient = benchById[part.id];
+    if (ingredient.category === "solvent" || contributingIds.has(part.id)) return total;
+    return total + part.pct * (1 - (consumedSolids.get(part.id) ?? 0));
+  }, 0);
+  const networkMassFraction = clamp(
+    networkFormerMass / Math.max(networkFormerMass + nonNetworkSolids, 0.01),
+    0.05,
+    1,
+  );
   const networkSum = evaluated.reduce((total, event) => {
     const network = event.reaction.networkFor?.(context) ?? event.reaction.network;
     return total + network * event.activity;
   }, 0);
-  let tensile = tensileBase * solidsFraction * (1 + networkSum);
+  let tensile = tensileBase * solidsFraction * networkMassFraction * (1 + networkSum);
   const hasElastomer = inputParts.some((part) => benchById[part.id].tags.includes("elastomer"));
   const boraxActive = evaluated.some((event) => event.reaction.id === "borax-pva" && event.activity > 0);
   let elongation = elongationBase * solidsFraction;
@@ -632,17 +731,22 @@ export function simulate(experiment: Experiment): RunResult {
   }
   if (conditions.mixMinutes < 1 && inputParts.length > 3) tensile *= 0.85;
   if (degassed) tensile *= 1.1;
-  tensile = Math.max(0, tensile);
+  tensile = Math.max(0, Math.min(1500, tensile));
   elongation = Math.max(0, elongation);
 
   const activeEventIds = new Set(evaluated.filter((event) => event.activity > 0).map((event) => event.reaction.id));
   let setSeconds = evaluated.reduce((maximum, event) => Math.max(maximum, event.setSeconds), 0);
   if (setSeconds === 0 && conditions.forming === "heat-cure") {
     setSeconds = Math.max(0, conditions.cureMinutes * 60);
-  } else if (setSeconds === 0 && (conditions.forming === "cast-film" || evaporationFast)) {
-    setSeconds = Math.max(0, conditions.cureMinutes * 60);
+  } else if (setSeconds === 0 && (conditions.forming === "extrude-air" || conditions.forming === "cast-film")) {
+    const hasWaterSolvent = inputParts.some((part) => part.id === "water");
+    const hasVolatileSolvent = solventParts.length > 0;
+    if (hasVolatileSolvent) {
+      setSeconds = conditions.forming === "extrude-air"
+        ? (hasWaterSolvent ? 60 : 20)
+        : (hasWaterSolvent ? 2 * 60 * 60 : 20 * 60);
+    }
   }
-  if (evaporationFast && setSeconds > 0) setSeconds = Math.min(setSeconds, 60);
   const product = resultProduct(
     partsExperiment,
     context,
@@ -650,7 +754,41 @@ export function simulate(experiment: Experiment): RunResult {
     warnings,
     setSeconds,
     evaporationFast,
+    missingSolvent,
   );
+  const latexVulcanized =
+    product === "solid" &&
+    evaluated.some((event) => event.reaction.id === "latex-cure" && event.activity >= 0.5) &&
+    present.has("latex") &&
+    present.has("sulfur");
+  if (!["solution", "nothing", "clumps", "dangerous"].includes(product)) {
+    if (latexVulcanized) {
+      tensile = Math.min(tensile, 30);
+    } else if (networkFormerMass > 0) {
+      const strongestFormer = Math.max(
+        ...contributingParts.map((part) => benchById[part.id].tensileMPa ?? 0),
+      );
+      tensile = Math.min(tensile, strongestFormer * 1.25, 1500);
+    }
+    if (product === "gel" || product === "slime") {
+      const covalentIds = new Set([
+        "transglutaminase",
+        "phenol-oxidase",
+        "hrp-crosslinking",
+        "genipin-amine",
+        "glutaraldehyde-amine",
+        "latex-cure",
+      ]);
+      const covalentNetwork = evaluated.some(
+        (event) => covalentIds.has(event.reaction.id) && event.activity >= 0.5,
+      );
+      tensile = Math.min(tensile, covalentNetwork ? 5 : 1);
+    }
+  } else {
+    tensile = Math.min(tensile, 0.5);
+    if (proteaseEvent?.activity) tensile *= proteaseStrengthFactor;
+    elongation = 0;
+  }
   if (product === "dangerous") {
     warnings.push({ level: "bad", text: "DANGEROUS — do not attempt this mixture." });
   }
@@ -707,11 +845,19 @@ export function simulate(experiment: Experiment): RunResult {
     curedToxicity = 3;
     skin = 3;
   }
-  const edible =
+  let edible =
     inputParts.length > 0 &&
     inputParts.every((part) => benchById[part.id].edible) &&
     !activeEventIds.has("glutaraldehyde-amine") &&
     !activeEventIds.has("sodium-water");
+  if (ph <= 2 || ph >= 12.5) {
+    wetToxicity = Math.max(wetToxicity, 2) as RunResult["wetToxicity"];
+    skin = 3;
+    edible = false;
+    warnings.push({ level: "bad", text: `Corrosive at pH ${ph.toFixed(1)}.` });
+  } else if (ph <= 3 || ph >= 11) {
+    skin = Math.max(skin, 2) as RunResult["skin"];
+  }
   const baseWater = waterBehavior(partsExperiment, evaluated);
   const biodegradable =
     inputParts.length > 0 &&
