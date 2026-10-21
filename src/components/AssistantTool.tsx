@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { analyze } from "@/lib/formula";
+import { analyze, fmtTime, hazardWord } from "@/lib/formula";
 import { byId } from "@/lib/ingredients";
 import { PageIntro, Panel } from "./shared";
 
@@ -10,6 +10,16 @@ type Message = { role: "user" | "assistant"; content: string };
 const STORAGE_KEY = "elementlab.chat";
 const welcome: Message = { role: "assistant", content: "Hi, I’m your lab partner. Ask me about a material, a formula, or what these estimates can—and can’t—tell you." };
 const prompts = ["Why would this mix fail?", "What’s missing to make it hold my weight?", "Is it safe on skin?", "Do I need a vacuum to make it?", "Could we make a new element?"];
+const cureNames: Record<string, string> = {
+  evaporation: "solvent evaporation",
+  "ionic-bath": "ionic bath",
+  moisture: "moisture",
+  anionic: "anionic polymerization",
+  shear: "shear alignment",
+  cooling: "cooling",
+  covalent: "covalent reaction",
+  none: "none",
+};
 
 function buildLabState() {
   try {
@@ -19,9 +29,25 @@ function buildLabState() {
     const result = analyze(parts);
     const ingredients = parts.map((part) => `- ${byId[part.id]?.name ?? part.id}: ${Number(part.pct).toFixed(1)}%`).join("\n");
     const checks = result.checks.length ? result.checks.map((check) => `- [${check.level}] ${check.text}`).join("\n") : "No checks raised.";
+    const cureMechanisms = result.cure.map((mechanism) => cureNames[mechanism] ?? mechanism).join(", ") || "None listed";
+    const environment = result.environment.length ? result.environment.map((line) => `- ${line}`).join("\n") : "No special requirements listed.";
     return [
       `Ingredients:\n${ingredients || "No ingredients."}`,
-      `Estimated results: strength ${result.tensileMPa.toFixed(1)} MPa; stretch ${result.elongationPct.toFixed(1)}%; toughness ${result.toughnessMJm3.toFixed(2)} MJ/m³; stickiness ${result.tack.toFixed(1)}/10; set time ${result.cureSeconds}s.`,
+      [
+        "Formula analysis:",
+        `Solids: ${result.solidsPct.toFixed(1)}%.`,
+        `Estimated results: strength ${result.tensileMPa.toFixed(1)} MPa; stretch ${result.elongationPct.toFixed(1)}%; toughness ${result.toughnessMJm3.toFixed(2)} MJ/m³; stickiness ${result.tack.toFixed(1)}/10.`,
+        `Cure mechanisms: ${cureMechanisms}.`,
+        `Set time: ${fmtTime(result.cureSeconds)}.`,
+        `Toxicity while mixing: ${hazardWord(result.wetToxicity)}.`,
+        `Toxicity once cured: ${hazardWord(result.curedToxicity)}.`,
+        `Skin hazard: ${hazardWord(result.skin)}.`,
+        `Edible: ${result.edible ? "Yes" : "No"}.`,
+        `Water behavior: ${result.water}; ${result.dissolveTime}.`,
+        `Biodegradable: ${result.biodegradable ? "Yes" : "No"}.`,
+        `Cost per kg: ${result.costPerKg.toFixed(2)}.`,
+      ].join("\n"),
+      `Environment and preparation:\n${environment}`,
       `Checks:\n${checks}`,
     ].join("\n\n");
   } catch {

@@ -12,12 +12,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
   if (!Array.isArray(body.messages)) return Response.json({ error: "Messages are required." }, { status: 400 });
-  const messages: ChatMessage[] = body.messages.slice(-20).flatMap((message): ChatMessage[] => {
+  const receivedMessages: ChatMessage[] = body.messages.slice(-20).flatMap((message): ChatMessage[] => {
     if (!message || typeof message !== "object") return [];
     const item = message as Record<string, unknown>;
     if ((item.role !== "user" && item.role !== "assistant") || typeof item.content !== "string") return [];
     return [{ role: item.role, content: item.content.slice(0, 8000) }];
   });
+  const firstUserIndex = receivedMessages.findIndex((message) => message.role === "user");
+  const messages = firstUserIndex < 0 ? [] : receivedMessages.slice(firstUserIndex).reduce<ChatMessage[]>((merged, message) => {
+    const previous = merged[merged.length - 1];
+    if (previous?.role === message.role) {
+      previous.content = `${previous.content}\n\n${message.content}`.slice(-8000);
+    } else {
+      merged.push({ ...message });
+    }
+    return merged;
+  }, []);
   if (!messages.length) return Response.json({ error: "Add a message before sending." }, { status: 400 });
   if (typeof body.labState === "string" && body.labState.length) {
     const latestUser = messages.findLastIndex((message) => message.role === "user");
