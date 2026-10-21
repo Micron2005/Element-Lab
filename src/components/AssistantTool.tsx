@@ -104,7 +104,7 @@ export default function AssistantTool() {
       });
       const result = await response.json();
       if (response.status === 503 && result.error === "no-key") {
-        setMessages([...conversation, { role: "assistant", content: "The assistant isn’t connected yet. Add an `ANTHROPIC_API_KEY` on the server, then try again." }]);
+        setMessages([...conversation, { role: "assistant", content: "The assistant is off. Add an `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in Vercel → Project → Settings → Environment Variables, then redeploy." }]);
       } else if (!response.ok) {
         setMessages([...conversation, { role: "assistant", content: result.error ?? "I couldn’t reach the assistant just now. Please try again." }]);
       } else {
