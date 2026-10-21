@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { analyze, fmtTime, hazardWord } from "@/lib/formula";
 import { byId } from "@/lib/ingredients";
 import { PageIntro, Panel } from "./shared";
@@ -133,7 +134,25 @@ export default function AssistantTool() {
           <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> Lab partner</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>Clear chat</button></div>
           <div className="divider" />
           <div className="chat-messages" aria-live="polite">
-            {messages.map((message, index) => <article className={`message message-${message.role}`} key={`${index}-${message.role}`}><span className="metric-label">{message.role === "user" ? "YOU" : "LAB ASSISTANT"}</span><div style={{ marginTop: 5 }}><ReactMarkdown>{message.content}</ReactMarkdown></div></article>)}
+            {messages.map((message, index) => (
+              <article className={`message message-${message.role}`} key={`${index}-${message.role}`}>
+                <span className="metric-label">{message.role === "user" ? "YOU" : "LAB ASSISTANT"}</span>
+                <div style={{ marginTop: 5 }}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ children }) => (
+                        <div className="md-table">
+                          <table>{children}</table>
+                        </div>
+                      ),
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              </article>
+            ))}
             {loading && <div className="message message-assistant"><span className="metric-label">LAB ASSISTANT</span><p style={{ margin: "6px 0 0" }}>Thinking through the chemistry…</p></div>}
             <div ref={endRef} />
           </div>
