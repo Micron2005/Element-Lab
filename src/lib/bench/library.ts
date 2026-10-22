@@ -15,7 +15,7 @@ type IngredientOptions = Partial<
     | "edible"
     | "water"
     | "biodegradable"
-    | "pHShift"
+    | "acidBase"
     | "boilC"
     | "enzyme"
     | "dissolvesOnlyBelowPH"
@@ -168,6 +168,7 @@ export const benchLibrary: BenchIngredient[] = [
       skin: 3,
       notes: "reacts violently with water — hydrogen fire risk",
       bonding: "Reacts violently with water and forms sodium hydroxide.",
+      acidBase: { molPerPct: 0.435, pKas: [], cations: 1 },
     },
   ),
 
@@ -192,6 +193,7 @@ export const benchLibrary: BenchIngredient[] = [
     biodegradable: true,
     notes: "Can crosslink alginate or coordinate with catechol groups.",
     bonding: "Iron(III) forms ionic alginate junctions and catechol coordination bonds.",
+    acidBase: { molPerPct: 0.0617, pKas: [2.2] },
   }),
   added("zncl2", "Zinc chloride", "salt", "ZnCl₂", ["ionic-gelling", "cation-2plus"], {
     density: 2.9,
@@ -475,7 +477,10 @@ export const benchLibrary: BenchIngredient[] = [
 
   legacy("pva", "polymer", ["diol"]),
   legacy("alginate", "polymer", ["carboxyl"]),
-  legacy("chitosan", "polymer", ["amine"], { dissolvesOnlyBelowPH: 6.5 }),
+  legacy("chitosan", "polymer", ["amine"], {
+    dissolvesOnlyBelowPH: 6.5,
+    acidBase: { molPerPct: 0.0528, pKas: [6.5], chargeProtonated: 1 },
+  }),
   legacy("pu", "polymer", ["moisture-cure"]),
   legacy("latex", "polymer", ["elastomer"]),
   legacy("nylon66", "polymer", ["inert"]),
@@ -498,7 +503,9 @@ export const benchLibrary: BenchIngredient[] = [
     bonding: "Carboxyl groups may participate in ionic interactions.",
   }),
 
-  legacy("borax", "additive", ["inert"]),
+  legacy("borax", "additive", ["inert"], {
+    acidBase: { molPerPct: 0.0262, pKas: [9.24], sites: 4, cations: 2 },
+  }),
   legacy("genipin", "additive", ["inert"]),
   legacy("glutaraldehyde", "additive", ["inert"]),
   legacy("dopamine", "additive", ["amine", "phenol", "catechol"]),
@@ -529,8 +536,12 @@ export const benchLibrary: BenchIngredient[] = [
     notes: "A silk precipitation bath; toxic and not suitable for ingestion.",
     bonding: "Solvent exchange promotes silk chain association in the simplified model.",
   }),
-  legacy("acetic-acid", "acid-base", ["inert"], { pHShift: -0.1 }),
-  legacy("formic-acid", "acid-base", ["inert"], { pHShift: -0.2 }),
+  legacy("acetic-acid", "acid-base", ["inert"], {
+    acidBase: { molPerPct: 0.00333, pKas: [4.76] },
+  }),
+  legacy("formic-acid", "acid-base", ["inert"], {
+    acidBase: { molPerPct: 0.217, pKas: [3.75] },
+  }),
   legacy("hfip", "solvent", ["inert"], { boilC: 58.2 }),
   added("sodium-hydroxide", "Sodium hydroxide", "acid-base", "NaOH", ["inert"], {
     density: 2.13,
@@ -539,9 +550,9 @@ export const benchLibrary: BenchIngredient[] = [
     skin: 3,
     water: "dissolves",
     biodegradable: true,
-    pHShift: 0.2,
+    acidBase: { molPerPct: 0.25, pKas: [], cations: 1 },
     notes: "Strong base; handling hazards are represented by the high skin rating.",
-    bonding: "Raises effective pH in the simplified buffer calculation.",
+    bonding: "Raises pH as sodium and hydroxide ions enter the charge balance.",
   }),
   added("citric-acid", "Citric acid", "acid-base", "C₆H₈O₇", ["carboxyl"], {
     density: 1.66,
@@ -551,7 +562,7 @@ export const benchLibrary: BenchIngredient[] = [
     edible: true,
     water: "dissolves",
     biodegradable: true,
-    pHShift: -0.1,
+    acidBase: { molPerPct: 0.0521, pKas: [3.13, 4.76, 6.4] },
     notes: "Acid component for the effective-pH estimate.",
     bonding: "Lowers effective pH and can bind metal ions; detailed equilibria are not modeled.",
   }),
@@ -563,7 +574,7 @@ export const benchLibrary: BenchIngredient[] = [
     edible: true,
     water: "dissolves",
     biodegradable: true,
-    pHShift: 0.05,
+    acidBase: { molPerPct: 0.119, pKas: [6.35, 10.33], cations: 1 },
     notes: "Can release carbon dioxide when mixed with an acid.",
     bonding: "Acid-base neutralization and bubbling are simplified.",
   }),

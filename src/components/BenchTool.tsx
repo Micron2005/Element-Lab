@@ -63,7 +63,6 @@ function cloneExperiment(experiment: Experiment): Experiment {
 function experimentsEqual(left: Experiment, right: Experiment): boolean {
   const conditionKeys: (keyof Conditions)[] = [
     "tempC",
-    "pH",
     "pressureKPa",
     "atmosphere",
     "humidityPct",
@@ -200,7 +199,7 @@ function RangeNumberField({
           min={min}
           max={max}
           step={step}
-          value={unit === "pH" ? value.toFixed(1) : value}
+          value={value}
           onChange={(event) => onChange(clampValue(Number(event.target.value) || 0))}
         />
         <span className="bench-unit">{unit}</span>
@@ -239,8 +238,9 @@ function GoalNumberField({
   );
 }
 
-function conditionSummary(conditions: Conditions): string {
-  return `${conditions.tempC} °C · pH ${conditions.pH.toFixed(1)} · ${conditions.pressureKPa} kPa · ${conditions.forming}`;
+function conditionSummary(experiment: Experiment): string {
+  const { conditions } = experiment;
+  return `${conditions.tempC} °C · pH ${effectivePH(experiment).toFixed(1)} · ${conditions.pressureKPa} kPa · ${conditions.forming}`;
 }
 
 function candidateTargetStatus(goal: Goal, result: RunResult): {
@@ -728,7 +728,6 @@ export default function BenchTool() {
             <p className="bench-kicker">02 · PROCESS</p>
             <h2 id="bench-conditions-heading">Conditions</h2>
           </div>
-          <span className="bench-live-value">Effective pH {livePH.toFixed(1)}</span>
         </div>
         <div className="bench-condition-grid">
           <RangeNumberField
@@ -740,15 +739,15 @@ export default function BenchTool() {
             unit="°C"
             onChange={(value) => setCondition("tempC", value)}
           />
-          <RangeNumberField
-            label="Set pH"
-            value={experiment.conditions.pH}
-            min={1}
-            max={14}
-            step={0.1}
-            unit="pH"
-            onChange={(value) => setCondition("pH", value)}
-          />
+          <div className="bench-field">
+            <span className="bench-field-label">pH (from your ingredients)</span>
+            <output className="bench-ph-value">{livePH.toFixed(1)}</output>
+            <span className="bench-ph-hint">
+              Comes from what you add. Add an acid (vinegar, citric acid) to lower it, or a base
+              (baking soda, borax, sodium hydroxide) to raise it. Proteins&apos; own buffering isn&apos;t
+              modeled.
+            </span>
+          </div>
           <RangeNumberField
             label="Pressure"
             value={experiment.conditions.pressureKPa}
@@ -882,8 +881,7 @@ export default function BenchTool() {
         </div>
         <p className="bench-condition-note">
           Water boils at {waterBoilingPointC(experiment.conditions.pressureKPa).toFixed(1)} °C at
-          this pressure. Set pH {experiment.conditions.pH.toFixed(1)} → effective pH{" "}
-          {livePH.toFixed(1)}.
+          this pressure. pH {livePH.toFixed(1)} from your ingredients.
         </p>
       </section>
 
@@ -1178,7 +1176,7 @@ export default function BenchTool() {
                   </span>
                 </div>
                 <p className="bench-candidate-parts">{partsSummary(candidate.experiment)}</p>
-                <p className="bench-candidate-conditions">{conditionSummary(candidate.experiment.conditions)}</p>
+                <p className="bench-candidate-conditions">{conditionSummary(candidate.experiment)}</p>
                 <div className="bench-candidate-metrics">
                   <span>{formattedMechanicalValue(candidate.result, `${formatMPa(candidate.result.tensileMPa)} MPa`)}</span>
                   <span>{formattedMechanicalValue(candidate.result, `${formatPercent(candidate.result.elongationPct)}% stretch`)}</span>
@@ -1248,8 +1246,8 @@ export default function BenchTool() {
                 />
                 <CompareRow
                   label="Conditions"
-                  left={conditionSummary(comparison[0].experiment.conditions)}
-                  right={conditionSummary(comparison[1].experiment.conditions)}
+                  left={conditionSummary(comparison[0].experiment)}
+                  right={conditionSummary(comparison[1].experiment)}
                 />
                 <CompareRow label="Product" left={comparison[0].result.productLabel} right={comparison[1].result.productLabel} />
                 <NumericCompareRow
