@@ -1,12 +1,12 @@
 # Element Lab
 
-An interactive materials lab for exploring formula estimates, jet behavior, chemical data, and nuclear models.
+An interactive materials lab for exploring formula estimates, nozzle tests, chemical data, and nuclear models.
 
 ## Pages
 
 - `/` — overview of the lab tools.
+- `/bench` — build a mixture, run an experiment, and shoot-test it through a nozzle.
 - `/lab` — build and save material formulas, then review estimated properties and safety checks.
-- `/shooter` — model a fluid jet's flight, breakup, pressure, and strand behavior.
 - `/chemicals` — look up compound properties and hazard classifications from PubChem.
 - `/elements` — explore nuclear binding energy and stability estimates.
 - `/assistant` — ask a lab assistant about materials and science.

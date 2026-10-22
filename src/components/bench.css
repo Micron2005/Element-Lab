@@ -578,6 +578,148 @@
   margin-bottom: 10px;
 }
 
+.bench-test-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bench-shoot-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #2b4248;
+  border-radius: 13px;
+  background: #0b171b;
+}
+
+.bench-shoot-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bench-shoot-heading .bench-kicker {
+  margin-bottom: 4px;
+}
+
+.bench-shoot-heading h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.bench-shoot-label,
+.bench-fluid-summary dt {
+  color: #91a8ad;
+  font-size: 0.78rem;
+}
+
+.bench-shot-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.bench-shot-controls .bench-number-input {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.bench-fluid-summary {
+  padding: 12px;
+  border: 1px solid #263b41;
+  border-radius: 11px;
+  background: #101e22;
+}
+
+.bench-fluid-summary h5 {
+  margin: 0 0 10px;
+  color: #cfe0dc;
+  font-size: 0.9rem;
+}
+
+.bench-fluid-summary dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.bench-fluid-summary dl > div {
+  display: grid;
+  gap: 3px;
+}
+
+.bench-fluid-summary dd {
+  margin: 0;
+  color: #e3f3f2;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.bench-shot-verdict {
+  padding: 12px;
+  border: 1px solid #75623d;
+  border-radius: 10px;
+  background: #241f16;
+  color: #f2d9a6;
+  line-height: 1.5;
+}
+
+.bench-shot-verdict-good {
+  border-color: #31534c;
+  background: #0c1d1d;
+  color: #b6e8dc;
+}
+
+.bench-shot-verdict-bad {
+  border-color: #604149;
+  background: #21191d;
+  color: #f2b8b8;
+}
+
+.bench-shot-verdict ul {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: #c5d1ce;
+  font-size: 0.86rem;
+}
+
+.bench-shot-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bench-shot-tile {
+  display: grid;
+  gap: 4px;
+  min-height: 68px;
+  padding: 10px;
+  border: 1px solid #293e44;
+  border-radius: 10px;
+  background: #0c191d;
+}
+
+.bench-shot-tile span {
+  color: #91a8ad;
+  font-size: 0.72rem;
+}
+
+.bench-shot-tile strong {
+  color: #e3f3f2;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .bench-event-list {
   display: grid;
   gap: 8px;
@@ -949,6 +1091,18 @@
   .bench-condition-grid,
   .bench-goal-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bench-shot-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bench-fluid-summary dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bench-shot-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .bench-panel-heading {

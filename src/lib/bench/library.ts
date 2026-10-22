@@ -16,6 +16,9 @@ type IngredientOptions = Partial<
     | "water"
     | "biodegradable"
     | "acidBase"
+    | "viscosityPas"
+    | "surfaceTensionNm"
+    | "volatile"
     | "boilC"
     | "enzyme"
     | "dissolvesOnlyBelowPH"
@@ -481,10 +484,22 @@ export const benchLibrary: BenchIngredient[] = [
     dissolvesOnlyBelowPH: 6.5,
     acidBase: { molPerPct: 0.0528, pKas: [6.5], chargeProtonated: 1 },
   }),
-  legacy("pu", "polymer", ["moisture-cure"]),
-  legacy("latex", "polymer", ["elastomer"]),
+  legacy("pu", "polymer", ["moisture-cure"], {
+    viscosityPas: 5,
+    surfaceTensionNm: 0.04,
+    volatile: false,
+  }),
+  legacy("latex", "polymer", ["elastomer"], {
+    viscosityPas: 0.05,
+    surfaceTensionNm: 0.04,
+    volatile: false,
+  }),
   legacy("nylon66", "polymer", ["inert"]),
-  legacy("cyanoacrylate", "polymer", ["water-reactive"]),
+  legacy("cyanoacrylate", "polymer", ["water-reactive"], {
+    viscosityPas: 0.005,
+    surfaceTensionNm: 0.033,
+    volatile: false,
+  }),
   legacy("pib", "polymer", ["elastomer", "inert"]),
   legacy("cnf", "filler", ["inert"]),
   added("hyaluronic-acid", "Hyaluronic acid", "polymer", "Polysaccharide", [
@@ -519,12 +534,26 @@ export const benchLibrary: BenchIngredient[] = [
     notes: "HRP activity is reduced above 1% modeled mix share.",
     bonding: "Provides oxidant for the HRP crosslinking rule.",
   }),
-  legacy("glycerol", "additive", ["inert"]),
+  legacy("glycerol", "additive", ["inert"], {
+    viscosityPas: 1.41,
+    surfaceTensionNm: 0.063,
+    volatile: false,
+  }),
   legacy("sorbitol", "additive", ["inert"]),
   legacy("graphene-oxide", "filler", ["inert"]),
 
-  legacy("water", "solvent", ["inert"], { boilC: 100 }),
-  legacy("ethanol", "solvent", ["inert"], { boilC: 78.4 }),
+  legacy("water", "solvent", ["inert"], {
+    boilC: 100,
+    viscosityPas: 0.00089,
+    surfaceTensionNm: 0.072,
+    volatile: true,
+  }),
+  legacy("ethanol", "solvent", ["inert"], {
+    boilC: 78.4,
+    viscosityPas: 0.0011,
+    surfaceTensionNm: 0.022,
+    volatile: true,
+  }),
   added("methanol", "Methanol bath", "solvent", "CH₄O", ["inert"], {
     density: 0.79,
     costPerKg: 2,
@@ -533,16 +562,30 @@ export const benchLibrary: BenchIngredient[] = [
     water: "dissolves",
     biodegradable: true,
     boilC: 64.7,
+    viscosityPas: 0.00054,
+    surfaceTensionNm: 0.0226,
+    volatile: true,
     notes: "A silk precipitation bath; toxic and not suitable for ingestion.",
     bonding: "Solvent exchange promotes silk chain association in the simplified model.",
   }),
   legacy("acetic-acid", "acid-base", ["inert"], {
     acidBase: { molPerPct: 0.00333, pKas: [4.76] },
+    viscosityPas: 0.00113,
+    surfaceTensionNm: 0.027,
+    volatile: true,
   }),
   legacy("formic-acid", "acid-base", ["inert"], {
     acidBase: { molPerPct: 0.217, pKas: [3.75] },
+    viscosityPas: 0.0016,
+    surfaceTensionNm: 0.037,
+    volatile: true,
   }),
-  legacy("hfip", "solvent", ["inert"], { boilC: 58.2 }),
+  legacy("hfip", "solvent", ["inert"], {
+    boilC: 58.2,
+    viscosityPas: 0.0016,
+    surfaceTensionNm: 0.016,
+    volatile: true,
+  }),
   added("sodium-hydroxide", "Sodium hydroxide", "acid-base", "NaOH", ["inert"], {
     density: 2.13,
     costPerKg: 1,

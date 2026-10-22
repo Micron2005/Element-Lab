@@ -9,6 +9,8 @@ import { benchPresets } from "@/lib/bench/presets";
 import { simulate } from "@/lib/bench/simulate";
 import { buildMixScene } from "@/lib/bench/scene";
 import MixViewer from "./MixViewer";
+import RangeNumberField from "./RangeNumberField";
+import ShootTest from "./ShootTest";
 import type {
   Candidate,
   Category,
@@ -160,53 +162,6 @@ function makeNotebookId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function RangeNumberField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  onChange: (value: number) => void;
-}) {
-  const clampValue = (next: number) => Math.max(min, Math.min(max, next));
-  return (
-    <label className="bench-field">
-      <span className="bench-field-label">{label}</span>
-      <span className="bench-field-control">
-        <input
-          aria-label={`${label} slider`}
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
-        />
-        <input
-          className="input bench-number-input"
-          aria-label={label}
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => onChange(clampValue(Number(event.target.value) || 0))}
-        />
-        <span className="bench-unit">{unit}</span>
-      </span>
-    </label>
-  );
 }
 
 function GoalNumberField({
@@ -934,6 +889,20 @@ export default function BenchTool() {
                 <MixViewer key={runId} scene={scene} resultLabel={result.productLabel} />
               </section>
             )}
+            <section className="bench-result-section" aria-label="Test it">
+              <h3>Test it</h3>
+              {lastRunExperiment && (
+                <ul className="bench-test-list">
+                  <li>
+                    <ShootTest
+                      key={runId}
+                      experiment={lastRunExperiment}
+                      result={result}
+                    />
+                  </li>
+                </ul>
+              )}
+            </section>
             <div className="bench-metric-grid">
               <Metric label="Tensile strength" value={formattedMechanicalValue(result, `${formatMPa(result.tensileMPa)} MPa`)} />
               <Metric label="Stretch" value={formattedMechanicalValue(result, `${formatPercent(result.elongationPct)}%`)} />

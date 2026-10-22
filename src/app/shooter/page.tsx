@@ -1,5 +1,5 @@
-import ShooterTool from "@/components/ShooterTool";
+import { redirect } from "next/navigation";
 
-export default function ShooterPage() {
-  return <ShooterTool />;
+export default function Page() {
+  redirect("/bench");
 }
