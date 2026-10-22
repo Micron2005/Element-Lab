@@ -9,21 +9,66 @@ export interface BenchPreset {
 
 export const benchPresets: BenchPreset[] = [
   {
-    id: "spider-web",
-    name: "Spider-style web fiber (silk + β-sheet bath)",
+    id: "baking-soda-vinegar",
+    name: "Baking soda + vinegar fizz",
     experiment: {
       parts: [
-        { id: "spider-silk", pct: 55 },
-        { id: "water", pct: 40 },
-        { id: "ethanol", pct: 5 },
+        { id: "sodium-bicarbonate", pct: 10 },
+        { id: "acetic-acid", pct: 10 },
+        { id: "water", pct: 80 },
       ],
       conditions: {
         ...DEFAULT_CONDITIONS,
-        mixRpm: 900,
-        mixMinutes: 3,
-        cureMinutes: 10,
-        forming: "extrude-bath",
-        bathId: "ethanol",
+        mixRpm: 300,
+        forming: "beaker",
+      },
+    },
+  },
+  {
+    id: "sodium-water",
+    name: "Sodium meets water (danger demo)",
+    experiment: {
+      parts: [
+        { id: "sodium-metal", pct: 5 },
+        { id: "water", pct: 95 },
+      ],
+      conditions: {
+        ...DEFAULT_CONDITIONS,
+        forming: "beaker",
+      },
+    },
+  },
+  {
+    id: "chitosan-film",
+    name: "Chitosan film",
+    experiment: {
+      parts: [
+        { id: "chitosan", pct: 15 },
+        { id: "alginate", pct: 10 },
+        { id: "acetic-acid", pct: 10 },
+        { id: "water", pct: 65 },
+      ],
+      conditions: {
+        ...DEFAULT_CONDITIONS,
+        pH: 5.5,
+        forming: "cast-film",
+      },
+    },
+  },
+  {
+    id: "enzyme-breaks-gel",
+    name: "Enzyme breaks a gel",
+    experiment: {
+      parts: [
+        { id: "gelatin", pct: 45 },
+        { id: "water", pct: 50 },
+        { id: "trypsin", pct: 5 },
+      ],
+      conditions: {
+        ...DEFAULT_CONDITIONS,
+        tempC: 30,
+        pH: 8,
+        forming: "beaker",
       },
     },
   },
@@ -92,6 +137,25 @@ export const benchPresets: BenchPreset[] = [
         mixRpm: 300,
         cureMinutes: 30,
         forming: "heat-cure",
+      },
+    },
+  },
+  {
+    id: "spider-web",
+    name: "Spider-style web fiber (silk + β-sheet bath)",
+    experiment: {
+      parts: [
+        { id: "spider-silk", pct: 55 },
+        { id: "water", pct: 40 },
+        { id: "ethanol", pct: 5 },
+      ],
+      conditions: {
+        ...DEFAULT_CONDITIONS,
+        mixRpm: 900,
+        mixMinutes: 3,
+        cureMinutes: 10,
+        forming: "extrude-bath",
+        bathId: "ethanol",
       },
     },
   },
