@@ -19,6 +19,7 @@ import type {
   RunResult,
 } from "@/lib/bench/types";
 import "./bench.css";
+import QuestBanner from "./QuestBanner";
 
 type IngredientFilter =
   | "All"
@@ -525,6 +526,7 @@ export default function BenchTool() {
 
   return (
     <main className="bench-page">
+      <QuestBanner mode="mix" experiment={lastRunExperiment} result={result} />
       <header className="bench-intro">
         <p className="bench-eyebrow">RULE-BASED MATERIALS SANDBOX</p>
         <h1>Experiment Bench</h1>

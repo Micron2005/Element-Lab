@@ -1,0 +1,88 @@
+.play-page { display: grid; gap: 16px; }
+.play-score { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.play-score strong { color: var(--text); }
+.play-stars { display: inline-flex; gap: 2px; font-size: 16px; line-height: 1; color: #3b4a4c; }
+.play-stars .on { color: #f5c542; text-shadow: 0 0 8px rgb(245 197 66 / 35%); }
+.play-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.play-tabs button { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: #0d1416; color: #c9d6d4; font-size: 14px; font-weight: 600; }
+.play-tabs button.is-active { border-color: var(--accent); background: #12302c; color: var(--accent); }
+.play-blurb { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.play-quest-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.play-quest-item { display: grid; width: 100%; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(145deg, #121b1d, #0d1315); color: var(--text); text-align: left; }
+.play-quest-item:not(:disabled):hover { border-color: #3f6b66; }
+.play-quest-item:disabled { opacity: .55; }
+.play-quest-num { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #315654; border-radius: 10px; color: var(--accent); font-weight: 700; }
+.play-quest-text { display: grid; gap: 3px; min-width: 0; }
+.play-quest-text strong { font-size: 15px; }
+.play-quest-text span { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.play-lock { padding: 4px 8px; border: 1px solid #384447; border-radius: 999px; color: #8a9a9a; font-size: 11px; }
+.play-quest, .quest-banner { display: grid; gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg, rgb(18 27 29 / 96%), rgb(13 19 21 / 96%)); }
+.play-quest h2, .quest-banner h2 { margin: 0; font-size: 20px; }
+.play-quest .eyebrow, .quest-banner .eyebrow { margin: 0; }
+.play-back { justify-self: start; min-height: 44px; font-size: 14px; }
+.play-story { margin: 0; color: #c2d0ce; font-size: 15px; line-height: 1.55; }
+.play-goal { margin: 0; font-size: 15px; line-height: 1.5; }
+.play-star-goals { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.play-star-goals li { display: flex; gap: 8px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.play-star-goals li span { color: #3b4a4c; }
+.play-star-goals li.on { color: var(--text); }
+.play-star-goals li.on span { color: #f5c542; }
+.play-launch { display: grid; gap: 12px; padding: 14px; border: 1px dashed #315654; border-radius: 12px; }
+.play-launch p { margin: 0; color: #c2d0ce; font-size: 14px; line-height: 1.5; }
+.play-launch .button, .play-success .button, .quest-actions .button { min-height: 44px; font-size: 14px; }
+.play-hint-row { display: flex; }
+.play-hint-row .button { min-height: 44px; font-size: 14px; }
+.play-hint { margin: 0; padding: 12px; border-left: 2px solid var(--amber); background: #191710; color: #e0d4b6; font-size: 14px; line-height: 1.55; }
+.play-success, .play-fail { display: grid; gap: 10px; padding: 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+.play-success { border: 1px solid #2f6b55; background: #0f211b; }
+.play-fail { border: 1px solid #6b5732; background: #1d1912; }
+.play-success ul, .play-fail ul { margin: 0; padding-left: 18px; }
+.play-success p, .play-fail p { margin: 0; }
+.play-result-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
+.play-learn { color: #bfe9de; }
+.play-molecule-card { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 14px; align-items: center; }
+.play-molecule-shape { display: grid; place-items: center; min-height: 120px; border: 1px solid #24403b; border-radius: 10px; background: #0a1214; }
+.play-molecule-info h3 { margin: 0 0 6px; font-size: 16px; }
+.play-molecule-info p { margin: 0 0 6px; color: #c2d0ce; }
+.play-formula { margin-left: 4px; color: var(--accent); font-weight: 600; }
+.play-caution { color: #ffc4a8 !important; }
+.quest-banner { margin-bottom: 16px; border-color: #315654; }
+.quest-banner-top { display: flex; align-items: center; justify-content: space-between; }
+.quest-banner-top a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); font-size: 14px; }
+.quest-wait { margin: 0; color: var(--muted); font-size: 14px; }
+.quest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.mol-board { display: grid; gap: 10px; }
+.mol-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+.mol-palette-atom { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 8px; border: 1px solid #304144; border-radius: 10px; background: #0d1416; color: var(--text); text-align: left; }
+.mol-palette-atom:active { transform: scale(.97); }
+.mol-palette-dot { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border-radius: 50%; font-size: 14px; font-weight: 700; box-shadow: inset 0 -3px 6px rgb(0 0 0 / 25%); }
+.mol-palette-text { display: grid; min-width: 0; line-height: 1.2; }
+.mol-palette-text strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.mol-palette-text span { color: var(--muted); font-size: 11px; }
+.mol-stage { overflow: hidden; border: 1px solid #24403b; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #11262a, #080e10 75%); }
+.mol-svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.mol-drawing { display: block; width: 100%; max-height: 140px; }
+.mol-bond { stroke: #d7e3e1; stroke-width: 3; stroke-linecap: round; }
+.mol-bond-hit { stroke: transparent; stroke-width: 22; cursor: pointer; }
+.mol-atom { cursor: grab; }
+.mol-atom-hit { fill: transparent; }
+.mol-atom-body { stroke: rgb(0 0 0 / 40%); stroke-width: 1.5; }
+.mol-atom text { font-weight: 700; pointer-events: none; }
+.mol-atom-ring { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 5 4; }
+.mol-free-dot { fill: #ffd166; opacity: .9; }
+.mol-empty { fill: #6f8584; font-size: 14px; }
+.mol-readout { display: grid; gap: 4px; margin: 0; padding: 8px 12px 10px; border-top: 1px solid #1c2e2c; color: #c2d0ce; font-size: 14px; }
+.mol-notice { color: var(--accent); font-size: 13px; }
+.mol-help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.mol-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mol-tools .button { min-height: 44px; font-size: 14px; }
+.mol-tools .button:disabled { opacity: .45; }
+.mol-check { grid-column: 1 / -1; }
+@media (max-width: 560px) {
+  .play-quest, .quest-banner { padding: 14px; }
+  .play-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .play-tabs button { padding: 0 10px; }
+  .play-molecule-card { grid-template-columns: 1fr; }
+  .play-molecule-shape { min-height: 110px; }
+}

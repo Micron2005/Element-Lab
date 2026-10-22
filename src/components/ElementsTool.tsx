@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageIntro, Panel } from "./shared";
 import NucleusViewer from "./NucleusViewer";
+import QuestBanner from "./QuestBanner";
 import { analyzeNucleus, bindingEnergy, stableZ } from "@/lib/nuclear";
 
 function tickStep(range: number, intervals: number) {
@@ -73,6 +74,7 @@ export default function ElementsTool() {
   return (
     <>
       <PageIntro eyebrow="TOOL 04 / NUCLEAR PHYSICS" title="Element explorer" description="Change the proton and neutron count to explore what a liquid-drop model predicts for a nucleus." />
+      <QuestBanner mode="atom" z={z} n={n} />
       <div className="element-layout">
         <div className="stack">
           <Panel title="Nucleus controls" subtitle="Explore Z from 1–200 and N from 0–320.">
