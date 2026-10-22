@@ -50,7 +50,7 @@ describe("expanded bench presets", () => {
       return effectivePH(preset!.experiment);
     };
 
-    expect(phFor("chitosan-film")).toBeLessThan(6.5);
+    expect(phFor("chitosan-film")).toBeLessThan(6);
     expect(phFor("mussel-glue")).toBeGreaterThanOrEqual(7.5);
     expect(phFor("mussel-glue")).toBeLessThanOrEqual(9);
     expect(phFor("enzyme-breaks-gel")).toBeGreaterThanOrEqual(7);

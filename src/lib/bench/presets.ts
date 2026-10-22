@@ -45,8 +45,8 @@ export const benchPresets: BenchPreset[] = [
       parts: [
         { id: "chitosan", pct: 3 },
         { id: "alginate", pct: 2 },
-        { id: "acetic-acid", pct: 30 },
-        { id: "water", pct: 65 },
+        { id: "acetic-acid", pct: 60 },
+        { id: "water", pct: 35 },
       ],
       conditions: {
         ...DEFAULT_CONDITIONS,

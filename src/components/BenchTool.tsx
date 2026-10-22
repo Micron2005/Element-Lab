@@ -728,7 +728,6 @@ export default function BenchTool() {
             <p className="bench-kicker">02 · PROCESS</p>
             <h2 id="bench-conditions-heading">Conditions</h2>
           </div>
-          <span className="bench-live-value">Effective pH {livePH.toFixed(1)}</span>
         </div>
         <div className="bench-condition-grid">
           <RangeNumberField
