@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useMemo, useSyncExternalStore } from "react";
 import { PROGRESS_KEY, loadProgress, recordStars, type PlayProgress } from "@/lib/play/progress";
 import type { Stars } from "@/lib/play/quests";
@@ -30,9 +31,5 @@ export function awardStars(questId: string, stars: Stars) {
 }
 
 export function useQuestParam(): string | null {
-  return useSyncExternalStore(
-    () => () => {},
-    () => new URLSearchParams(window.location.search).get("quest"),
-    () => null,
-  );
+  return useSearchParams().get("quest");
 }

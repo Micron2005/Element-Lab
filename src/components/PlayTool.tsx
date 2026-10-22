@@ -6,6 +6,7 @@ import { PageIntro } from "./shared";
 import MoleculeBoard, { MoleculeDrawing } from "./MoleculeBoard";
 import { ATOMS, type AtomSymbol } from "@/lib/play/atoms";
 import { checkMolecule, prettyFormula, type KnownMolecule, type MolCheck, type MolGraph } from "@/lib/play/molecule";
+import { moleculeCard } from "@/lib/play/learn";
 import {
   CHAPTERS,
   QUESTS,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/play/quests";
 import { isUnlocked, totalStars } from "@/lib/play/progress";
 import { awardStars, usePlayProgress } from "./usePlayProgress";
+import LearnCard from "./LearnCard";
 import "./play.css";
 
 const ALL_ATOMS = Object.keys(ATOMS) as AtomSymbol[];
@@ -96,6 +98,7 @@ function MoleculeQuestPlay({
           <ul>{grade.feedback.map((line) => <li key={line}>{line}</li>)}</ul>
           {match && <MoleculeCard molecule={match} />}
           <p className="play-learn">{quest.learn}</p>
+          {match && <LearnCard card={moleculeCard(match)} />}
           {onNext && <button type="button" className="button button-primary" onClick={onNext}>Next quest →</button>}
         </div>
       )}
@@ -120,7 +123,10 @@ function FreeBuild() {
       </p>
       <MoleculeBoard palette={ALL_ATOMS} onCheck={(graph) => setCheck(checkMolecule(graph))} onEdit={() => setCheck(null)} />
       {check?.match && (
-        <div className="play-success" role="status"><MoleculeCard molecule={check.match} /></div>
+        <div className="play-success" role="status">
+          <MoleculeCard molecule={check.match} />
+          <LearnCard card={moleculeCard(check.match)} />
+        </div>
       )}
       {check && !check.match && check.complete && (
         <div className="play-success" role="status">

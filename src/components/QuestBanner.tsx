@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { questById, type Grade } from "@/lib/play/quests";
 import type { Experiment, RunResult } from "@/lib/bench/types";
+import { atomCard, mixCard } from "@/lib/play/learn";
 import { StarRow } from "./PlayTool";
+import LearnCard from "./LearnCard";
 import { awardStars, usePlayProgress, useQuestParam } from "./usePlayProgress";
 import "./play.css";
 
@@ -33,6 +35,17 @@ export default function QuestBanner(props: Props) {
     if (quest.chapter === "atoms") return `${z}-${n}` === startNucleus ? null : quest.grade(z, n);
     return null;
   }, [quest, fits, mixExperiment, mixResult, z, n, startNucleus]);
+  const stars = grade?.stars ?? 0;
+  const learnCard = useMemo(() => {
+    if (stars === 0 || !quest || !fits) return null;
+    if (quest.chapter === "mixing" && props.mode === "mix" && mixExperiment && mixResult) {
+      return mixCard(quest, mixExperiment, mixResult);
+    }
+    if (quest.chapter === "atoms" && props.mode === "atom") {
+      return atomCard(quest, z, n);
+    }
+    return null;
+  }, [stars, quest, fits, props.mode, mixExperiment, mixResult, z, n]);
 
   useEffect(() => {
     if (quest && grade && grade.stars > best) {
@@ -41,7 +54,6 @@ export default function QuestBanner(props: Props) {
   }, [quest, grade, best]);
 
   if (!quest || !fits) return null;
-  const stars = grade?.stars ?? 0;
 
   return (
     <section className="quest-banner" aria-label="Quest">
@@ -66,6 +78,7 @@ export default function QuestBanner(props: Props) {
           </p>
           <ul>{grade.feedback.map((line) => <li key={line}>{line}</li>)}</ul>
           {stars > 0 && <p className="play-learn">{quest.learn}</p>}
+          {stars > 0 && learnCard && <LearnCard card={learnCard} />}
         </div>
       ) : (
         <p className="quest-wait">
