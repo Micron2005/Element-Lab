@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export default function RangeNumberField({
   label,
   value,
@@ -15,6 +17,7 @@ export default function RangeNumberField({
   unit: string;
   onChange: (value: number) => void;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
   const clampValue = (next: number) => Math.max(min, Math.min(max, next));
   return (
     <label className="bench-field">
@@ -27,7 +30,10 @@ export default function RangeNumberField({
           max={max}
           step={step}
           value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
+          onChange={(event) => {
+            setDraft(null);
+            onChange(Number(event.target.value));
+          }}
         />
         <input
           className="input bench-number-input"
@@ -36,8 +42,27 @@ export default function RangeNumberField({
           min={min}
           max={max}
           step={step}
-          value={value}
-          onChange={(event) => onChange(clampValue(Number(event.target.value) || 0))}
+          value={draft ?? String(value)}
+          onChange={(event) => {
+            const raw = event.target.value;
+            setDraft(raw);
+            const next = Number(raw);
+            if (
+              raw.trim() !== "" &&
+              Number.isFinite(next) &&
+              min <= next &&
+              next <= max
+            ) {
+              onChange(next);
+            }
+          }}
+          onBlur={() => {
+            if (draft !== null && draft.trim() !== "") {
+              const next = Number(draft);
+              if (Number.isFinite(next)) onChange(clampValue(next));
+            }
+            setDraft(null);
+          }}
         />
         <span className="bench-unit">{unit}</span>
       </span>
