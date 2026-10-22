@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { fmtTime, hazardWord } from "@/lib/formula";
 import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
 import { benchById, benchLibrary } from "@/lib/bench/library";
@@ -481,7 +481,9 @@ export default function BenchTool() {
 
   return (
     <main className="bench-page">
-      <QuestBanner mode="mix" experiment={lastRunExperiment} result={result} />
+      <Suspense fallback={null}>
+        <QuestBanner mode="mix" experiment={lastRunExperiment} result={result} />
+      </Suspense>
       <header className="bench-intro">
         <p className="bench-eyebrow">RULE-BASED MATERIALS SANDBOX</p>
         <h1>Experiment Bench</h1>
