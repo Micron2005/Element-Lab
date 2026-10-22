@@ -24,9 +24,10 @@ interface Lesson {
   whatItDoes: string;
   whyItMatters: string;
   usedFor: string[];
+  askPrompt: string;
 }
 
-interface MoleculeLesson extends Lesson {
+interface MoleculeLesson extends Omit<Lesson, "askPrompt"> {
   whyShape: string;
 }
 
@@ -203,64 +204,74 @@ export const MOLECULE_LESSONS: Record<string, MoleculeLesson> = {
 
 export const QUEST_LESSONS: Record<string, Lesson> = {
   "mix-fizz": {
-    whatItIs: "This quest explores an acid reacting with bicarbonate in a water-based mixture.",
-    whatItDoes: "The model can represent bicarbonate bubbles as carbon dioxide forms; the exact visible fizz depends on the ingredients and simulated conditions.",
+    whatItIs: "A fizz is an acid–base reaction that makes carbon dioxide gas.",
+    whatItDoes: "Bicarbonate (HCO₃⁻) takes a hydrogen ion from the acid and becomes carbonic acid, which breaks down into water and CO₂—the bubbles.",
     whyItMatters: "Gas bubbles are evidence that atoms are rearranging into new substances, not just that the ingredients are mixing.",
-    usedFor: ["baking and leavening", "antacid chemistry", "teaching acid-base reactions"],
+    usedFor: ["baking and leavening", "bicarbonate antacids neutralizing stomach acid", "teaching acid–base chemistry"],
+    askPrompt: "Why does bicarbonate make CO₂ with acid but not with plain water?",
   },
   "mix-slime": {
-    whatItIs: "This is a polymer gel made from long PVA chains and borate crosslinks.",
-    whatItDoes: "Reversible links between chains let the material deform and stretch, then partly recover.",
+    whatItIs: "Polyvinyl alcohol (PVA) is a chain-shaped polymer whose hydroxyl groups can be reversibly linked by borate ions.",
+    whatItDoes: "Borate–PVA crosslinks connect the chains into a viscoelastic gel; links can break and reform as the material stretches.",
     whyItMatters: "Changing crosslink density changes how a soft material flows, stretches, and holds its shape.",
-    usedFor: ["soft-materials research", "teaching polymer networks", "designing gels for products and biomedical research"],
+    usedFor: ["polymer chemistry demonstrations", "soft-materials research", "teaching viscoelasticity"],
+    askPrompt: "How do reversible borate links let PVA slime stretch and partly recover?",
   },
   "mix-vanishing-film": {
-    whatItIs: "This quest models a thin PVA-based film that dissolves in water.",
-    whatItDoes: "Water separates the polymer chains enough for the film to disperse; the simulation also estimates whether its ingredients are biodegradable.",
+    whatItIs: "A water-soluble polymer film, often made from PVA, is a thin sheet designed to disperse when water reaches its chains.",
+    whatItDoes: "Water interacts with PVA's hydroxyl groups and separates the polymer chains, so the film dissolves into the water.",
     whyItMatters: "Dissolving and biodegrading are different properties, and neither alone proves that a material is harmless in the environment.",
-    usedFor: ["water-soluble packaging", "detergent pods", "studying biodegradable polymer films"],
+    usedFor: ["dishwasher and laundry detergent pods", "dissolvable packaging", "water-soluble laundry bags"],
+    askPrompt: "Why does water dissolve PVA film, and does dissolving mean it is biodegradable?",
   },
   "mix-sticky-situation": {
-    whatItIs: "This quest models an adhesive mixture inspired by mussel foot proteins.",
-    whatItDoes: "Catechol-containing groups can help proteins attach to surfaces and form a connected material.",
+    whatItIs: "Mussel foot proteins contain DOPA, an amino acid with a catechol group that can bind to many surfaces.",
+    whatItDoes: "DOPA catechol groups help proteins adhere to wet mineral and organic surfaces and contribute to cohesive bonds in the adhesive layer.",
     whyItMatters: "Adhesion depends on both the chemistry at a surface and the strength of the material holding the surfaces together.",
-    usedFor: ["wet-adhesive research", "medical materials research", "understanding how mussels attach to rocks"],
+    usedFor: ["research on wet surgical adhesives", "underwater coating research", "biomimetic adhesive development"],
+    askPrompt: "How can DOPA help mussel proteins stick to a surface underwater?",
   },
   "mix-strand": {
-    whatItIs: "This quest models a fiber based on silk proteins and a small amount of plasticizer.",
-    whatItDoes: "The simulated fiber has separate estimates for tensile strength and elongation, so it can be strong without being very stretchy—or vice versa.",
-    whyItMatters: "Real fibers balance strength, stretch, toughness, and processing; a model result is a hypothesis, not a measured material.",
-    usedFor: ["textile engineering", "biomaterials research", "designing lightweight structural fibers"],
+    whatItIs: "Spider silk is a protein fiber with strong β-sheet nanocrystals embedded in flexible, less-ordered chains.",
+    whatItDoes: "The β-sheet crystals carry load while the amorphous chains uncoil and stretch, combining high strength with useful extensibility.",
+    whyItMatters: "Strength and stretch are different properties; their balance helps determine how much energy a fiber can absorb before breaking.",
+    usedFor: ["textile and materials engineering", "research on lightweight high-performance fibers", "biomedical scaffold research"],
+    askPrompt: "How do silk's β-sheet crystals and flexible chains work together to make a strong, stretchy fiber?",
   },
   "mix-enzyme-helper": {
-    whatItIs: "This quest combines a protein material with an enzyme under selected temperature and pH conditions.",
-    whatItDoes: "Enzymes speed up specific reactions, and the model checks whether the chosen enzyme is active in the simulated environment.",
-    whyItMatters: "An enzyme's activity depends on its surroundings, so matching pH and temperature can matter as much as choosing the molecule.",
-    usedFor: ["food processing", "biotechnology", "studying protein chemistry"],
+    whatItIs: "Enzymes are biological catalysts, and proteases such as trypsin speed up the breakdown of proteins.",
+    whatItDoes: "Proteases hydrolyze peptide bonds in gelatin; bromelain in fresh pineapple can do the same, which is why fresh pineapple can keep gelatin dessert from setting.",
+    whyItMatters: "Each enzyme has a working range of pH and temperature; conditions outside that window can slow it or change its shape.",
+    usedFor: ["food processing", "enzyme-based laundry detergents", "biotechnology"],
+    askPrompt: "How do pH and temperature change trypsin's digestion of gelatin?",
   },
   "atom-split": {
-    whatItIs: "This quest explores a neutron-triggered fission event in a heavy nucleus.",
-    whatItDoes: "In the model, a neutron hit can make the nucleus split into smaller nuclei and release energy.",
-    whyItMatters: "Fission explains how nuclear power plants produce heat and how some medical isotopes are made; the app's estimates are educational, not reactor-design data.",
+    whatItIs: "Uranium-235 is fissile: after absorbing a neutron, a U-235 nucleus can split into lighter nuclei.",
+    whatItDoes: "Fission divides the nucleus, releasing energy and more neutrons; controlled fission in power reactors produces heat for electricity.",
+    whyItMatters: "Nuclear fission supplies electricity and helps produce some medical isotopes.",
     usedFor: ["electricity generation in nuclear power plants", "production of some medical isotopes", "learning about nuclear binding energy"],
+    askPrompt: "What happens to a uranium-235 nucleus after it absorbs a neutron?",
   },
   "atom-tightest": {
-    whatItIs: "This quest compares how strongly nucleons are held together, measured as binding energy per nucleon.",
-    whatItDoes: "The model's liquid-drop calculation places its peak near iron and nickel, where each nucleon is especially tightly bound.",
-    whyItMatters: "Binding energy helps explain why fusion of light nuclei and fission of very heavy nuclei can release energy.",
-    usedFor: ["understanding stellar energy", "learning why nuclear reactions release energy", "comparing isotope stability"],
+    whatItIs: "Binding energy per nucleon is the average energy needed to separate a nucleus into its individual protons and neutrons.",
+    whatItDoes: "Binding energy per nucleon peaks near iron and nickel: stars release energy by fusing light nuclei up to iron, while splitting very heavy nuclei can also release energy.",
+    whyItMatters: "The binding-energy curve connects nuclear structure to how stars shine and how nuclear fission releases energy.",
+    usedFor: ["understanding stellar nucleosynthesis", "explaining nuclear energy", "comparing isotope stability"],
+    askPrompt: "Why does binding energy per nucleon peak near iron and nickel?",
   },
   "atom-alpha": {
-    whatItIs: "This quest follows alpha decay, in which a nucleus emits a compact group of two protons and two neutrons.",
-    whatItDoes: "The decay-chain model updates the nucleus after each predicted emission and stops when it reaches a stable result or its step limit.",
-    whyItMatters: "Radioactive decay changes one element into another and is used to understand geology, radiation, and the history of matter.",
-    usedFor: ["radiometric dating", "nuclear physics education", "understanding naturally occurring radioactivity"],
+    whatItIs: "Alpha decay occurs when an unstable nucleus emits an alpha particle made of two protons and two neutrons.",
+    whatItDoes: "The parent nucleus loses two protons and two neutrons and becomes a different element; americium-241 in some smoke detectors and naturally occurring radon emit alpha particles.",
+    whyItMatters: "Alpha decay helps explain natural radioactivity and why radon and some sealed radioactive sources need monitoring.",
+    usedFor: ["ionization smoke detectors containing americium-241", "radon exposure monitoring", "radiometric dating and geology"],
+    askPrompt: "How does alpha decay change an element, and why is radon important to monitor?",
   },
   "atom-new-element": {
-    whatItIs: "This quest explores a hypothetical nucleus with more protons than any confirmed element.",
-    whatItDoes: "The model estimates whether the nucleus is bound and how long it might last, but a model nucleus is a prediction, not a real element.",
-    whyItMatters: "Real new elements are made a few atoms at a time in particle accelerators and must be detected through their decay; calculations alone do not discover an element.",
-    usedFor: ["research on the limits of the periodic table", "nuclear-structure calculations", "learning how particle-accelerator discoveries are confirmed"],
+    whatItIs: "Superheavy elements, with atomic numbers above 103, are synthesized a few atoms at a time in particle-accelerator experiments.",
+    whatItDoes: "Some neutron counts may make superheavy isotopes longer-lived than their neighbors, forming the predicted island of stability.",
+    whyItMatters: "Creating and identifying these nuclei tests nuclear structure at extreme proton counts and may extend the known periodic table.",
+    usedFor: ["research on superheavy-element synthesis", "testing nuclear shell theories", "extending the periodic table"],
+    askPrompt: "What is the island of stability, and why could some superheavy nuclei last longer than their neighbors?",
   },
 };
 
@@ -289,6 +300,7 @@ function createCard(
 
 export function moleculeCard(molecule: KnownMolecule): LearnCard {
   const lesson = MOLECULE_LESSONS[molecule.id];
+  const spokenName = molecule.name.charAt(0).toLowerCase() + molecule.name.slice(1);
   const sections = [
     { heading: "What it is", body: lesson.whatItIs },
     { heading: "Why it's shaped like this", body: lesson.whyShape },
@@ -302,15 +314,20 @@ export function moleculeCard(molecule: KnownMolecule): LearnCard {
     `${molecule.name} (${prettyFormula(molecule.formula)})`,
     sections,
     lesson.usedFor,
-    `How do ${molecule.name}'s bonds and shape help explain what it does and where it is used?`,
+    `How do ${spokenName}'s bonds and shape help explain what it does and where it is used?`,
   );
 }
 
-function mixRunDetails(result: RunResult): string {
+function mixRunDetails(experiment: Experiment, result: RunResult): string {
+  const ingredients = experiment.parts
+    .filter((part) => part.pct > 0)
+    .map((part) => `${benchById[part.id]?.name ?? part.id} ${part.pct.toFixed(1)}%`)
+    .join(", ");
   const events = result.events
     .filter((event) => event.status === "happened" || event.status === "partial")
     .map((event) => `${event.name} (${event.status}): ${event.mechanism}`);
   const lines = [
+    `Ingredients in this run: ${ingredients || "none listed"}.`,
     `${result.productLabel}: ${result.summary}`,
     ...(events.length ? events : ["No reaction events happened or were partial in this run."]),
     `Effective pH: ${result.effectivePH.toFixed(1)}.`,
@@ -333,16 +350,9 @@ export function mixCard(
   result: RunResult,
 ): LearnCard {
   const lesson = QUEST_LESSONS[quest.id];
-  const ingredients = experiment.parts
-    .filter((part) => part.pct > 0)
-    .map((part) => `${benchById[part.id]?.name ?? part.id} ${part.pct.toFixed(1)}%`)
-    .join(", ");
   const sections = [
-    {
-      heading: "What it is",
-      body: `${lesson.whatItIs}\nIngredients in this run: ${ingredients || "none listed"}.`,
-    },
-    { heading: "What happened in your run", body: mixRunDetails(result) },
+    { heading: "What it is", body: lesson.whatItIs },
+    { heading: "What happened in your run", body: mixRunDetails(experiment, result) },
     { heading: "What it does", body: lesson.whatItDoes },
     { heading: "Why it matters", body: lesson.whyItMatters },
   ];
@@ -350,8 +360,14 @@ export function mixCard(
     quest.title,
     sections,
     lesson.usedFor,
-    `Why did this run produce ${result.productLabel.toLowerCase()}, and what change would most affect its result?`,
+    lesson.askPrompt,
   );
+}
+
+function nucleusCaveat(quest: AtomQuest): string {
+  return quest.id === "atom-new-element"
+    ? "Any calculated values are rough liquid-drop estimates, and a model nucleus is a prediction, not a real element."
+    : "Any calculated values are rough liquid-drop estimates, not measurements.";
 }
 
 function nucleusRunDetails(
@@ -361,7 +377,7 @@ function nucleusRunDetails(
 ): string {
   if (!Number.isInteger(z) || !Number.isFinite(z) || z <= 0 ||
       !Number.isInteger(n) || !Number.isFinite(n) || n < 0) {
-    return "The nucleus model needs a whole-number proton count above zero and a nonnegative whole-number neutron count.";
+    return `The nucleus model needs a whole-number proton count above zero and a nonnegative whole-number neutron count. ${nucleusCaveat(quest)}`;
   }
   try {
     const report = analyzeNucleus(z, n);
@@ -379,10 +395,10 @@ function nucleusRunDetails(
       const firstStep = decayChain(z, n, 1)[0];
       if (firstStep) lines.push(`First decay step: ${firstStep.caption}`);
     }
-    lines.push("These values are rough liquid-drop model estimates, not measurements.");
+    lines.push(nucleusCaveat(quest));
     return lines.join("\n");
   } catch {
-    return "The nucleus model could not calculate this input; check the proton and neutron counts.";
+    return `The nucleus model could not calculate this input; check the proton and neutron counts. ${nucleusCaveat(quest)}`;
   }
 }
 
@@ -402,6 +418,6 @@ export function atomCard(
     quest.title,
     sections,
     lesson.usedFor,
-    `What does the model's result for ${z} protons and ${n} neutrons tell us, and what are its limits?`,
+    lesson.askPrompt,
   );
 }

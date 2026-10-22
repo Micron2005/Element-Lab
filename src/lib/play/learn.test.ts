@@ -34,6 +34,28 @@ describe("learning cards", () => {
     }
   });
 
+  it("keeps quest explanations in real-world terms", () => {
+    const appLanguage = /\bmodel\b|simulat|this quest/i;
+    for (const quest of QUESTS) {
+      let card;
+      if (quest.chapter === "mixing") {
+        card = mixCard(quest, quest.reference, simulate(quest.reference));
+      } else if (quest.chapter === "atoms") {
+        card = atomCard(quest, quest.reference.z, quest.reference.n);
+      } else {
+        continue;
+      }
+      const explanatoryText = [
+        ...card.sections
+          .filter((section) => section.heading !== "What happened in your run")
+          .map((section) => section.body),
+        ...card.usedFor,
+      ].join("\n");
+      expect(explanatoryText).not.toMatch(appLanguage);
+      expect(card.askPrompt).toBe(QUEST_LESSONS[quest.id].askPrompt);
+    }
+  });
+
   it("builds the water card with its sections and uses in context", () => {
     const water = KNOWN_MOLECULES.find((molecule) => molecule.id === "water");
     expect(water).toBeDefined();
@@ -46,6 +68,8 @@ describe("learning cards", () => {
     ]);
     expect(card.context).toContain("Water");
     expect(card.context).toContain(card.usedFor[0]);
+    expect(card.askPrompt).toContain("water's bonds");
+    expect(card.askPrompt).not.toContain("Water's bonds");
   });
 
   it("uses the fizz event and product label from the simulated mix run", () => {
@@ -58,6 +82,8 @@ describe("learning cards", () => {
     const happened = card.sections.find(
       (section) => section.heading === "What happened in your run",
     )?.body ?? "";
+    expect(card.sections[0].body).not.toContain("Ingredients in this run:");
+    expect(happened.startsWith("Ingredients in this run:")).toBe(true);
     expect(happened).toContain(result.productLabel);
     expect(happened).toContain(`${event!.name} (${event!.status}): ${event!.mechanism}`);
   });
@@ -76,9 +102,16 @@ describe("learning cards", () => {
     )?.body ?? "";
     expect(happened).toContain("MeV");
     expect(happened.toLowerCase()).toContain("fission");
+    expect(happened.trim()).toMatch(/rough liquid-drop estimates, not measurements\.$/);
 
     const newElement = atomCard(newElementQuest, 120, 244);
     expect(newElement.context.toLowerCase()).toContain("prediction");
+    const newElementHappened = newElement.sections.find(
+      (section) => section.heading === "What happened in your run",
+    )?.body ?? "";
+    expect(newElementHappened.trim()).toMatch(
+      /rough liquid-drop estimates, and a model nucleus is a prediction, not a real element\.$/,
+    );
     expect(() => atomCard(newElementQuest, 0, 0)).not.toThrow();
   });
 });
