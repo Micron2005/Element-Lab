@@ -405,6 +405,18 @@
   font-weight: 700;
 }
 
+.bench-ph-value {
+  color: #e8f3f4;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.bench-ph-hint {
+  color: #82999c;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .bench-field-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px 34px;

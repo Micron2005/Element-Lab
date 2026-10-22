@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { effectivePH } from "./conditions";
 import { benchPresets } from "./presets";
 import { simulate } from "./simulate";
 
@@ -40,5 +41,29 @@ describe("expanded bench presets", () => {
       expect(["happened", "partial"]).toContain(event?.status);
       expect(result.product).toBe(item.product);
     }
+  });
+
+  it("keeps pH-sensitive presets inside their ingredient-driven ranges", () => {
+    const phFor = (presetId: string) => {
+      const preset = benchPresets.find((candidate) => candidate.id === presetId);
+      expect(preset, `missing preset ${presetId}`).toBeDefined();
+      return effectivePH(preset!.experiment);
+    };
+
+    expect(phFor("chitosan-film")).toBeLessThan(6.5);
+    expect(phFor("mussel-glue")).toBeGreaterThanOrEqual(7.5);
+    expect(phFor("mussel-glue")).toBeLessThanOrEqual(9);
+    expect(phFor("enzyme-breaks-gel")).toBeGreaterThanOrEqual(7);
+    expect(phFor("enzyme-breaks-gel")).toBeLessThanOrEqual(9);
+    expect(phFor("borax-slime")).toBeGreaterThanOrEqual(8);
+  });
+
+  it("keeps the neutral-pH gelatin crosslinking preset active", () => {
+    const preset = benchPresets.find((candidate) => candidate.id === "enzyme-gelatin");
+    expect(preset).toBeDefined();
+    const event = simulate(preset!.experiment).events.find(
+      (candidate) => candidate.id === "transglutaminase",
+    );
+    expect(["happened", "partial"]).toContain(event?.status);
   });
 });

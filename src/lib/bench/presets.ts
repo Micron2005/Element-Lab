@@ -43,14 +43,13 @@ export const benchPresets: BenchPreset[] = [
     name: "Chitosan film",
     experiment: {
       parts: [
-        { id: "chitosan", pct: 15 },
-        { id: "alginate", pct: 10 },
-        { id: "acetic-acid", pct: 10 },
+        { id: "chitosan", pct: 3 },
+        { id: "alginate", pct: 2 },
+        { id: "acetic-acid", pct: 30 },
         { id: "water", pct: 65 },
       ],
       conditions: {
         ...DEFAULT_CONDITIONS,
-        pH: 5.5,
         forming: "cast-film",
       },
     },
@@ -61,13 +60,13 @@ export const benchPresets: BenchPreset[] = [
     experiment: {
       parts: [
         { id: "gelatin", pct: 45 },
-        { id: "water", pct: 50 },
+        { id: "water", pct: 48 },
         { id: "trypsin", pct: 5 },
+        { id: "sodium-bicarbonate", pct: 2 },
       ],
       conditions: {
         ...DEFAULT_CONDITIONS,
         tempC: 30,
-        pH: 8,
         forming: "beaker",
       },
     },
@@ -90,16 +89,17 @@ export const benchPresets: BenchPreset[] = [
   },
   {
     id: "mussel-glue",
-    name: "Mussel-inspired wet glue (mfp + Fe³⁺)",
+    name: "Mussel-inspired wet glue (buffered Fe³⁺)",
     experiment: {
       parts: [
         { id: "mfp5", pct: 15 },
-        { id: "water", pct: 80 },
-        { id: "fecl3", pct: 5 },
+        { id: "water", pct: 80.75 },
+        { id: "fecl3", pct: 1 },
+        { id: "sodium-hydroxide", pct: 0.25 },
+        { id: "sodium-bicarbonate", pct: 3 },
       ],
       conditions: {
         ...DEFAULT_CONDITIONS,
-        pH: 8,
         forming: "beaker",
       },
     },
@@ -116,7 +116,6 @@ export const benchPresets: BenchPreset[] = [
       conditions: {
         ...DEFAULT_CONDITIONS,
         tempC: 50,
-        pH: 6,
         cureMinutes: 60,
         forming: "beaker",
       },
@@ -170,7 +169,6 @@ export const benchPresets: BenchPreset[] = [
       ],
       conditions: {
         ...DEFAULT_CONDITIONS,
-        pH: 9,
         forming: "beaker",
       },
     },

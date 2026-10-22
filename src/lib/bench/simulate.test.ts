@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONDITIONS } from "./conditions";
+import { DEFAULT_CONDITIONS, effectivePH } from "./conditions";
 import { benchPresets } from "./presets";
 import { REACTIONS } from "./reactions";
 import { simulate } from "./simulate";
@@ -44,29 +44,22 @@ describe("bench simulation", () => {
   });
 
   it("activates transglutaminase at its optimum and blocks it when denatured", () => {
+    const ingredients = [
+      { id: "gelatin", pct: 40 },
+      { id: "water", pct: 57.94937 },
+      { id: "transglutaminase", pct: 2 },
+      { id: "acetic-acid", pct: 0.05 },
+      { id: "sodium-hydroxide", pct: 0.00063 },
+    ];
     const good = simulate(
-      experiment(
-        [
-          { id: "gelatin", pct: 40 },
-          { id: "water", pct: 58 },
-          { id: "transglutaminase", pct: 2 },
-        ],
-        { tempC: 50, pH: 6 },
-      ),
+      experiment(ingredients, { tempC: 50 }),
     );
     const event = good.events.find((item) => item.id === "transglutaminase");
     expect(event?.status).toBe("happened");
     expect(event?.activity).toBeGreaterThan(0.8);
 
     const denatured = simulate(
-      experiment(
-        [
-          { id: "gelatin", pct: 40 },
-          { id: "water", pct: 58 },
-          { id: "transglutaminase", pct: 2 },
-        ],
-        { tempC: 80, pH: 6 },
-      ),
+      experiment(ingredients, { tempC: 80 }),
     );
     const blocked = denatured.events.find((item) => item.id === "transglutaminase");
     expect(blocked?.status).toBe("blocked");
@@ -78,10 +71,12 @@ describe("bench simulation", () => {
       experiment(
         [
           { id: "silk-fibroin", pct: 40 },
-          { id: "water", pct: 58 },
+          { id: "water", pct: 57.94935 },
           { id: "tyrosinase", pct: 2 },
+          { id: "acetic-acid", pct: 0.05 },
+          { id: "sodium-hydroxide", pct: 0.00065 },
         ],
-        { tempC: 30, pH: 6.5, atmosphere: "nitrogen" },
+        { tempC: 30, atmosphere: "nitrogen" },
       ),
     );
     const event = result.events.find((item) => item.id === "phenol-oxidase");
@@ -116,17 +111,21 @@ describe("bench simulation", () => {
     const withoutEnzyme = simulate(
       experiment([
         { id: "gelatin", pct: 45 },
-        { id: "water", pct: 55 },
-      ], { tempC: 37, pH: 8 }),
+        { id: "water", pct: 52.97 },
+        { id: "sodium-bicarbonate", pct: 2 },
+        { id: "citric-acid", pct: 0.03 },
+      ], { tempC: 37 }),
     );
     const withEnzyme = simulate(
       experiment(
         [
           { id: "gelatin", pct: 45 },
-          { id: "water", pct: 50 },
+          { id: "water", pct: 47.97 },
           { id: "trypsin", pct: 5 },
+          { id: "sodium-bicarbonate", pct: 2 },
+          { id: "citric-acid", pct: 0.03 },
         ],
-        { tempC: 37, pH: 8 },
+        { tempC: 37 },
       ),
     );
     expect(withEnzyme.events.find((event) => event.id === "protease-digestion")?.status).toBe("happened");
@@ -205,14 +204,14 @@ describe("bench simulation", () => {
     );
   });
 
-  it("marks a pH 0.5 mixture corrosive and caps borax slime strength", () => {
+  it("marks a concentrated formic-acid mixture corrosive and caps borax slime strength", () => {
     const acidic = simulate(
       experiment(
         [
-          { id: "spider-silk", pct: 40 },
-          { id: "water", pct: 60 },
+          { id: "formic-acid", pct: 70 },
+          { id: "water", pct: 30 },
         ],
-        { pH: 0.5, forming: "cast-film" },
+        { forming: "cast-film" },
       ),
     );
     const slimePreset = benchPresets.find((preset) => preset.id === "borax-slime")!;
@@ -221,26 +220,26 @@ describe("bench simulation", () => {
     expect(acidic.skin).toBe(3);
     expect(acidic.wetToxicity).toBeGreaterThanOrEqual(2);
     expect(acidic.edible).toBe(false);
-    expect(acidic.warnings.some((warning) => warning.text.includes("pH 0.5"))).toBe(true);
+    expect(acidic.warnings.some((warning) =>
+      warning.text.includes(`pH ${acidic.effectivePH.toFixed(1)}`),
+    )).toBe(true);
     expect(slime.tensileMPa).toBeLessThanOrEqual(1);
   });
 
-  it("explains partial borax-PVA activity at pH 7.5", () => {
-    const result = simulate(
-      experiment(
-        [
-          { id: "pva", pct: 40 },
-          { id: "water", pct: 58 },
-          { id: "borax", pct: 2 },
-        ],
-        { pH: 7.5 },
-      ),
-    );
+  it("explains partial borax-PVA activity at the ingredient-computed pH", () => {
+    const mix = experiment([
+      { id: "pva", pct: 40 },
+      { id: "water", pct: 57.34 },
+      { id: "borax", pct: 2 },
+      { id: "citric-acid", pct: 0.66 },
+    ]);
+    const result = simulate(mix);
     const event = result.events.find((item) => item.id === "borax-pva");
 
+    expect(effectivePH(mix)).toBeCloseTo(7.5, 1);
     expect(event?.status).toBe("partial");
-    expect(event?.activity).toBe(0.5);
-    expect(event?.reasons.join(" ")).toContain("pH 7.5");
+    expect(event?.activity).toBeCloseTo(0.5, 1);
+    expect(event?.reasons.join(" ")).toContain(`pH ${result.effectivePH.toFixed(1)}`);
   });
 
   it("gives gelatin thermo-gel a set time based on temperature", () => {

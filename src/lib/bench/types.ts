@@ -61,6 +61,14 @@ export interface EnzymeParameters {
   needsO2?: boolean;
 }
 
+export interface AcidBase {
+  molPerPct: number;
+  pKas: number[];
+  sites?: number;
+  chargeProtonated?: number;
+  cations?: number;
+}
+
 export interface BenchIngredient {
   id: string;
   name: string;
@@ -78,7 +86,7 @@ export interface BenchIngredient {
   edible: boolean;
   water: WaterBehavior;
   biodegradable: boolean;
-  pHShift?: number;
+  acidBase?: AcidBase;
   boilC?: number;
   enzyme?: EnzymeParameters;
   dissolvesOnlyBelowPH?: number;
@@ -93,7 +101,6 @@ export interface Part {
 
 export interface Conditions {
   tempC: number;
-  pH: number;
   pressureKPa: number;
   atmosphere: Atmosphere;
   humidityPct: number;

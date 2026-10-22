@@ -18,7 +18,6 @@ import type {
 } from "./types";
 
 const TEMPERATURES = [4, 20, 25, 37, 50, 80, 140];
-const PH_VALUES = [4, 5, 6, 7, 8, 9];
 const HUMIDITIES = [10, 40, 70];
 const MIX_SPEEDS = [0, 300, 1000];
 const CURE_MINUTES = [5, 60, 240, 1440];
@@ -76,17 +75,16 @@ function randomExperiment(
   random: () => number,
 ): Experiment {
   const maxCount = Math.max(2, Math.min(maxIngredients, pool.length));
-  const ph = pick(PH_VALUES, random);
   const formers = pool.filter(
     (id) =>
       isNetworkFormer(id) &&
       (!requiresSolutionSolvent(id, "cast-film") ||
-        matchingSolventIds(id, ph).some((solvent) => pool.includes(solvent))),
+        matchingSolventIds(id, 6).some((solvent) => pool.includes(solvent))),
   );
   const networkFormer = formers.length
     ? pick(formers, random)
     : pool.find(isNetworkFormer) ?? pool[0];
-  const matchingSolvents = matchingSolventIds(networkFormer, ph).filter((id) =>
+  const matchingSolvents = matchingSolventIds(networkFormer, 6).filter((id) =>
     pool.includes(id),
   );
   const solventRequired = requiresSolutionSolvent(networkFormer, "cast-film");
@@ -127,7 +125,6 @@ function randomExperiment(
     {
       ...DEFAULT_CONDITIONS,
       tempC: pick(TEMPERATURES, random),
-      pH: ph,
       atmosphere: "air",
       humidityPct: pick(HUMIDITIES, random),
       mixRpm: Math.max(800, pick(MIX_SPEEDS, random)),
@@ -169,7 +166,6 @@ function mutateExperiment(
   } else {
     const conditionKeys = ([
       "tempC",
-      "pH",
       "atmosphere",
       "humidityPct",
       "mixRpm",
@@ -185,9 +181,6 @@ function mutateExperiment(
       switch (key) {
         case "tempC":
           conditions.tempC = pick(TEMPERATURES, random);
-          break;
-        case "pH":
-          conditions.pH = pick(PH_VALUES, random);
           break;
         case "atmosphere":
           conditions.atmosphere = pick(ATMOSPHERES, random);
