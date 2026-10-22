@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageIntro } from "@/components/shared";
 
 const tools = [
+  { number: "00", title: "Lab quests", href: "/play", label: "PLAY & LEARN", copy: "Game-style side quests with real chemistry: snap atoms into molecules, mix materials, and split atoms. Earn stars as you learn.", action: "Start playing" },
   { number: "01", title: "Experiment Bench", href: "/bench", label: "EXPERIMENT BENCH", copy: "Mix elements, proteins, enzymes and chemicals, set the conditions, and see what forms — or let it search for the best mix.", action: "Open the bench" },
   { number: "02", title: "Formula lab", href: "/lab", label: "MATERIALS DESIGN", copy: "Blend polymers, crosslinkers, and fillers. See how the mix might behave before you make it.", action: "Open formula builder" },
   { number: "03", title: "Jet shooter", href: "/shooter", label: "FLUID DYNAMICS", copy: "Explore flight, sag, breakup, and the pressure behind a hypothetical strand launcher.", action: "Model a jet" },
