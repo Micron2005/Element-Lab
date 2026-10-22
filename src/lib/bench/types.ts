@@ -87,6 +87,9 @@ export interface BenchIngredient {
   water: WaterBehavior;
   biodegradable: boolean;
   acidBase?: AcidBase;
+  viscosityPas?: number;
+  surfaceTensionNm?: number;
+  volatile?: boolean;
   boilC?: number;
   enzyme?: EnzymeParameters;
   dissolvesOnlyBelowPH?: number;
