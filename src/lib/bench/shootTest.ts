@@ -2,6 +2,8 @@ import { benchById } from "./library";
 import { jet } from "../physics";
 import type { Experiment, RunResult } from "./types";
 
+export const LAUNCH_HEIGHT_M = 1.5;
+
 export interface ShotSetup {
   nozzleMm: number;
   speedMs: number;
@@ -30,6 +32,7 @@ export interface MixFluid {
 export type ShotVerdict =
   | "shoots"
   | "breaks-up"
+  | "falls-short"
   | "too-thick"
   | "sets-in-cartridge"
   | "nothing-to-shoot"
@@ -42,6 +45,13 @@ export interface ShotReport {
   headline: string;
   notes: string[];
   holdsKg: number | null;
+}
+
+export function formatBar(pressureBar: number): string {
+  if (pressureBar >= 1e6) {
+    return `${(pressureBar / 1e6).toPrecision(3)} million`;
+  }
+  return Math.round(pressureBar).toLocaleString("en-US");
 }
 
 interface KnownPart {
@@ -80,6 +90,12 @@ export function fluidFromMix(experiment: Experiment, result: RunResult): MixFlui
       part.ingredient.viscosityPas > 0,
   );
   const liquidWeight = liquids.reduce((sum, part) => sum + part.weight, 0);
+  const hasNonLiquidPolymerOrProtein = parts.some(
+    (part) =>
+      part.ingredient.viscosityPas === undefined &&
+      (part.ingredient.category === "polymer" ||
+        part.ingredient.category === "protein"),
+  );
 
   let viscosityPas: number | null = null;
   if (liquidWeight > 0) {
@@ -132,6 +148,15 @@ export function fluidFromMix(experiment: Experiment, result: RunResult): MixFlui
       notes.push("Borax-style crosslinks make this a thick putty.");
     }
     if (viscosityPas !== null) viscosityPas = Math.min(1e5, viscosityPas);
+    if (
+      viscosityPas !== null &&
+      viscosityPas > 1 &&
+      (hasNonLiquidPolymerOrProtein || result.product === "slime")
+    ) {
+      notes.push(
+        "Real polymer mixes thin out when pushed through a nozzle, so this fixed-thickness estimate runs on the thick side.",
+      );
+    }
   } else {
     notes.push("No liquid in the mix.");
   }
@@ -233,6 +258,52 @@ export function shootTest(
     solidsFraction: fluid.solidsFraction,
     cureSeconds: fluid.setSeconds > 0 ? fluid.setSeconds : Infinity,
   });
+  const notes = [...fluid.notes];
+  if (j.pressureBar > 1000) {
+    let low = 0;
+    let high = setup.speedMs;
+    const pressureAt = (speedMs: number) =>
+      jet({
+        ...setup,
+        speedMs,
+        viscosityPas: fluid.viscosityPas as number,
+        densityKgM3: fluid.densityKgM3,
+        surfaceTensionNm: fluid.surfaceTensionNm,
+        solidsFraction: fluid.solidsFraction,
+        cureSeconds: fluid.setSeconds > 0 ? fluid.setSeconds : Infinity,
+      }).pressureBar;
+    if (pressureAt(low) <= 1000) {
+      for (let iteration = 0; iteration < 40; iteration += 1) {
+        const middle = (low + high) / 2;
+        if (pressureAt(middle) <= 1000) low = middle;
+        else high = middle;
+      }
+    }
+    const speedNote =
+      low >= 0.1
+        ? `At this nozzle it can fire up to ${low.toFixed(1)} m/s.`
+        : "No useful speed works with this nozzle.";
+    return {
+      fluid,
+      jet: j,
+      verdict: "too-thick",
+      headline: `Won't fire: it would need about ${formatBar(j.pressureBar)} bar; this test caps pumps at 1,000 bar.`,
+      notes: [
+        ...notes,
+        speedNote,
+        "Try a wider or shorter nozzle, or thin the mix with more solvent.",
+      ],
+      holdsKg:
+        result.tensileMPa > 0
+          ? (result.tensileMPa *
+              1e6 *
+              Math.PI *
+              (j.dryDiameterMm / 2000) ** 2) /
+            9.81
+          : null,
+    };
+  }
+
   const holdsKg =
     result.tensileMPa > 0
       ? (result.tensileMPa *
@@ -241,7 +312,6 @@ export function shootTest(
           (j.dryDiameterMm / 2000) ** 2) /
         9.81
       : null;
-  const notes = [...fluid.notes];
   if (j.curesInFlight) {
     notes.push("It sets before landing.");
   } else if (fluid.setSeconds === 0) {
@@ -258,12 +328,16 @@ export function shootTest(
   );
   notes.push(`Minimum speed for less than 10% sag: ${j.minSpeed.toFixed(1)} m/s.`);
 
-  if (j.pressureBar > 1000) {
+  if (j.dropM > LAUNCH_HEIGHT_M) {
+    const groundM = Math.min(
+      setup.distanceM,
+      setup.speedMs * Math.sqrt((2 * LAUNCH_HEIGHT_M) / 9.81),
+    );
     return {
       fluid,
       jet: j,
-      verdict: "too-thick",
-      headline: `Won't fire: it needs ${j.pressureBar.toFixed(0)} bar.`,
+      verdict: "falls-short",
+      headline: `Falls short: it droops to the ground about ${groundM.toFixed(1)} m out, before the ${setup.distanceM} m target.`,
       notes,
       holdsKg,
     };

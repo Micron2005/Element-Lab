@@ -22,7 +22,7 @@ function drawShot(
 ) {
   const left = 26;
   const right = width - 26;
-  const top = 34;
+  const top = 80;
   const bottom = height - 28;
   const horizontalScale = Math.max(1, right - left) / setup.distanceM;
   const verticalScale = Math.max(1, bottom - top) / NOZZLE_HEIGHT_M;

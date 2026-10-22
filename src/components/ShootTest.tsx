@@ -63,7 +63,10 @@ export default function ShootTest({
     [experiment, result, setup],
   );
   const { fluid, jet: jetResult } = report;
-  const isFiring = report.verdict === "shoots" || report.verdict === "breaks-up";
+  const isFiring =
+    report.verdict === "shoots" ||
+    report.verdict === "breaks-up" ||
+    report.verdict === "falls-short";
 
   function setValue(key: keyof ShotSetup, value: number) {
     setSetup((current) => ({ ...current, [key]: value }));
@@ -133,7 +136,7 @@ export default function ShootTest({
         )}
       </div>
 
-      {jetResult && (
+      {isFiring && jetResult && (
         <div className="bench-shot-tiles">
           <Metric label="Flight time" value={`${formatNumber(jetResult.flightS, 3)} s`} />
           <Metric label="Sag" value={`${formatNumber(jetResult.dropM, 3)} m`} />
@@ -142,7 +145,14 @@ export default function ShootTest({
           <Metric label="Pressure" value={`${formatNumber(jetResult.pressureBar, 2)} bar`} />
           <Metric label="Recoil" value={`${formatNumber(jetResult.recoilN, 3)} N`} />
           <Metric label="Dried strand" value={`${formatNumber(jetResult.dryDiameterMm, 3)} mm`} />
-          <Metric label="Breakup length" value={`${formatNumber(jetResult.breakupM, 2)} m`} />
+          <Metric
+            label="Breakup length"
+            value={
+              jetResult.breakupM > 1000
+                ? "> 1 km (stays whole)"
+                : `${formatNumber(jetResult.breakupM, 2)} m`
+            }
+          />
           <Metric
             label="Holds"
             value={report.holdsKg === null ? "—" : `${formatNumber(report.holdsKg, 2)} kg`}

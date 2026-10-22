@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CONDITIONS } from "./conditions";
 import { benchPresets } from "./presets";
 import { simulate } from "./simulate";
-import { DEFAULT_SHOT, fluidFromMix, shootTest } from "./shootTest";
+import {
+  DEFAULT_SHOT,
+  fluidFromMix,
+  formatBar,
+  shootTest,
+} from "./shootTest";
 import type { Experiment } from "./types";
 
 function experiment(parts: Experiment["parts"], forming: Experiment["conditions"]["forming"] = "beaker"): Experiment {
@@ -93,7 +98,23 @@ describe("shootTest", () => {
     expect(shootTest(graphene, simulate(graphene), DEFAULT_SHOT).verdict).toBe("too-thick");
   });
 
-  it("estimates a finite load for the spider-web preset", () => {
+  it("shoots the spider-web preset when the strand clears the launch height", () => {
+    const exp = preset("spider-web");
+    const shot = shootTest(exp, simulate(exp), {
+      ...DEFAULT_SHOT,
+      nozzleMm: 10,
+      nozzleLengthMm: 0.5,
+      speedMs: 5,
+      distanceM: 0.5,
+    });
+    expect(shot.verdict).toBe("shoots");
+    expect(shot.jet?.dropM).toBeLessThan(1.5);
+    expect(shot.jet?.minSpeed).toBeLessThanOrEqual(5);
+    expect(Number.isFinite(shot.holdsKg)).toBe(true);
+    expect(shot.holdsKg).toBeGreaterThan(0);
+  });
+
+  it("reports a spider-web strand that hits the ground before the target", () => {
     const exp = preset("spider-web");
     const shot = shootTest(exp, simulate(exp), {
       ...DEFAULT_SHOT,
@@ -102,9 +123,22 @@ describe("shootTest", () => {
       speedMs: 0.5,
       distanceM: 0.5,
     });
-    expect(["shoots", "breaks-up"]).toContain(shot.verdict);
-    expect(Number.isFinite(shot.holdsKg)).toBe(true);
-    expect(shot.holdsKg).toBeGreaterThan(0);
+    expect(shot.verdict).toBe("falls-short");
+    expect(shot.headline).toContain("ground about 0.3 m out");
+  });
+
+  it("suggests a safe speed for high-pressure borax slime", () => {
+    const exp = preset("borax-slime");
+    const shot = shootTest(exp, simulate(exp), DEFAULT_SHOT);
+    expect(shot.verdict).toBe("too-thick");
+    expect(shot.headline).toContain("1,000 bar");
+    expect(shot.notes.some((note) => note.includes("fire up to") || note.includes("No useful speed"))).toBe(true);
+    expect(shot.notes.some((note) => note.includes("Minimum speed"))).toBe(false);
+  });
+
+  it("formats pressure in bar or millions of bar", () => {
+    expect(formatBar(12800002)).toBe("12.8 million");
+    expect(formatBar(116)).toBe("116");
   });
 
   it("reports a fast-setting beaker mix as a cartridge clog", () => {
