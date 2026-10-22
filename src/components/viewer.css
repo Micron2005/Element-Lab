@@ -1,0 +1,158 @@
+.viewer {
+  display: grid;
+  gap: 12px;
+}
+
+.viewer-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #263436;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 30%, #12201f, #0b1214 70%);
+}
+
+.viewer-stage canvas {
+  display: block;
+  width: 100%;
+  height: 300px;
+}
+
+.viewer-hud {
+  position: absolute;
+  inset: 10px 12px auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+  color: #d6e2df;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.viewer-hud strong {
+  display: block;
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.viewer-clock {
+  flex: 0 0 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer-captions {
+  display: grid;
+  gap: 6px;
+  min-height: 22px;
+}
+
+.viewer-caption {
+  padding: 7px 10px;
+  border-left: 2px solid var(--accent);
+  border-radius: 6px;
+  background: #0f1a1b;
+  color: #cfe0dc;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.viewer-caption-blocked {
+  border-left-color: var(--red);
+  color: #f2b8b8;
+}
+
+.viewer-controls {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.viewer-controls .button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.viewer-controls input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+
+.viewer-controls .select {
+  width: auto;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.viewer-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: #b4c2bf;
+  font-size: 12px;
+}
+
+.viewer-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.viewer-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.viewer-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.viewer-modes .button {
+  min-height: 44px;
+}
+
+.viewer-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.viewer-steps li {
+  padding: 8px 10px;
+  border: 1px solid #243234;
+  border-radius: 8px;
+  color: #a9b9b6;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.viewer-steps li.is-current {
+  border-color: #3f7d76;
+  background: #102422;
+  color: #e6f2ef;
+}
+
+@media (max-width: 560px) {
+  .viewer-stage canvas {
+    height: 260px;
+  }
+
+  .viewer-controls {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .viewer-controls .select {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

@@ -7,6 +7,8 @@ import { benchById, benchLibrary } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
 import { benchPresets } from "@/lib/bench/presets";
 import { simulate } from "@/lib/bench/simulate";
+import { buildMixScene } from "@/lib/bench/scene";
+import MixViewer from "./MixViewer";
 import type {
   Candidate,
   Category,
@@ -294,6 +296,7 @@ export default function BenchTool() {
   const [result, setResult] = useState<RunResult | null>(null);
   const [runError, setRunError] = useState("");
   const [lastRunExperiment, setLastRunExperiment] = useState<Experiment | null>(null);
+  const [runId, setRunId] = useState(0);
   const [notebook, setNotebook] = useState<NotebookEntry[]>([]);
   const [notebookName, setNotebookName] = useState("");
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -371,6 +374,11 @@ export default function BenchTool() {
     lastRunExperiment !== null &&
     JSON.stringify(experiment) !== JSON.stringify(lastRunExperiment);
 
+  const scene = useMemo(
+    () => (result && lastRunExperiment ? buildMixScene(lastRunExperiment, result) : null),
+    [result, lastRunExperiment],
+  );
+
   function updateExperiment(next: Experiment) {
     setExperiment(next);
     setSelectedPreset("custom");
@@ -417,6 +425,7 @@ export default function BenchTool() {
     const nextResult = simulate(snapshot);
     setResult(nextResult);
     setLastRunExperiment(snapshot);
+    setRunId((id) => id + 1);
     const name = notebookName.trim() || `Experiment ${new Date().toLocaleString()}`;
     const entry: NotebookEntry = {
       id: makeNotebookId(),
@@ -443,6 +452,7 @@ export default function BenchTool() {
     setSelectedPreset("custom");
     setResult(entry.result);
     setLastRunExperiment(snapshot);
+    setRunId((id) => id + 1);
     setCompareVisible(false);
   }
 
@@ -918,6 +928,12 @@ export default function BenchTool() {
                 confidence · {Math.round(result.confidence * 100)}%
               </span>
             </div>
+            {scene && (
+              <section className="bench-result-section" aria-label="Watch the experiment">
+                <h3>Watch it happen</h3>
+                <MixViewer key={runId} scene={scene} resultLabel={result.productLabel} />
+              </section>
+            )}
             <div className="bench-metric-grid">
               <Metric label="Tensile strength" value={formattedMechanicalValue(result, `${formatMPa(result.tensileMPa)} MPa`)} />
               <Metric label="Stretch" value={formattedMechanicalValue(result, `${formatPercent(result.elongationPct)}%`)} />

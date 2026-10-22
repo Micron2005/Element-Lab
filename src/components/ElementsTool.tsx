@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageIntro, Panel } from "./shared";
+import NucleusViewer from "./NucleusViewer";
 import { analyzeNucleus, bindingEnergy, stableZ } from "@/lib/nuclear";
 
 function tickStep(range: number, intervals: number) {
@@ -101,6 +102,9 @@ export default function ElementsTool() {
           </Panel>
         </div>
         <div className="stack">
+          <Panel title="Watch it happen" subtitle="See what the model predicts this nucleus does, step by step.">
+            <NucleusViewer key={`${z}-${n}`} z={z} n={n} />
+          </Panel>
           <Panel title="Binding energy curve" subtitle={`Binding energy per nucleon vs neutron count at Z = ${z}.`}>
             <div className="chart-wrap" ref={chartRef}>
               <svg viewBox={`0 0 ${points.width} 260`} role="img" aria-label={`Binding energy per nucleon curve for Z ${z}, with N ${n} marked`}>

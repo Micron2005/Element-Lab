@@ -80,9 +80,10 @@ function shiftLightness(hex: string, categoryIndex: number): string {
     }
     hue /= 6;
   }
-  const adjustedLightness = clamp01(
-    lightness + (categoryIndex % 2 === 1 ? 1 : -1) * 0.08 * Math.ceil(categoryIndex / 2),
-  );
+  const direction = categoryIndex % 2 === 1 ? 1 : -1;
+  const step = Math.ceil(categoryIndex / 2);
+  const adjustedLightness = clamp01(lightness + direction * 0.12 * step);
+  const adjustedHue = hue + direction * 0.06 * step;
   const hueToRgb = (p: number, q: number, t: number) => {
     let adjusted = t;
     if (adjusted < 0) adjusted += 1;
@@ -99,9 +100,9 @@ function shiftLightness(hex: string, categoryIndex: number): string {
   const shifted = saturation === 0
     ? [adjustedLightness, adjustedLightness, adjustedLightness]
     : [
-        hueToRgb(p, q, hue + 1 / 3),
-        hueToRgb(p, q, hue),
-        hueToRgb(p, q, hue - 1 / 3),
+        hueToRgb(p, q, adjustedHue + 1 / 3),
+        hueToRgb(p, q, adjustedHue),
+        hueToRgb(p, q, adjustedHue - 1 / 3),
       ];
   return `#${shifted.map((channel) => Math.round(channel * 255).toString(16).padStart(2, "0")).join("")}`;
 }
@@ -218,7 +219,7 @@ function buildPhases(experiment: Experiment, result: RunResult): ScenePhase[] {
     label: phaseLabel("final", experiment, result),
     start: position,
     end: 1,
-    realSeconds: 0.12,
+    realSeconds: 0,
   });
   return phases;
 }
@@ -279,6 +280,8 @@ function effectLabel(
   return describeEvent(event);
 }
 
+const ON_CONTACT_EVENTS = new Set(["sodium-water", "bicarbonate-bubbles"]);
+
 function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePhase[]): {
   effects: SceneEffect[];
   blocked: { eventId: string; label: string }[];
@@ -310,10 +313,16 @@ function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePh
     const species = experiment.parts
       .filter((part) => participants.has(part.id))
       .map((part) => part.id);
-    const start = activeEvents.length > 1
-      ? activeStart + span * (index / activeEvents.length)
-      : activeStart;
-    const end = Math.min(activeEnd, start + span * 0.5);
+    const onContact = ON_CONTACT_EVENTS.has(event.id);
+    const contactStart = pourPhase?.end ?? activeStart;
+    const start = onContact
+      ? contactStart
+      : activeEvents.length > 1
+        ? activeStart + span * (index / activeEvents.length)
+        : activeStart;
+    const end = onContact
+      ? Math.max(start + 0.2, finalPhase?.start ?? activeEnd)
+      : Math.min(activeEnd, start + span * 0.5);
     return effectSpecs(event.id).map((spec) => ({
       kind: spec.kind,
       eventId: event.id,
