@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fmtTime, hazardWord } from "@/lib/formula";
-import { effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
+import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
 import { benchById, benchLibrary } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
 import { benchPresets } from "@/lib/bench/presets";
@@ -56,6 +56,29 @@ function cloneExperiment(experiment: Experiment): Experiment {
     parts: experiment.parts.map((part) => ({ ...part })),
     conditions: { ...experiment.conditions },
   };
+}
+
+function experimentsEqual(left: Experiment, right: Experiment): boolean {
+  const conditionKeys: (keyof Conditions)[] = [
+    "tempC",
+    "pH",
+    "pressureKPa",
+    "atmosphere",
+    "humidityPct",
+    "mixRpm",
+    "mixMinutes",
+    "cureMinutes",
+    "forming",
+    "bathId",
+  ];
+  return (
+    left.parts.length === right.parts.length &&
+    left.parts.every(
+      (part, index) =>
+        part.id === right.parts[index].id && part.pct === right.parts[index].pct,
+    ) &&
+    conditionKeys.every((key) => left.conditions[key] === right.conditions[key])
+  );
 }
 
 function ingredientMatchesFilter(
@@ -262,13 +285,14 @@ function partsSummary(experiment: Experiment): string {
 
 export default function BenchTool() {
   const [experiment, setExperiment] = useState<Experiment>(() =>
-    cloneExperiment(benchPresets[0].experiment),
+    ({ parts: [], conditions: DEFAULT_CONDITIONS }),
   );
-  const [selectedPreset, setSelectedPreset] = useState(benchPresets[0].id);
+  const [selectedPreset, setSelectedPreset] = useState("");
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<IngredientFilter>("All");
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<RunResult | null>(null);
+  const [runError, setRunError] = useState("");
   const [lastRunExperiment, setLastRunExperiment] = useState<Experiment | null>(null);
   const [notebook, setNotebook] = useState<NotebookEntry[]>([]);
   const [notebookName, setNotebookName] = useState("");
@@ -294,7 +318,12 @@ export default function BenchTool() {
         const savedExperiment = localStorage.getItem(CURRENT_KEY);
         if (savedExperiment) {
           const parsed = JSON.parse(savedExperiment) as Experiment;
-          if (Array.isArray(parsed.parts) && parsed.conditions) {
+          const spiderPreset = benchPresets.find((preset) => preset.id === "spider-web");
+          const isLegacySpider = spiderPreset &&
+            Array.isArray(parsed.parts) &&
+            parsed.conditions &&
+            experimentsEqual(parsed, spiderPreset.experiment);
+          if (Array.isArray(parsed.parts) && parsed.conditions && !isLegacySpider) {
             setExperiment(cloneExperiment(parsed));
             setSelectedPreset("custom");
           }
@@ -345,6 +374,7 @@ export default function BenchTool() {
   function updateExperiment(next: Experiment) {
     setExperiment(next);
     setSelectedPreset("custom");
+    setRunError("");
   }
 
   function setCondition<K extends keyof Conditions>(key: K, value: Conditions[K]) {
@@ -379,6 +409,11 @@ export default function BenchTool() {
 
   function runExperiment(value: Experiment = experiment) {
     const snapshot = cloneExperiment(value);
+    if (!snapshot.parts.some((part) => Number.isFinite(part.pct) && part.pct > 0)) {
+      setRunError("Add ingredients first.");
+      return;
+    }
+    setRunError("");
     const nextResult = simulate(snapshot);
     setResult(nextResult);
     setLastRunExperiment(snapshot);
@@ -399,6 +434,7 @@ export default function BenchTool() {
     if (!preset) return;
     setExperiment(cloneExperiment(preset.experiment));
     setSelectedPreset(preset.id);
+    setRunError("");
   }
 
   function loadNotebookEntry(entry: NotebookEntry) {
@@ -502,6 +538,7 @@ export default function BenchTool() {
               value={selectedPreset}
               onChange={(event) => loadPreset(event.target.value)}
             >
+              <option value="">Choose a preset…</option>
               <option value="custom">Custom mix</option>
               {benchPresets.map((preset) => (
                 <option value={preset.id} key={preset.id}>
@@ -853,6 +890,7 @@ export default function BenchTool() {
         <button className="button bench-run-button" type="button" onClick={() => runExperiment()}>
           Run experiment
         </button>
+        {runError && <p className="bench-empty" role="alert">{runError}</p>}
       </section>
 
       <section className="bench-panel" aria-labelledby="bench-results-heading">

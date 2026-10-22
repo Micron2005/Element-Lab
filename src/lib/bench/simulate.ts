@@ -437,6 +437,7 @@ function resultProduct(
   if (active.has("transglutaminase") || active.has("phenol-oxidase") || active.has("genipin-amine") || active.has("glutaraldehyde-amine")) {
     return "gel";
   }
+  if (active.has("bicarbonate-bubbles")) return "solution";
   const hasStructure = experiment.parts.some((part) =>
     ["protein", "polymer"].includes(benchById[part.id]?.category ?? ""),
   );
