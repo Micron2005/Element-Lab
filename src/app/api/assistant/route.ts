@@ -1,17 +1,33 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ASSISTANT_PROMPT } from "@/lib/assistantPrompt";
+import { resolveCredentials } from "@/lib/assistantKey";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 function errorStatus(error: unknown) {
-  if (typeof error === "object" && error !== null && "status" in error) return String(error.status);
+  if (typeof error === "object" && error !== null && "status" in error && typeof error.status === "number") {
+    return String(error.status);
+  }
   return "unknown";
 }
 
+function isRejectedStatus(status: string) {
+  return status === "401" || status === "403";
+}
+
+export async function GET() {
+  return Response.json({
+    siteKey: Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY),
+  });
+}
+
 export async function POST(request: Request) {
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
-    return Response.json({ error: "no-key" }, { status: 503 });
+  const credentials = resolveCredentials(request.headers, process.env);
+  if (!credentials) return Response.json({ error: "no-key" }, { status: 503 });
+  if ("error" in credentials) {
+    return Response.json({ error: "bad-key", message: credentials.error }, { status: 400 });
   }
+
   let body: { messages?: unknown; labState?: unknown };
   try {
     body = await request.json() as typeof body;
@@ -46,11 +62,16 @@ export async function POST(request: Request) {
     }
   }
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  const { provider, apiKey, source } = credentials;
+  const model = provider === "anthropic"
+    ? source === "user" ? "claude-sonnet-4-6" : process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6"
+    : source === "user" ? "gpt-4.1-mini" : process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
+
+  if (provider === "anthropic") {
     try {
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const client = new Anthropic({ apiKey });
       const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+        model,
         max_tokens: 1500,
         system: ASSISTANT_PROMPT,
         messages,
@@ -58,7 +79,11 @@ export async function POST(request: Request) {
       const reply = response.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
       return Response.json({ reply });
     } catch (error) {
-      console.error(`Anthropic assistant request failed with status ${errorStatus(error)}`);
+      const status = errorStatus(error);
+      console.error(`Anthropic assistant request failed with status ${status}`);
+      if (isRejectedStatus(status)) {
+        return Response.json({ error: "key-rejected" }, { status: 401 });
+      }
       return Response.json({ error: "The assistant could not respond right now. Check your API key and model, then try again." }, { status: 502 });
     }
   }
@@ -67,11 +92,11 @@ export async function POST(request: Request) {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+        model,
         max_tokens: 1500,
         messages: [{ role: "system", content: ASSISTANT_PROMPT }, ...messages],
       }),
@@ -79,6 +104,9 @@ export async function POST(request: Request) {
     });
     if (!response.ok) {
       console.error(`OpenAI assistant request failed with status ${response.status}`);
+      if (response.status === 401 || response.status === 403) {
+        return Response.json({ error: "key-rejected" }, { status: 401 });
+      }
       return Response.json({ error: "The assistant could not respond right now. Check your API key and model, then try again." }, { status: 502 });
     }
     const result = await response.json() as { choices?: { message?: { content?: unknown } }[] };
