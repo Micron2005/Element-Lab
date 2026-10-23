@@ -124,6 +124,17 @@ function hasFastNetworkFormation(result: RunResult): boolean {
   });
 }
 
+export function tipOutcome(result: RunResult): string {
+  if (
+    (result.product === "solution" || result.product === "nothing") &&
+    result.setSeconds > 0 &&
+    hasFastNetworkFormation(result)
+  ) {
+    return "Gels after it leaves the nozzle";
+  }
+  return result.productLabel;
+}
+
 export function checkCartridge(
   label: "A" | "B",
   parts: Part[],

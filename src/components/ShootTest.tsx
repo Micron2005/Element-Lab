@@ -14,6 +14,7 @@ import {
   CARTRIDGE_B_STORAGE,
   DEFAULT_RATIO,
   parseStoredCartridgeB,
+  tipOutcome,
   twoPartShoot,
   type TwoPartSetup,
 } from "@/lib/bench/twoPart";
@@ -237,7 +238,10 @@ export default function ShootTest({
               <p>Your Bench mix</p>
               <ul className="bench-cartridge-parts">
                 {experiment.parts.map((part, index) => (
-                  <li key={`${part.id}-${index}`}>
+                  <li
+                    className="bench-cartridge-summary-row"
+                    key={`${part.id}-${index}`}
+                  >
                     <span>{benchById[part.id]?.name ?? "Deleted ingredient"}</span>
                     <strong>{formatNumber(part.pct, 1)}%</strong>
                   </li>
@@ -364,7 +368,7 @@ export default function ShootTest({
             {twoPartReport.combined ? (
               <>
                 <p className="bench-tip-product">
-                  {twoPartReport.combined.result.productLabel}
+                  {tipOutcome(twoPartReport.combined.result)}
                 </p>
                 <dl className="bench-tip-metrics">
                   <div>

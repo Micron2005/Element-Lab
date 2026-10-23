@@ -798,6 +798,22 @@
   color: #9eb3b0;
 }
 
+.bench-cartridge-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bench-cartridge-summary-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bench-cartridge-summary-row strong {
+  flex: 0 0 auto;
+}
+
 .bench-cartridge-part {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -8,8 +8,10 @@ import {
   clogsAtTip,
   combineAtTip,
   parseStoredCartridgeB,
+  tipOutcome,
   twoPartShoot,
 } from "./twoPart";
+import { simulate } from "./simulate";
 import type { Experiment, Part } from "./types";
 
 function experiment(
@@ -35,6 +37,18 @@ const calciumB: Part[] = [
 ];
 
 describe("two-part nozzle", () => {
+  it("labels active alginate-calcium setting and preserves other product labels", () => {
+    const combined = combineAtTip(alginateA, calciumB, DEFAULT_RATIO);
+    const settingResult = simulate(combined);
+    const noReactionResult = simulate(
+      experiment([{ id: "water", pct: 100 }]),
+    );
+
+    expect(settingResult.setSeconds).toBeGreaterThan(0);
+    expect(tipOutcome(settingResult)).toBe("Gels after it leaves the nozzle");
+    expect(tipOutcome(noReactionResult)).toBe(noReactionResult.productLabel);
+  });
+
   it("normalizes and combines cartridge contents at the tip", () => {
     const combined = combineAtTip(
       alginateA,

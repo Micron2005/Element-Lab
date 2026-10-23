@@ -23,7 +23,7 @@ function drawShot(
 ) {
   const left = 26;
   const right = width - 26;
-  const top = 80;
+  const top = twoPart ? 104 : 80;
   const bottom = height - 28;
   const horizontalScale = Math.max(1, right - left) / setup.distanceM;
   const verticalScale = Math.max(1, bottom - top) / NOZZLE_HEIGHT_M;
@@ -84,6 +84,23 @@ function drawShot(
       setup.distanceM * 0.08,
       30 / scale,
     );
+    const separation = Math.max(4, fullWidth * 0.75);
+    ctx.save();
+    ctx.globalAlpha = 0.42;
+    ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(3, fullWidth * shareA);
+    ctx.strokeStyle = "#5fd4c4";
+    ctx.beginPath();
+    ctx.moveTo(nozzleX + 12, nozzleY - 3);
+    ctx.lineTo(nozzleX + 32, nozzleY - 3);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(3, fullWidth * shareB);
+    ctx.strokeStyle = "#f0bd69";
+    ctx.beginPath();
+    ctx.moveTo(nozzleX + 12, nozzleY + 3);
+    ctx.lineTo(nozzleX + 32, nozzleY + 3);
+    ctx.stroke();
+    ctx.restore();
     const feedDistance = Math.min(breakupDistance, convergenceDistance);
     const feedSegments = Math.max(1, Math.ceil(feedDistance * scale / 3));
     const drawFeed = (share: number, sign: number, color: string) => {
@@ -98,10 +115,10 @@ function drawShot(
         const endOffsetScale = convergenceDistance > 0
           ? Math.max(0, 1 - end / convergenceDistance)
           : 0;
-        from.y += sign * fullWidth * 0.45 * offsetScale;
-        to.y += sign * fullWidth * 0.45 * endOffsetScale;
+        from.y += sign * separation * offsetScale;
+        to.y += sign * separation * endOffsetScale;
         ctx.strokeStyle = color;
-        ctx.lineWidth = fullWidth * share;
+        ctx.lineWidth = Math.max(3, fullWidth * share);
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
         ctx.lineTo(to.x, to.y);
