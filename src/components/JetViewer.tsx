@@ -19,6 +19,7 @@ function drawShot(
   result: JetResult,
   setSeconds: number,
   progress: number,
+  twoPart?: { ratioA: number; ratioB: number },
 ) {
   const left = 26;
   const right = width - 26;
@@ -73,10 +74,53 @@ function drawShot(
   ctx.fillText("nozzle", nozzleX - 12, nozzleY - 12);
 
   ctx.lineCap = "round";
-  const segments = Math.max(1, Math.ceil(breakupDistance * scale / 3));
+  let strandStart = 0;
+  if (twoPart) {
+    const ratioTotal = twoPart.ratioA + twoPart.ratioB;
+    const shareA = ratioTotal > 0 ? twoPart.ratioA / ratioTotal : 0.5;
+    const shareB = ratioTotal > 0 ? twoPart.ratioB / ratioTotal : 0.5;
+    const fullWidth = Math.max(2, setup.nozzleMm * 2);
+    const convergenceDistance = Math.min(
+      setup.distanceM * 0.08,
+      30 / scale,
+    );
+    const feedDistance = Math.min(breakupDistance, convergenceDistance);
+    const feedSegments = Math.max(1, Math.ceil(feedDistance * scale / 3));
+    const drawFeed = (share: number, sign: number, color: string) => {
+      for (let index = 0; index < feedSegments; index += 1) {
+        const start = (feedDistance * index) / feedSegments;
+        const end = (feedDistance * (index + 1)) / feedSegments;
+        const from = pointAt(start);
+        const to = pointAt(end);
+        const offsetScale = convergenceDistance > 0
+          ? Math.max(0, 1 - start / convergenceDistance)
+          : 0;
+        const endOffsetScale = convergenceDistance > 0
+          ? Math.max(0, 1 - end / convergenceDistance)
+          : 0;
+        from.y += sign * fullWidth * 0.45 * offsetScale;
+        to.y += sign * fullWidth * 0.45 * endOffsetScale;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = fullWidth * share;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      }
+    };
+    drawFeed(shareA, -1, "#5fd4c4");
+    drawFeed(shareB, 1, "#f0bd69");
+    strandStart = convergenceDistance;
+  }
+  const segments = Math.max(
+    1,
+    Math.ceil((breakupDistance - strandStart) * scale / 3),
+  );
   for (let index = 0; index < segments; index += 1) {
-    const start = (breakupDistance * index) / segments;
-    const end = (breakupDistance * (index + 1)) / segments;
+    const start =
+      strandStart + ((breakupDistance - strandStart) * index) / segments;
+    const end =
+      strandStart + ((breakupDistance - strandStart) * (index + 1)) / segments;
     const from = pointAt(start);
     const to = pointAt(end);
     ctx.strokeStyle =
@@ -126,10 +170,12 @@ export default function JetViewer({
   setup,
   result,
   setSeconds,
+  twoPart,
 }: {
   setup: ShotSetup;
   result: JetResult;
   setSeconds: number;
+  twoPart?: { ratioA: number; ratioB: number };
 }) {
   const playback = usePlayback(4, true);
   const { ref, width } = useCanvasWidth();
@@ -145,9 +191,10 @@ export default function JetViewer({
         result,
         setSeconds,
         playback.t,
+        twoPart,
       );
     }
-  }, [playback.t, ref, result, setSeconds, setup, width]);
+  }, [playback.t, ref, result, setSeconds, setup, twoPart, width]);
 
   const groundDistance =
     result.dropM > NOZZLE_HEIGHT_M
@@ -163,6 +210,7 @@ export default function JetViewer({
           <div>
             <strong>Shot path</strong>
             Gravity bends the strand downward
+            {twoPart && <span className="viewer-two-part-label">A + B mix at tip</span>}
           </div>
           <div className="viewer-clock">
             <strong>Real time</strong>

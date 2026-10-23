@@ -703,6 +703,200 @@
   background: #0b171b;
 }
 
+.bench-shot-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bench-shot-mode .button {
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+.bench-shot-mode .button[aria-pressed="true"] {
+  border-color: #4ca89d;
+  background: #12312e;
+  color: #d8fff6;
+}
+
+.bench-two-part-content {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bench-two-part-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.bench-cartridge-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #263b41;
+  border-radius: 11px;
+  background: #101e22;
+}
+
+.bench-cartridge-card h5 {
+  margin: 0;
+  color: #e3f3f2;
+  font-size: 0.95rem;
+}
+
+.bench-cartridge-card > p {
+  margin: 0;
+  color: #a9bfbb;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.bench-cartridge-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.bench-cartridge-add .select {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.bench-cartridge-add > .button,
+.bench-cartridge-part > .button,
+.bench-two-part-example {
+  min-height: 44px;
+}
+
+.bench-two-part-example {
+  width: 100%;
+  padding-inline: 9px;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.bench-cartridge-parts {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #cfe0dc;
+  font-size: 0.87rem;
+}
+
+.bench-cartridge-parts > li:not(.bench-cartridge-part) {
+  color: #9eb3b0;
+}
+
+.bench-cartridge-part {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #263b41;
+  border-radius: 9px;
+  background: #0b171b;
+}
+
+.bench-cartridge-part > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bench-cartridge-part > .bench-field {
+  grid-column: 1 / -1;
+}
+
+.bench-cartridge-part .bench-field-control {
+  grid-template-columns: minmax(0, 1fr) 68px 24px;
+}
+
+.bench-cartridge-message {
+  padding: 9px 10px;
+  border-left: 2px solid #4ca89d;
+  border-radius: 6px;
+  background: #0c1d1d;
+  color: #b6e8dc !important;
+  overflow-wrap: anywhere;
+}
+
+.bench-cartridge-message.is-warning {
+  border-left-color: #d69a4b;
+  background: #241f16;
+  color: #f2d9a6 !important;
+}
+
+.bench-ratio-card .bench-shot-controls {
+  margin-top: 2px;
+}
+
+.bench-tip-product {
+  color: #e3f3f2 !important;
+  font-size: 1rem !important;
+  font-weight: 700;
+}
+
+.bench-tip-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.bench-tip-metrics > div {
+  display: grid;
+  gap: 3px;
+}
+
+.bench-tip-metrics dt,
+.bench-tip-events > span {
+  color: #91a8ad;
+  font-size: 0.78rem;
+}
+
+.bench-tip-metrics dd {
+  margin: 0;
+  color: #e3f3f2;
+  font-weight: 700;
+}
+
+.bench-tip-events ul {
+  display: grid;
+  gap: 4px;
+  margin: 5px 0 0;
+  padding-left: 18px;
+  color: #cfe0dc;
+  font-size: 0.86rem;
+}
+
+.bench-tip-events p {
+  margin: 5px 0 0;
+  color: #a9bfbb;
+  font-size: 0.86rem;
+}
+
+.bench-two-part-headline {
+  padding: 10px 12px;
+  border: 1px solid #3b7068;
+  border-radius: 10px;
+  background: #102422;
+  color: #c9f2e9;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .bench-shoot-heading {
   display: flex;
   align-items: center;
@@ -1201,6 +1395,10 @@
   }
 
   .bench-shot-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bench-two-part-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
