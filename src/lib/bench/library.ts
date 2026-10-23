@@ -1,4 +1,5 @@
 import { byId } from "../ingredients";
+import { CUSTOM_PREFIX } from "./custom";
 import type { BenchIngredient, Category, Hazard, Tag, WaterBehavior } from "./types";
 import type { Ingredient } from "../ingredients";
 
@@ -626,3 +627,23 @@ export const benchLibrary: BenchIngredient[] = [
 export const benchById: Record<string, BenchIngredient> = Object.fromEntries(
   benchLibrary.map((ingredient) => [ingredient.id, ingredient]),
 );
+
+let customList: BenchIngredient[] = [];
+
+export function setCustomIngredients(list: BenchIngredient[]): void {
+  for (const id of Object.keys(benchById)) {
+    if (id.startsWith(CUSTOM_PREFIX)) delete benchById[id];
+  }
+  customList = list.filter((ingredient) => ingredient.id.startsWith(CUSTOM_PREFIX));
+  for (const ingredient of customList) {
+    benchById[ingredient.id] = ingredient;
+  }
+}
+
+export function customIngredients(): BenchIngredient[] {
+  return customList;
+}
+
+export function allBenchIngredients(): BenchIngredient[] {
+  return [...benchLibrary, ...customList];
+}

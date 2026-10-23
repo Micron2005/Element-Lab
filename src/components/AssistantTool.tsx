@@ -5,11 +5,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { analyze, fmtTime, hazardWord } from "@/lib/formula";
 import { byId } from "@/lib/ingredients";
+import { CUSTOM_PREFIX } from "@/lib/bench/custom";
 import { benchById } from "@/lib/bench/library";
 import { simulate } from "@/lib/bench/simulate";
 import type { Experiment } from "@/lib/bench/types";
 import { maskKey, USER_KEY_STORAGE, validateUserKey } from "@/lib/assistantKey";
 import type { Provider } from "@/lib/assistantKey";
+import { loadCustomIngredients } from "./useCustomIngredients";
 import { PageIntro, Panel } from "./shared";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -66,6 +68,7 @@ function buildFormulaLabState(): string | null {
 }
 
 function buildBenchMixState(): string | null {
+  loadCustomIngredients();
   try {
     const stored = JSON.parse(localStorage.getItem("elementlab.bench.current") ?? "null");
     if (
@@ -80,7 +83,28 @@ function buildBenchMixState(): string | null {
     const result = simulate(experiment);
     const ingredients = experiment.parts
       .filter((part) => part.pct > 0)
-      .map((part) => `- ${benchById[part.id]?.name ?? part.id}: ${part.pct.toFixed(1)}%`)
+      .map((part) => {
+        const ingredient = benchById[part.id];
+        const name = ingredient?.name ??
+          (part.id.startsWith(CUSTOM_PREFIX) ? "Deleted ingredient" : part.id);
+        const properties = ingredient && part.id.startsWith(CUSTOM_PREFIX)
+          ? [
+              ingredient.tensileMPa !== undefined
+                ? `strength ${ingredient.tensileMPa} MPa`
+                : "",
+              ingredient.elongationPct !== undefined
+                ? `stretch ${ingredient.elongationPct}%`
+                : "",
+              Number.isFinite(ingredient.density)
+                ? `density ${ingredient.density} g/cm³`
+                : "",
+            ].filter(Boolean).join(", ")
+          : "";
+        const suffix = properties
+          ? ` (user-defined ingredient: ${properties})`
+          : "";
+        return `- ${name}${suffix}: ${part.pct.toFixed(1)}%`;
+      })
       .join("\n");
     const conditions = experiment.conditions;
     const events = result.events
@@ -175,6 +199,7 @@ export default function AssistantTool() {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    loadCustomIngredients();
     let active = true;
     queueMicrotask(() => {
       if (!active) return;

@@ -3,15 +3,19 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { fmtTime, hazardWord } from "@/lib/formula";
 import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
-import { benchById, benchLibrary } from "@/lib/bench/library";
+import { CUSTOM_PREFIX } from "@/lib/bench/custom";
+import { allBenchIngredients, benchById } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
 import { benchPresets } from "@/lib/bench/presets";
 import { simulate } from "@/lib/bench/simulate";
 import { buildMixScene } from "@/lib/bench/scene";
+import CustomIngredientForm from "./CustomIngredientForm";
 import MixViewer from "./MixViewer";
 import RangeNumberField from "./RangeNumberField";
 import ShootTest from "./ShootTest";
+import { useCustomIngredients } from "./useCustomIngredients";
 import type {
+  BenchIngredient,
   Candidate,
   Category,
   Conditions,
@@ -32,7 +36,8 @@ type IngredientFilter =
   | "Polymers"
   | "Solvents"
   | "Acids/Bases"
-  | "Additives";
+  | "Additives"
+  | "Mine";
 
 interface NotebookEntry {
   id: string;
@@ -54,6 +59,7 @@ const filterOptions: IngredientFilter[] = [
   "Solvents",
   "Acids/Bases",
   "Additives",
+  "Mine",
 ];
 
 function cloneExperiment(experiment: Experiment): Experiment {
@@ -86,12 +92,14 @@ function experimentsEqual(left: Experiment, right: Experiment): boolean {
 }
 
 function ingredientMatchesFilter(
-  category: Category,
+  ingredient: BenchIngredient,
   filter: IngredientFilter,
 ): boolean {
   if (filter === "All") return true;
+  if (filter === "Mine") return ingredient.id.startsWith(CUSTOM_PREFIX);
+  const { category } = ingredient;
   if (filter === "Elements") return category === "element" || category === "filler";
-  const map: Record<Exclude<IngredientFilter, "All" | "Elements">, Category> = {
+  const map: Record<Exclude<IngredientFilter, "All" | "Elements" | "Mine">, Category> = {
     Salts: "salt",
     Proteins: "protein",
     Enzymes: "enzyme",
@@ -237,11 +245,18 @@ function candidateTargetStatus(goal: Goal, result: RunResult): {
 
 function partsSummary(experiment: Experiment): string {
   return experiment.parts
-    .map((part) => `${benchById[part.id]?.name ?? part.id} ${part.pct}%`)
+    .map((part) =>
+      `${benchById[part.id]?.name ?? (part.id.startsWith(CUSTOM_PREFIX) ? "Deleted ingredient" : part.id)} ${part.pct}%`,
+    )
     .join(", ") || "No ingredients";
 }
 
 export default function BenchTool() {
+  const {
+    list: customList,
+    save: saveCustomIngredient,
+    remove: removeCustomIngredient,
+  } = useCustomIngredients();
   const [experiment, setExperiment] = useState<Experiment>(() =>
     ({ parts: [], conditions: DEFAULT_CONDITIONS }),
   );
@@ -270,6 +285,9 @@ export default function BenchTool() {
   const [searchTimeMs, setSearchTimeMs] = useState<number | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [optimizerError, setOptimizerError] = useState("");
+  const [customFormOpen, setCustomFormOpen] = useState(false);
+  const [customFormInitial, setCustomFormInitial] = useState<BenchIngredient>();
+  const [customSaveError, setCustomSaveError] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -314,14 +332,16 @@ export default function BenchTool() {
 
   const visibleIngredients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return benchLibrary.filter((ingredient) => {
-      if (!ingredientMatchesFilter(ingredient.category, filter)) return false;
+    const customIds = new Set(customList.map((ingredient) => ingredient.id));
+    return allBenchIngredients().filter((ingredient) => {
+      if (ingredient.id.startsWith(CUSTOM_PREFIX) && !customIds.has(ingredient.id)) return false;
+      if (!ingredientMatchesFilter(ingredient, filter)) return false;
       if (!normalizedQuery) return true;
       return `${ingredient.name} ${ingredient.formula} ${ingredient.id}`
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [filter, query]);
+  }, [customList, filter, query]);
 
   const totalPct = experiment.parts.reduce((total, part) => total + part.pct, 0);
   const livePH = effectivePH(experiment);
@@ -354,6 +374,62 @@ export default function BenchTool() {
       ...experiment,
       parts: [...experiment.parts, { id, pct: 1 }],
     });
+  }
+
+  function openNewCustomIngredient() {
+    setCustomFormInitial(undefined);
+    setCustomSaveError("");
+    setCustomFormOpen(true);
+  }
+
+  function openCustomIngredient(ingredient: BenchIngredient) {
+    setCustomFormInitial(ingredient);
+    setCustomSaveError("");
+    setCustomFormOpen(true);
+  }
+
+  function saveCustom(ingredient: BenchIngredient) {
+    try {
+      saveCustomIngredient(ingredient);
+      setCustomSaveError("");
+      setCustomFormOpen(false);
+      if (experiment.parts.some((part) => part.id === ingredient.id)) {
+        setResult(null);
+        setLastRunExperiment(null);
+      }
+      if (!customFormInitial) {
+        setFilter("Mine");
+        setQuery("");
+      }
+    } catch (error) {
+      setCustomSaveError(
+        error instanceof Error ? error.message : "Could not save this ingredient.",
+      );
+    }
+  }
+
+  function deleteOpenCustomIngredient() {
+    if (!customFormInitial) return;
+    const id = customFormInitial.id;
+    try {
+      removeCustomIngredient(id);
+    } catch (error) {
+      setCustomSaveError(
+        error instanceof Error ? error.message : "Could not delete this ingredient.",
+      );
+      return;
+    }
+    if (experiment.parts.some((part) => part.id === id)) {
+      updateExperiment({
+        ...experiment,
+        parts: experiment.parts.filter((part) => part.id !== id),
+      });
+      setResult(null);
+      setLastRunExperiment(null);
+    }
+    setCustomSaveError("");
+    setCustomFormOpen(false);
+    setCustomFormInitial(undefined);
   }
 
   function setPartPct(index: number, pct: number) {
@@ -443,7 +519,7 @@ export default function BenchTool() {
   async function findMixes() {
     const pool =
       poolMode === "all"
-        ? benchLibrary.map((ingredient) => ingredient.id)
+        ? allBenchIngredients().map((ingredient) => ingredient.id)
         : experiment.parts.map((part) => part.id);
     if (pool.length === 0) {
       setOptimizerError("Add ingredients to your mix before using the selected-ingredients pool.");
@@ -520,10 +596,33 @@ export default function BenchTool() {
 
         <div className="bench-builder-grid">
           <section className="bench-subpanel" aria-labelledby="bench-library-heading">
-            <div className="bench-subheading">
+            <div className="bench-subheading bench-library-heading">
               <h3 id="bench-library-heading">Ingredient library</h3>
               <span>{visibleIngredients.length} items</span>
+              <button
+                className="button button-secondary bench-custom-create"
+                type="button"
+                onClick={openNewCustomIngredient}
+              >
+                + Make your own
+              </button>
             </div>
+            {customSaveError && (
+              <p className="bench-inline-error" role="alert">{customSaveError}</p>
+            )}
+            {customFormOpen && (
+              <CustomIngredientForm
+                key={customFormInitial?.id ?? "new-custom-ingredient"}
+                initial={customFormInitial}
+                onSave={saveCustom}
+                onCancel={() => {
+                  setCustomFormOpen(false);
+                  setCustomFormInitial(undefined);
+                  setCustomSaveError("");
+                }}
+                onDelete={customFormInitial ? deleteOpenCustomIngredient : undefined}
+              />
+            )}
             <div className="bench-filter-list" aria-label="Ingredient categories">
               {filterOptions.map((option) => (
                 <button
@@ -556,15 +655,29 @@ export default function BenchTool() {
                     <div className="bench-library-copy">
                       <strong>{ingredient.name}</strong>
                       <span>{ingredient.formula}</span>
+                      {ingredient.id.startsWith(CUSTOM_PREFIX) && (
+                        <span className="bench-yours-badge">Yours</span>
+                      )}
                     </div>
-                    <button
-                      className="button button-secondary bench-add-button"
-                      type="button"
-                      disabled={added}
-                      onClick={() => addIngredient(ingredient.id)}
-                    >
-                      {added ? "Added" : "Add"}
-                    </button>
+                    <div className="bench-library-actions">
+                      <button
+                        className="button button-secondary bench-add-button"
+                        type="button"
+                        disabled={added}
+                        onClick={() => addIngredient(ingredient.id)}
+                      >
+                        {added ? "Added" : "Add"}
+                      </button>
+                      {ingredient.id.startsWith(CUSTOM_PREFIX) && (
+                        <button
+                          className="button button-secondary bench-edit-button"
+                          type="button"
+                          onClick={() => openCustomIngredient(ingredient)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -587,7 +700,34 @@ export default function BenchTool() {
               <div className="bench-mix-list">
                 {experiment.parts.map((part, index) => {
                   const ingredient = benchById[part.id];
-                  if (!ingredient) return null;
+                  if (!ingredient) {
+                    if (!part.id.startsWith(CUSTOM_PREFIX)) return null;
+                    return (
+                      <article className="bench-mix-row" key={`${part.id}-${index}`}>
+                        <div className="bench-mix-row-top">
+                          <div className="bench-mix-title">
+                            <span className="bench-order">{String(index + 1).padStart(2, "0")}</span>
+                            <strong>Deleted ingredient</strong>
+                          </div>
+                          <span className="badge bench-category-badge">Custom</span>
+                        </div>
+                        <div className="bench-row-actions">
+                          <button
+                            className="button button-secondary bench-remove-button"
+                            type="button"
+                            onClick={() =>
+                              updateExperiment({
+                                ...experiment,
+                                parts: experiment.parts.filter((_, partIndex) => partIndex !== index),
+                              })
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  }
                   return (
                     <article className="bench-mix-row" key={`${part.id}-${index}`}>
                       <div className="bench-mix-row-top">
@@ -811,7 +951,7 @@ export default function BenchTool() {
                 onChange={(event) => setCondition("bathId", event.target.value || undefined)}
               >
                 <option value="">Choose a bath</option>
-                {benchLibrary
+                {allBenchIngredients()
                   .filter((ingredient) => ["salt", "solvent"].includes(ingredient.category))
                   .map((ingredient) => (
                     <option value={ingredient.id} key={ingredient.id}>
