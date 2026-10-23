@@ -8,10 +8,13 @@ import { byId } from "@/lib/ingredients";
 import { benchById } from "@/lib/bench/library";
 import { simulate } from "@/lib/bench/simulate";
 import type { Experiment } from "@/lib/bench/types";
+import { maskKey, USER_KEY_STORAGE, validateUserKey } from "@/lib/assistantKey";
+import type { Provider } from "@/lib/assistantKey";
 import { PageIntro, Panel } from "./shared";
 
 type Message = { role: "user" | "assistant"; content: string };
 type LearnContext = { title: string; context: string };
+type SavedUserKey = { provider: Provider; apiKey: string };
 const STORAGE_KEY = "elementlab.chat";
 const HANDOFF_KEY = "elementlab.assistant.handoff";
 const welcome: Message = { role: "assistant", content: "Hi, I’m your lab partner. Ask me about a material, a formula, or what these estimates can—and can’t—tell you." };
@@ -164,6 +167,11 @@ export default function AssistantTool() {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [learnContext, setLearnContext] = useState<LearnContext | null>(null);
+  const [userKey, setUserKey] = useState<SavedUserKey | null>(null);
+  const [provider, setProvider] = useState<Provider>("anthropic");
+  const [keyDraft, setKeyDraft] = useState("");
+  const [keyError, setKeyError] = useState("");
+  const [siteKey, setSiteKey] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -176,9 +184,30 @@ export default function AssistantTool() {
       } catch {
         setNotice("Saved conversation could not be read.");
       }
+      try {
+        const storedKey = JSON.parse(localStorage.getItem(USER_KEY_STORAGE) ?? "null");
+        if (storedKey && typeof storedKey === "object") {
+          const validated = validateUserKey(storedKey.provider, storedKey.apiKey);
+          if ("error" in validated) {
+            localStorage.removeItem(USER_KEY_STORAGE);
+          } else {
+            setUserKey(validated);
+            setProvider(validated.provider);
+          }
+        }
+      } catch {
+        setKeyError("Saved key could not be read from this device.");
+      }
       readLearnHandoff(setLearnContext, setInput);
       setReady(true);
     });
+    void fetch("/api/assistant")
+      .then((response) => response.ok ? response.json() : null)
+      .then((result: unknown) => {
+        if (!active || typeof result !== "object" || result === null || !("siteKey" in result)) return;
+        if (typeof result.siteKey === "boolean") setSiteKey(result.siteKey);
+      })
+      .catch(() => {});
     return () => { active = false; };
   }, []);
 
@@ -187,6 +216,38 @@ export default function AssistantTool() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, ready]);
+
+  const saveUserKey = () => {
+    const validated = validateUserKey(provider, keyDraft);
+    if ("error" in validated) {
+      setKeyError(validated.error);
+      return;
+    }
+    try {
+      localStorage.setItem(USER_KEY_STORAGE, JSON.stringify(validated));
+      setUserKey(validated);
+      setProvider(validated.provider);
+      setKeyDraft("");
+      setKeyError("");
+    } catch {
+      setKeyError("Could not save the key on this device. Check browser storage settings.");
+    }
+  };
+  const removeUserKey = () => {
+    try {
+      localStorage.removeItem(USER_KEY_STORAGE);
+      setUserKey(null);
+      setKeyDraft("");
+      setKeyError("");
+    } catch {
+      setKeyError("Could not remove the saved key from this device.");
+    }
+  };
+  const keyStatus = userKey
+    ? `Using your ${userKey.provider === "anthropic" ? "Anthropic" : "OpenAI"} key`
+    : siteKey
+      ? "Using the site's key"
+      : "Assistant is off. Add your own key to turn it on.";
 
   const sendMessage = async (content: string) => {
     const question = content.trim();
@@ -205,7 +266,12 @@ export default function AssistantTool() {
       ].filter((section) => section.trim()).join("\n\n");
       const response = await fetch("/api/assistant", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(userKey
+            ? { "x-user-api-key": userKey.apiKey, "x-user-provider": userKey.provider }
+            : {}),
+        },
         body: JSON.stringify({
           messages: conversation.map(({ role, content: messageContent }) => ({ role, content: messageContent })),
           ...(labState ? { labState } : {}),
@@ -213,7 +279,14 @@ export default function AssistantTool() {
       });
       const result = await response.json();
       if (response.status === 503 && result.error === "no-key") {
-        setMessages([...conversation, { role: "assistant", content: "The assistant is off. Add an `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in Vercel → Project → Settings → Environment Variables, then redeploy." }]);
+        setMessages([...conversation, { role: "assistant", content: "The assistant is off. Add your own Anthropic or OpenAI key in **Your AI key** (stays on this device), or the site owner can add one in Vercel." }]);
+      } else if (response.status === 401 && result.error === "key-rejected") {
+        const rejectionMessage = userKey
+          ? `Your key was rejected by ${userKey.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Check it, or remove it and paste a new one.`
+          : "The site's key was rejected. The site owner can update it, or you can add your own key.";
+        setMessages([...conversation, { role: "assistant", content: rejectionMessage }]);
+      } else if (response.status === 400 && result.error === "bad-key") {
+        setMessages([...conversation, { role: "assistant", content: typeof result.message === "string" ? result.message : "The supplied API key is invalid." }]);
       } else if (!response.ok) {
         setMessages([...conversation, { role: "assistant", content: result.error ?? "I couldn’t reach the assistant just now. Please try again." }]);
       } else {
@@ -267,6 +340,72 @@ export default function AssistantTool() {
           <form className="chat-compose" onSubmit={submit}><textarea className="textarea" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about your formula…" aria-label="Your message" rows={2} /><button className="button button-primary" type="submit" disabled={loading || !input.trim()}>Send ↗</button></form>
         </Panel>
         <aside className="assistant-side">
+          <Panel title="Your AI key">
+            <p className="small muted" role="status">{keyStatus}</p>
+            <fieldset style={{ border: 0, margin: "12px 0 0", padding: 0 }}>
+              <legend className="field-label">Provider</legend>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 7 }}>
+                {(["anthropic", "openai"] as const).map((option) => (
+                  <label
+                    key={option}
+                    style={{
+                      display: "flex",
+                      minHeight: 44,
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "8px 10px",
+                      border: "1px solid #304144",
+                      borderRadius: 8,
+                      background: "#0b1214",
+                      color: "#b4c2bf",
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="assistant-provider"
+                      value={option}
+                      checked={provider === option}
+                      onChange={() => setProvider(option)}
+                      style={{ accentColor: "var(--accent)" }}
+                    />
+                    {option === "anthropic" ? "Anthropic" : "OpenAI"}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label className="field-label" htmlFor="assistant-user-key">API key</label>
+            <input
+              id="assistant-user-key"
+              className="input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              style={{ fontSize: 16 }}
+              value={keyDraft}
+              onChange={(event) => setKeyDraft(event.target.value)}
+            />
+            {keyError && <p className="small bad" role="alert">{keyError}</p>}
+            {userKey && (
+              <p className="small muted" style={{ overflowWrap: "anywhere" }} role="status">
+                Saved on this device: <code>{maskKey(userKey.apiKey)}</code>
+              </p>
+            )}
+            <div className="button-row" style={{ marginTop: 10 }}>
+              <button className="button button-primary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={saveUserKey}>Save</button>
+              {userKey && (
+                <button className="button button-secondary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={removeUserKey}>Remove</button>
+              )}
+            </div>
+            <p className="small muted" style={{ margin: "12px 0 0" }}>
+              Your key stays in this browser. It&apos;s sent with each message to this site&apos;s server, which passes it to Anthropic/OpenAI and doesn&apos;t save it. Remove it on shared devices.
+            </p>
+            <div className="small" style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", marginTop: 7 }}>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an Anthropic key</a>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an OpenAI key</a>
+            </div>
+          </Panel>
           <Panel title="Context">
             {learnContext && (
               <div className="chat-heading">
