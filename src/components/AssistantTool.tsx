@@ -402,8 +402,8 @@ export default function AssistantTool() {
               Your key stays in this browser. It&apos;s sent with each message to this site&apos;s server, which passes it to Anthropic/OpenAI and doesn&apos;t save it. Remove it on shared devices.
             </p>
             <div className="small" style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", marginTop: 7 }}>
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an Anthropic key</a>
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an OpenAI key</a>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an Anthropic key</a>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an OpenAI key</a>
             </div>
           </Panel>
           <Panel title="Context">
