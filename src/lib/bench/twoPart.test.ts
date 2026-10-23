@@ -89,7 +89,7 @@ describe("two-part nozzle", () => {
     expect(report.shot).not.toBeNull();
   });
 
-  it("sets during a long flight but not during the default flight", () => {
+  it("reports whether two-part setting happens before the actual landing", () => {
     const longFlight = twoPartShoot(alginateA, calciumB, DEFAULT_RATIO, {
       ...DEFAULT_SHOT,
       distanceM: 100,
@@ -101,8 +101,14 @@ describe("two-part nozzle", () => {
       DEFAULT_RATIO,
       DEFAULT_SHOT,
     );
-    expect(longFlight.shot?.jet?.curesInFlight).toBe(true);
-    expect(defaultFlight.shot?.jet?.curesInFlight).toBe(false);
+    expect(longFlight.shot?.notes).not.toContain("It sets before landing.");
+    expect(longFlight.shot?.notes).toContain(
+      "It is still wet when it hits the ground.",
+    );
+    expect(defaultFlight.shot?.notes).not.toContain("It sets before landing.");
+    expect(defaultFlight.shot?.notes).toContain(
+      "It is still wet when it reaches the target.",
+    );
   });
 
   it("flags fast alginate-calcium setting in cartridge B", () => {

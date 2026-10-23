@@ -127,6 +127,50 @@ describe("shootTest", () => {
     expect(shot.headline).toContain("ground about 0.3 m out");
   });
 
+  it("reports when a falls-short strand is still wet at ground impact", () => {
+    const exp = experiment(
+      [
+        { id: "cyanoacrylate", pct: 10 },
+        { id: "water", pct: 90 },
+      ],
+      "extrude-air",
+    );
+    const result = simulate(exp);
+    const shot = shootTest(exp, result, {
+      ...DEFAULT_SHOT,
+      speedMs: 5,
+      distanceM: 100,
+    });
+
+    expect(result.setSeconds).toBeGreaterThan(
+      Math.sqrt((2 * 1.5) / 9.81),
+    );
+    expect(shot.verdict).toBe("falls-short");
+    expect(shot.notes).not.toContain("It sets before landing.");
+    expect(shot.notes).toContain("It is still wet when it hits the ground.");
+  });
+
+  it("reports setting before a non-falls-short target when set time fits the flight", () => {
+    const exp = experiment(
+      [
+        { id: "cyanoacrylate", pct: 10 },
+        { id: "water", pct: 90 },
+      ],
+      "extrude-air",
+    );
+    const result = { ...simulate(exp), setSeconds: 0.25 };
+    const shot = shootTest(exp, result, {
+      ...DEFAULT_SHOT,
+      speedMs: 5,
+      distanceM: 2,
+    });
+
+    expect(shot.jet?.flightS).toBeGreaterThanOrEqual(result.setSeconds);
+    expect(shot.jet?.dropM).toBeLessThanOrEqual(1.5);
+    expect(shot.verdict).not.toBe("falls-short");
+    expect(shot.notes).toContain("It sets before landing.");
+  });
+
   it("suggests a safe speed for high-pressure borax slime", () => {
     const exp = preset("borax-slime");
     const shot = shootTest(exp, simulate(exp), DEFAULT_SHOT);

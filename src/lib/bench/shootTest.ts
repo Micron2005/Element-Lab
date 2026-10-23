@@ -312,10 +312,19 @@ export function shootTest(
           (j.dryDiameterMm / 2000) ** 2) /
         9.81
       : null;
-  if (j.curesInFlight) {
+  const fallsShort = j.dropM > LAUNCH_HEIGHT_M;
+  const landingS = fallsShort
+    ? Math.min(
+        j.flightS,
+        Math.sqrt((2 * LAUNCH_HEIGHT_M) / 9.81),
+      )
+    : j.flightS;
+  if (fluid.setSeconds > 0 && fluid.setSeconds <= landingS) {
     notes.push("It sets before landing.");
   } else if (fluid.setSeconds === 0) {
     notes.push("It doesn't set on its own; it lands as a liquid.");
+  } else if (fallsShort) {
+    notes.push("It is still wet when it hits the ground.");
   } else {
     notes.push("It is still wet when it reaches the target.");
   }
@@ -328,7 +337,7 @@ export function shootTest(
   );
   notes.push(`Minimum speed for less than 10% sag: ${j.minSpeed.toFixed(1)} m/s.`);
 
-  if (j.dropM > LAUNCH_HEIGHT_M) {
+  if (fallsShort) {
     const groundM = Math.min(
       setup.distanceM,
       setup.speedMs * Math.sqrt((2 * LAUNCH_HEIGHT_M) / 9.81),
