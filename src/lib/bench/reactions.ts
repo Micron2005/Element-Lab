@@ -1,4 +1,5 @@
 import { benchById } from "./library";
+import { CUSTOM_PREFIX } from "./custom";
 import type {
   BenchIngredient,
   EventStatus,
@@ -182,6 +183,14 @@ function crosslinkProteinFactor(ctx: ReactionContext): number {
       id === "silk-fibroin" ? 0.4 : id === "keratin" ? 0.3 : 1,
     );
   }
+  for (const id of ctx.present) {
+    if (
+      id.startsWith(CUSTOM_PREFIX) &&
+      benchById[id]?.tags.includes("protein")
+    ) {
+      factor = Math.max(factor, 0.5);
+    }
+  }
   return clamp01(factor);
 }
 
@@ -296,7 +305,13 @@ export const REACTIONS: Reaction[] = [
     id: "transglutaminase",
     name: "Transglutaminase protein crosslinking",
     needs: (_exp, present) =>
-      present.has("transglutaminase") && hasAny(present, proteinTargets),
+      present.has("transglutaminase") &&
+      (hasAny(present, proteinTargets) ||
+        [...present].some(
+          (id) =>
+            id.startsWith(CUSTOM_PREFIX) &&
+            benchById[id]?.tags.includes("protein"),
+        )),
     fit: (ctx) => {
       const enzyme = enzymeActivity(benchById.transglutaminase, ctx);
       const target = crosslinkProteinFactor(ctx);

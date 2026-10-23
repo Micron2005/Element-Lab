@@ -1,4 +1,5 @@
 import { effectivePH, solventBoilingPointC, waterBoilingPointC } from "./conditions";
+import { CUSTOM_PREFIX } from "./custom";
 import { benchById } from "./library";
 import {
   REACTIONS,
@@ -213,6 +214,14 @@ function recognizedPairs(
       for (const target of ["gelatin", "casein", "whey-protein", "soy-protein", "collagen", "silk-fibroin", "keratin"]) {
         push("transglutaminase", target);
       }
+      for (const target of presentParts) {
+        if (
+          target.startsWith(CUSTOM_PREFIX) &&
+          benchById[target]?.tags.includes("protein")
+        ) {
+          push("transglutaminase", target);
+        }
+      }
       break;
     case "phenol-oxidase":
       for (const enzyme of ["tyrosinase", "laccase"]) {
@@ -318,24 +327,33 @@ function notModelledInteractions(
       knownPairs.add([left, right].sort().join("|"));
     }
   }
-  const reactiveIds = presentIds.filter((id) =>
-    benchById[id].tags.some((tag) => tag !== "inert"),
+  const reactiveIds = presentIds.filter(
+    (id) =>
+      id.startsWith(CUSTOM_PREFIX) ||
+      benchById[id].tags.some((tag) => tag !== "inert"),
   );
   const unmodelledIds = reactiveIds.filter(
     (id) => ![...knownPairs].some((pair) => pair.split("|").includes(id)),
   );
   const lines: string[] = [];
+  const linePairs = new Set<string>();
+  const addPairLine = (left: string, right: string) => {
+    const key = [left, right].sort().join("|");
+    if (left === right || knownPairs.has(key) || linePairs.has(key)) return;
+    linePairs.add(key);
+    lines.push(`${benchById[left].name} + ${benchById[right].name}: not in the model`);
+  };
   if (unmodelledIds.length > 1) {
     for (let i = 0; i < unmodelledIds.length; i += 1) {
       for (let j = i + 1; j < unmodelledIds.length; j += 1) {
-        const left = unmodelledIds[i];
-        const right = unmodelledIds[j];
-        if (!knownPairs.has([left, right].sort().join("|"))) {
-          lines.push(`${benchById[left].name} + ${benchById[right].name}: not in the model`);
-        }
+        addPairLine(unmodelledIds[i], unmodelledIds[j]);
       }
     }
-  } else if (unmodelledIds.length === 1) {
+  }
+  for (const id of unmodelledIds.filter((item) => item.startsWith(CUSTOM_PREFIX))) {
+    for (const other of presentIds) addPairLine(id, other);
+  }
+  if (unmodelledIds.length === 1 && lines.length === 0) {
     const [id] = unmodelledIds;
     lines.push(`${benchById[id].name}: no modeled interaction with another present ingredient`);
   }

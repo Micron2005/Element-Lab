@@ -158,6 +158,19 @@
   font-size: 0.8rem;
 }
 
+.bench-library-heading {
+  flex-wrap: wrap;
+}
+
+.bench-library-heading h3 {
+  flex: 1 1 auto;
+}
+
+.bench-custom-create {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+}
+
 .bench-subheading .bench-total-warn {
   color: #ffc35d;
 }
@@ -220,7 +233,9 @@
 
 .bench-library-copy {
   display: grid;
+  flex: 1 1 auto;
   gap: 3px;
+  overflow-wrap: anywhere;
 }
 
 .bench-library-copy strong,
@@ -234,16 +249,108 @@
   font-size: 0.77rem;
 }
 
+.bench-library-copy .bench-yours-badge {
+  width: fit-content;
+  padding: 2px 6px;
+  border: 1px solid #326660;
+  border-radius: 999px;
+  color: #9ce9dc;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.bench-library-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
 .bench-page .bench-add-button,
 .bench-page .bench-row-actions button,
 .bench-page .bench-notebook-actions button,
-.bench-page .bench-candidate-card > button {
+.bench-page .bench-candidate-card > button,
+.bench-page .bench-edit-button {
   min-height: 44px;
 }
 
-.bench-library-item .bench-add-button {
+.bench-library-item .bench-add-button,
+.bench-library-item .bench-edit-button {
   flex: 0 0 auto;
   padding: 7px 12px;
+}
+
+.bench-custom-form {
+  display: grid;
+  gap: 13px;
+  margin: 12px 0;
+  padding: 13px;
+  border: 1px solid #31534f;
+  border-radius: 12px;
+  background: #0d1c1f;
+}
+
+.bench-custom-form input,
+.bench-custom-form select,
+.bench-custom-form textarea {
+  font-size: 16px;
+}
+
+.bench-custom-form h4 {
+  margin: 0 0 5px;
+  font-size: 1rem;
+}
+
+.bench-custom-form > div > .bench-muted {
+  max-width: 62ch;
+}
+
+.bench-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.bench-custom-field textarea {
+  width: 100%;
+  min-height: 82px;
+  padding: 9px 11px;
+  border: 1px solid #385159;
+  border-radius: 10px;
+  background: #0a1418;
+  color: #edf6f6;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.bench-custom-traits {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  margin: 0;
+  padding: 7px 11px 10px;
+  border: 1px solid #293e44;
+  border-radius: 10px;
+}
+
+.bench-custom-traits legend {
+  padding: 0 5px;
+  color: #b3c5c8;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.bench-custom-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bench-custom-actions .button {
+  min-height: 44px;
+}
+
+.bench-custom-delete {
+  margin-left: auto;
 }
 
 .bench-page button:disabled {
@@ -1161,6 +1268,10 @@
 }
 
 @media (max-width: 560px) {
+  .bench-custom-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .bench-page .bench-chip {
     display: inline-flex;
     min-width: 44px;
