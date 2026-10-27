@@ -125,6 +125,13 @@ describe("material bench tests", () => {
     });
     expect(air.events.some((event) => event.kind === "burn")).toBe(true);
     expect(nitrogen.events.some((event) => event.kind === "burn")).toBe(false);
+    const airDecomposition = air.events.find((event) => event.kind === "decompose");
+    const nitrogenDecomposition = nitrogen.events.find(
+      (event) => event.kind === "decompose",
+    );
+    expect(nitrogenDecomposition?.text).toBe(
+      `${airDecomposition?.text?.replace(/\.$/, "")} without burning (no oxygen).`,
+    );
   });
 
   it("models gelatin swelling cold and dissolving warm", () => {

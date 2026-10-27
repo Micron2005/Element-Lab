@@ -14,6 +14,7 @@ import type {
   StretchReport,
   StretchSetup,
 } from "@/lib/bench/materialTests";
+import { wrapCaption } from "@/lib/bench/svgText";
 import { usePlayback } from "./usePlayback";
 
 export type TestViewerData =
@@ -22,6 +23,46 @@ export type TestViewerData =
   | { type: "dissolve"; setup: DissolveSetup; report: DissolveReport }
   | { type: "stick"; setup: StickSetup; report: StickReport }
   | { type: "drop"; setup: DropSetup; report: DropReport };
+
+function Caption({
+  x,
+  y,
+  fill,
+  text,
+  fontSize = 10,
+  maxChars = 50,
+  lineHeight = fontSize * 1.2,
+  textAnchor,
+  opacity,
+}: {
+  x: number;
+  y: number;
+  fill: string;
+  text: string;
+  fontSize?: number;
+  maxChars?: number;
+  lineHeight?: number;
+  textAnchor?: "start" | "middle" | "end";
+  opacity?: number;
+}) {
+  const lines = wrapCaption(text, maxChars, 2);
+  return (
+    <text
+      x={x}
+      y={y}
+      fill={fill}
+      fontSize={fontSize}
+      textAnchor={textAnchor}
+      opacity={opacity}
+    >
+      {lines.map((line, index) => (
+        <tspan key={index} x={x} dy={index === 0 ? 0 : lineHeight}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+}
 
 function StretchScene({
   progress,
@@ -48,7 +89,7 @@ function StretchScene({
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
-      <text x="16" y="20" fill="#a9c0c4" fontSize="10">STRETCH RIG</text>
+      <Caption x={16} y={20} fill="#a9c0c4" text="STRETCH RIG" />
       <rect x={left - 12} y="48" width="12" height="48" rx="3" fill="#71878a" />
       <rect x={right} y="48" width="12" height="48" rx="3" fill="#71878a" />
       <path
@@ -65,9 +106,12 @@ function StretchScene({
       {snap && (
         <path d="M 148 68 l-5 -7 M 172 76 l5 7" stroke="#ffd176" strokeWidth="2" />
       )}
-      <text x="16" y="116" fill="#d7e3e4" fontSize="10">
-        {flow ? "Slow pull: thinning flow" : snap ? "Strand snapped" : "Pulling"}
-      </text>
+      <Caption
+        x={16}
+        y={116}
+        fill="#d7e3e4"
+        text={flow ? "Slow pull: thinning flow" : snap ? "Strand snapped" : "Pulling"}
+      />
       <path d="M 22 168 H 298 M 22 130 V 168" stroke="#53676c" strokeWidth="1" />
       <path
         d={curvePath}
@@ -77,7 +121,7 @@ function StretchScene({
         strokeDasharray="360"
         strokeDashoffset={360 * (1 - progress)}
       />
-      <text x="25" y="126" fill="#93a8ad" fontSize="9">Stress–strain</text>
+      <Caption x={25} y={126} fill="#93a8ad" fontSize={9} text="Stress–strain" />
     </>
   );
 }
@@ -106,7 +150,12 @@ function HeatScene({
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
-      <text x="16" y="20" fill="#a9c0c4" fontSize="10">HEAT TEST · {temperature} °C</text>
+      <Caption
+        x={16}
+        y={20}
+        fill="#a9c0c4"
+        text={`HEAT TEST · ${temperature} °C`}
+      />
       <rect x="62" y="126" width="174" height="12" rx="3" fill="#43575b" />
       <rect x="78" y="138" width="142" height="8" rx="3" fill="#26373b" />
       {!melted && (
@@ -133,10 +182,20 @@ function HeatScene({
       <rect x="252" y="42" width="10" height="77" rx="5" fill="#293e43" stroke="#71898d" />
       <rect x="255" y={111 - 62 * progress} width="4" height={8 + 62 * progress} rx="2" fill="#ef735d" />
       <circle cx="257" cy="120" r="8" fill="#ef735d" />
-      <text x="272" y="76" fill="#e0edef" fontSize="10">{temperature}°</text>
-      <text x="16" y="164" fill="#c5d4d5" fontSize="10">
-        {current?.text ?? "Warming the sample"}
-      </text>
+      <Caption
+        x={272}
+        y={76}
+        fill="#e0edef"
+        text={`${temperature}°`}
+        maxChars={8}
+      />
+      <Caption
+        x={16}
+        y={151}
+        fill="#c5d4d5"
+        text={current?.text ?? "Warming the sample"}
+        lineHeight={12}
+      />
     </>
   );
 }
@@ -168,7 +227,12 @@ function DissolveScene({
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
-      <text x="16" y="20" fill="#a9c0c4" fontSize="10">DISSOLVE · {setup.liquid.replace("-", " ")}</text>
+      <Caption
+        x={16}
+        y={20}
+        fill="#a9c0c4"
+        text={`DISSOLVE · ${setup.liquid.replace("-", " ")}`}
+      />
       <path d="M 92 44 H 228 M 106 44 V 146 Q 106 160 120 160 H 200 Q 214 160 214 146 V 44" fill="none" stroke="#91afb4" strokeWidth="4" strokeLinejoin="round" />
       <path d="M 110 90 H 210 V 146 Q 210 156 198 156 H 122 Q 110 156 110 146 Z" fill={colors[setup.liquid]} opacity="0.46" />
       {size > 4 && (
@@ -188,15 +252,26 @@ function DissolveScene({
           <circle cx="183" cy="119" r="2" fill="#d6c18b" opacity={1 - progress} />
         </>
       )}
-      <text x="16" y="36" fill="#d7e3e4" fontSize="10">
-        {setup.tempC} °C · {setup.stirred ? "stirred" : "still"}
-      </text>
-      <text x="16" y="174" fill="#c5d4d5" fontSize="10">
-        {report.timeSeconds === null ? "No change" : `Elapsed: ${elapsedText}`}
-      </text>
-      <text x="240" y="155" fill="#b7cacc" fontSize="9">
-        {dissolves ? "dissolving" : swells ? "swelling" : "unchanged"}
-      </text>
+      <Caption
+        x={16}
+        y={36}
+        fill="#d7e3e4"
+        text={`${setup.tempC} °C · ${setup.stirred ? "stirred" : "still"}`}
+      />
+      <Caption
+        x={16}
+        y={174}
+        fill="#c5d4d5"
+        text={report.timeSeconds === null ? "No change" : `Elapsed: ${elapsedText}`}
+      />
+      <Caption
+        x={240}
+        y={155}
+        fill="#b7cacc"
+        fontSize={9}
+        maxChars={12}
+        text={dissolves ? "dissolving" : swells ? "swelling" : "unchanged"}
+      />
     </>
   );
 }
@@ -209,24 +284,49 @@ function StickScene({
   data: Extract<TestViewerData, { type: "stick" }>;
 }) {
   const detaches = data.report.verdict === "weak" || data.report.verdict === "no-stick";
-  const dropped = detaches ? 65 * progress : 0;
+  const dropProgress = Math.min(1, progress / 0.3);
+  const easedDrop = 1 - (1 - dropProgress) ** 3;
+  const bounce =
+    progress >= 0.3 && progress <= 0.54
+      ? 4 * Math.sin(((progress - 0.3) / 0.24) * Math.PI)
+      : 0;
+  const heldY = 94 + 18 * easedDrop + bounce;
+  const releaseProgress = Math.max(0, Math.min(1, (progress - 0.55) / 0.4));
+  const weightY = detaches ? heldY - bounce + 24 * releaseProgress : heldY;
   const split = data.report.cohesiveFailure && progress > 0.65;
   const surface = data.setup.surface === "ptfe" ? "#566b70" : "#79878a";
+  const labelOpacity = Math.max(0, Math.min(1, (progress - 0.18) / 0.2));
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
-      <text x="16" y="20" fill="#a9c0c4" fontSize="10">STICK TEST · {data.setup.surface.toUpperCase()}</text>
-      <rect x="42" y="119" width="236" height="15" rx="4" fill={surface} />
-      <rect x="105" y="107" width="110" height="13" rx="4" fill="#5fd4c4" />
-      {split && <path d="M 160 106 L 154 113 L 163 120 L 157 127" fill="none" stroke="#1f3438" strokeWidth="3" />}
-      <path d={`M 160 120 V ${132 + dropped}`} stroke="#c5d4d5" strokeWidth="2" />
-      <rect x="137" y={132 + dropped} width="46" height="32" rx="5" fill="#d6a965" />
-      <text x="160" y={152 + dropped} textAnchor="middle" fill="#171c1d" fontSize="9">
-        {data.report.holdsKg.toPrecision(2)} kg
-      </text>
-      <text x="16" y="164" fill="#c5d4d5" fontSize="10">
-        {detaches ? "Bond releases" : split ? "Tears inside the sample" : "Pulling on the bond"}
-      </text>
+      <Caption
+        x={16}
+        y={20}
+        fill="#a9c0c4"
+        text={`STICK TEST · ${data.setup.surface.toUpperCase()}`}
+      />
+      <Caption
+        x={16}
+        y={34}
+        fill="#c5d4d5"
+        text={detaches ? "Bond releases" : split ? "Tears inside the sample" : "Pulling on the bond"}
+      />
+      <rect x="42" y="75" width="236" height="15" rx="4" fill={surface} />
+      <rect x="105" y="63" width="110" height="13" rx="4" fill="#5fd4c4" />
+      {split && <path d="M 160 62 L 154 69 L 163 76 L 157 83" fill="none" stroke="#1f3438" strokeWidth="3" />}
+      <path d={`M 160 90 V ${weightY}`} stroke="#c5d4d5" strokeWidth="2" />
+      {detaches && <path d="M 91 169 H 229" stroke="#71878a" strokeWidth="2" />}
+      <rect x="137" y={weightY} width="46" height="32" rx="5" fill="#d6a965" />
+      <Caption
+        x={160}
+        y={weightY + 20}
+        fill="#171c1d"
+        fontSize={9}
+        maxChars={12}
+        textAnchor="middle"
+        opacity={labelOpacity}
+        text={`${data.report.holdsKg.toPrecision(2)} kg`}
+      />
     </>
   );
 }
@@ -238,7 +338,7 @@ function DropScene({
   progress: number;
   data: Extract<TestViewerData, { type: "drop" }>;
 }) {
-  const floorY = 145;
+  const floorY = 140;
   const impactAt = 0.62;
   const falling = Math.min(1, progress / impactAt);
   const bounceProgress = Math.max(0, (progress - impactAt) / (1 - impactAt));
@@ -252,7 +352,12 @@ function DropScene({
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
-      <text x="16" y="20" fill="#a9c0c4" fontSize="10">DROP · {data.setup.heightM} m · {data.setup.floor.toUpperCase()} FLOOR</text>
+      <Caption
+        x={16}
+        y={20}
+        fill="#a9c0c4"
+        text={`DROP · ${data.setup.heightM} m · ${data.setup.floor.toUpperCase()} FLOOR`}
+      />
       <rect x="40" y={floorY} width="240" height="9" rx="3" fill={data.setup.floor === "hard" ? "#71878a" : "#496b58"} />
       {broken && progress > impactAt ? (
         <>
@@ -265,7 +370,7 @@ function DropScene({
         <>
           <ellipse cx="160" cy={floorY - 4} rx={radius} ry="9" fill="#5fd4c4" />
           {data.report.verdict === "splashes" && (
-            <path d="M 137 135 l-5 -13 M 184 134 l6 -13 M 160 132 v-18" stroke="#79cfe0" strokeWidth="4" strokeLinecap="round" />
+            <path d={`M 137 ${floorY - 5} l-5 -13 M 184 ${floorY - 6} l6 -13 M 160 ${floorY - 8} v-18`} stroke="#79cfe0" strokeWidth="4" strokeLinecap="round" />
           )}
         </>
       ) : (
@@ -274,9 +379,13 @@ function DropScene({
       {cracked && progress > impactAt && (
         <path d={`M 160 ${floorY - 26} l-5 10 l8 4 l-7 12`} fill="none" stroke="#263639" strokeWidth="3" />
       )}
-      <text x="16" y="169" fill="#c5d4d5" fontSize="10">
-        {progress <= impactAt ? "Falling" : data.report.headline}
-      </text>
+      <Caption
+        x={16}
+        y={153}
+        fill="#c5d4d5"
+        text={progress <= impactAt ? "Falling" : data.report.headline}
+        lineHeight={12}
+      />
     </>
   );
 }

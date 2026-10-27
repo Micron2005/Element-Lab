@@ -481,9 +481,10 @@ export function heatTest(
   if (setup.atmosphere === "nitrogen") {
     const firstDecompose = events.findIndex((event) => event.kind === "decompose");
     if (firstDecompose >= 0) {
+      const text = events[firstDecompose].text.replace(/\.$/, "");
       events[firstDecompose] = {
         ...events[firstDecompose],
-        text: `${events[firstDecompose].text} (chars without burning: no oxygen)`,
+        text: `${text} without burning (no oxygen).`,
       };
     }
   }
