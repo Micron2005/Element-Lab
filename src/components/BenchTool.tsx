@@ -12,7 +12,7 @@ import { buildMixScene } from "@/lib/bench/scene";
 import CustomIngredientForm from "./CustomIngredientForm";
 import MixViewer from "./MixViewer";
 import RangeNumberField from "./RangeNumberField";
-import ShootTest from "./ShootTest";
+import BenchTests from "./BenchTests";
 import { useCustomIngredients } from "./useCustomIngredients";
 import type {
   BenchIngredient,
@@ -1034,15 +1034,12 @@ export default function BenchTool() {
             <section className="bench-result-section" aria-label="Test it">
               <h3>Test it</h3>
               {lastRunExperiment && (
-                <ul className="bench-test-list">
-                  <li>
-                    <ShootTest
-                      key={runId}
-                      experiment={lastRunExperiment}
-                      result={result}
-                    />
-                  </li>
-                </ul>
+                <BenchTests
+                  key={runId}
+                  runId={runId}
+                  experiment={lastRunExperiment}
+                  result={result}
+                />
               )}
             </section>
             <div className="bench-metric-grid">

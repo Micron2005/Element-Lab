@@ -1522,3 +1522,240 @@
     gap: 5px;
   }
 }
+
+.bench-tests {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.bench-test-picker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bench-page .bench-test-picker button,
+.bench-page .bench-test-choice-group button,
+.bench-page .bench-test-toggle,
+.bench-test-viewer-controls button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.bench-page .bench-test-picker button[aria-pressed="true"],
+.bench-page .bench-test-choice-group button[aria-pressed="true"],
+.bench-page .bench-test-toggle[aria-pressed="true"] {
+  border-color: #5fd4c4;
+  background: #173a38;
+  color: #d5fff7;
+}
+
+.bench-test-picker button {
+  padding-inline: 7px;
+  font-size: 0.84rem;
+  white-space: normal;
+}
+
+.bench-test-card {
+  min-width: 0;
+}
+
+.bench-test-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bench-test-card-heading h4 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.bench-test-kicker {
+  margin: 0 0 4px;
+  color: #8bb8b5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.bench-test-setup-label {
+  padding: 5px 9px;
+  border: 1px solid #2e5552;
+  border-radius: 999px;
+  color: #a9d7d2;
+  font-size: 0.73rem;
+  white-space: nowrap;
+}
+
+.bench-test-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bench-test-card input,
+.bench-test-card select {
+  font-size: 16px;
+}
+
+.bench-test-card .bench-field-control input[type="range"] {
+  min-height: 44px;
+}
+
+.bench-test-card .bench-number-input {
+  min-height: 44px;
+}
+
+.bench-test-card .bench-field-control {
+  grid-template-columns: minmax(0, 1fr) 76px max-content;
+  gap: 5px;
+}
+
+.bench-test-control {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.bench-test-control-label {
+  color: #c2d3d5;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.bench-test-choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bench-test-choice-group button {
+  flex: 1 1 auto;
+  padding: 7px 10px;
+  white-space: normal;
+}
+
+.bench-test-toggle {
+  justify-self: start;
+  padding: 8px 12px;
+}
+
+.bench-test-verdict {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid #355257;
+  border-radius: 10px;
+  background: #102024;
+}
+
+.bench-test-verdict strong {
+  display: block;
+  margin-bottom: 3px;
+  text-transform: capitalize;
+}
+
+.bench-test-verdict p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.bench-test-verdict.tone-good {
+  border-color: #326660;
+  background: #102724;
+}
+
+.bench-test-verdict.tone-warn {
+  border-color: #735b32;
+  background: #292317;
+}
+
+.bench-test-verdict.tone-bad {
+  border-color: #75433e;
+  background: #2b1a1a;
+}
+
+.bench-test-metrics {
+  margin-top: 12px;
+}
+
+.bench-test-notes {
+  display: grid;
+  gap: 5px;
+  margin: 11px 0 0;
+  padding-left: 20px;
+  color: #c3d1d3;
+  line-height: 1.45;
+}
+
+.bench-test-footnote {
+  margin: 12px 0 0;
+  color: #91a7ab;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.bench-test-shoot-wrap {
+  min-width: 0;
+}
+
+.bench-test-shoot-wrap .bench-test-footnote {
+  padding: 0 4px;
+}
+
+.bench-test-viewer {
+  min-width: 0;
+  max-width: 560px;
+  margin-top: 10px;
+}
+
+.bench-test-visual {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid #294046;
+  border-radius: 12px;
+  background: #0a1519;
+}
+
+.bench-test-viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+  color: #8fa9ad;
+  font-size: 0.76rem;
+}
+
+.bench-test-viewer-controls button {
+  padding: 7px 14px;
+}
+
+@media (max-width: 740px) {
+  .bench-test-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .bench-test-card-heading {
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .bench-test-setup-label {
+    white-space: normal;
+  }
+
+  .bench-test-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
