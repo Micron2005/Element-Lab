@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { PageIntro, Panel } from "./shared";
 import NucleusViewer from "./NucleusViewer";
+import FusionPanel from "./FusionPanel";
 import QuestBanner from "./QuestBanner";
 import { analyzeNucleus, bindingEnergy, stableZ } from "@/lib/nuclear";
 
@@ -109,6 +110,18 @@ export default function ElementsTool() {
           <Panel title="Watch it happen" subtitle="See what the model predicts this nucleus does, step by step.">
             <NucleusViewer key={`${z}-${n}`} z={z} n={n} />
           </Panel>
+          <FusionPanel
+            z={z}
+            n={n}
+            onTarget={(nextZ, nextN) => {
+              setZ(nextZ);
+              setN(nextN);
+            }}
+            onExplore={(nextZ, nextN) => {
+              setZ(nextZ);
+              setN(nextN);
+            }}
+          />
           <Panel title="Binding energy curve" subtitle={`Binding energy per nucleon vs neutron count at Z = ${z}.`}>
             <div className="chart-wrap" ref={chartRef}>
               <svg viewBox={`0 0 ${points.width} 260`} role="img" aria-label={`Binding energy per nucleon curve for Z ${z}, with N ${n} marked`}>
