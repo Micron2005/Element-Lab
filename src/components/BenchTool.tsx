@@ -16,10 +16,13 @@ import BenchTests from "./BenchTests";
 import { useCustomIngredients } from "./useCustomIngredients";
 import ShareButton from "./ShareButton";
 import ShareNotice from "./ShareNotice";
+import LabReportButton from "./LabReportButton";
+import { benchReport, type TestSummary } from "@/lib/labReport";
 import {
   decodeShare,
   isBenchTestId,
   readShareHash,
+  shareUrl,
   type BenchTestId,
 } from "@/lib/share";
 import type {
@@ -283,6 +286,7 @@ export default function BenchTool() {
   const [filter, setFilter] = useState<IngredientFilter>("All");
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<RunResult | null>(null);
+  const [testSummary, setTestSummary] = useState<TestSummary | null>(null);
   const [runError, setRunError] = useState("");
   const [lastRunExperiment, setLastRunExperiment] = useState<Experiment | null>(null);
   const [runId, setRunId] = useState(0);
@@ -726,9 +730,9 @@ export default function BenchTool() {
     setShareNotice(null);
   }
 
-  function buildBenchShare() {
-    const usedIds = new Set(experiment.parts.map((part) => part.id));
-    if (experiment.conditions.bathId) usedIds.add(experiment.conditions.bathId);
+  function buildBenchShare(experimentToShare = experiment) {
+    const usedIds = new Set(experimentToShare.parts.map((part) => part.id));
+    if (experimentToShare.conditions.bathId) usedIds.add(experimentToShare.conditions.bathId);
     let storedTestId: string | null = null;
     try {
       storedTestId = window.localStorage.getItem("elementlab.bench.test");
@@ -738,7 +742,7 @@ export default function BenchTool() {
     return {
       v: 1 as const,
       kind: "bench" as const,
-      experiment: cloneExperiment(experiment),
+      experiment: cloneExperiment(experimentToShare),
       custom: customList.filter((ingredient) => usedIds.has(ingredient.id)),
       ...(isBenchTestId(storedTestId) ? { testId: storedTestId } : {}),
     };
@@ -1247,6 +1251,7 @@ export default function BenchTool() {
                   experiment={lastRunExperiment}
                   result={result}
                   shareTestId={sharedTestId}
+                  onTestSummary={setTestSummary}
                 />
               )}
             </section>
@@ -1325,6 +1330,22 @@ export default function BenchTool() {
             </section>
           </div>
         )}
+        <LabReportButton
+          disabledReason={!result || !lastRunExperiment ? "Run the experiment first" : undefined}
+          build={(extra) => {
+            if (!result || !lastRunExperiment) return null;
+            const payload = buildBenchShare(lastRunExperiment);
+            const url = shareUrl(
+              window.location.origin,
+              `${window.location.pathname}${window.location.search}`,
+              payload,
+            );
+            return benchReport(lastRunExperiment, result, testSummary ?? undefined, {
+              ...extra,
+              shareUrl: url,
+            });
+          }}
+        />
       </section>
 
       <section className="bench-panel" aria-labelledby="bench-optimizer-heading">

@@ -9,6 +9,9 @@ import { PageIntro, Panel, roleNames } from "./shared";
 import ShareButton from "./ShareButton";
 import ShareNotice from "./ShareNotice";
 import { decodeShare, readShareHash } from "@/lib/share";
+import { shareUrl } from "@/lib/share";
+import { formulaReport } from "@/lib/labReport";
+import LabReportButton from "./LabReportButton";
 
 type SavedFormula = { name: string; parts: Part[] };
 const STORAGE_CURRENT = "elementlab.current";
@@ -232,6 +235,16 @@ export default function LabTool() {
                   parts: parts.map((part) => ({ ...part })),
                 })}
                 label="Share formula"
+              />
+              <LabReportButton
+                build={(extra) => {
+                  const url = shareUrl(
+                    window.location.origin,
+                    `${window.location.pathname}${window.location.search}`,
+                    { v: 1, kind: "formula", parts: parts.map((part) => ({ ...part })) },
+                  );
+                  return formulaReport(parts, result, { ...extra, shareUrl: url });
+                }}
               />
             </div>
           </Panel>

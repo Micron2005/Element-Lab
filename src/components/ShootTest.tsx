@@ -19,6 +19,7 @@ import {
   type TwoPartSetup,
 } from "@/lib/bench/twoPart";
 import type { Experiment, Part, RunResult } from "@/lib/bench/types";
+import type { TestSummary } from "@/lib/labReport";
 import JetViewer from "./JetViewer";
 import RangeNumberField from "./RangeNumberField";
 
@@ -82,9 +83,11 @@ function isValidRatio(value: unknown): value is TwoPartSetup {
 export default function ShootTest({
   experiment,
   result,
+  onTestSummary,
 }: {
   experiment: Experiment;
   result: RunResult;
+  onTestSummary?: (summary: TestSummary | null) => void;
 }) {
   const [setup, setSetup] = useState<ShotSetup>(DEFAULT_SHOT);
   const [mode, setMode] = useState<ShotMode>("single");
@@ -140,6 +143,56 @@ export default function ShootTest({
         .slice(0, -twoPartReport.shot.headline.length)
         .trim()
     : null;
+  const testSummary = useMemo<TestSummary>(() => {
+    const shot = mode === "single" ? singleReport : twoPartReport.shot;
+    const setupRows: TestSummary["setup"] = [
+      ["Mode", mode === "single" ? "One cartridge" : "Two-part"],
+      ...controls.map(({ key, label, unit }) => [
+        label,
+        `${setup[key]} ${unit}`,
+      ] as [string, string]),
+    ];
+    if (mode === "single") {
+      setupRows.push([
+        "Cartridge A ingredients",
+        experiment.parts.map((part) => `${ingredients.find((item) => item.id === part.id)?.name ?? part.id} ${part.pct}%`).join(", ") || "None",
+      ]);
+    } else {
+      setupRows.push(
+        [
+          "Cartridge A ingredients",
+          experiment.parts.map((part) => `${ingredients.find((item) => item.id === part.id)?.name ?? part.id} ${part.pct}%`).join(", ") || "None",
+        ],
+        [
+          "Cartridge B ingredients",
+          bParts.map((part) => `${ingredients.find((item) => item.id === part.id)?.name ?? part.id} ${part.pct}%`).join(", ") || "None",
+        ],
+        ["Cartridge ratio A:B", `${ratio.ratioA}:${ratio.ratioB}`],
+      );
+    }
+    const metrics = [
+      ...(shot?.jet
+        ? [
+            { label: "Pressure", value: `${formatBar(shot.jet.pressureBar)} bar` },
+            { label: "Flight time", value: `${formatNumber(shot.jet.flightS, 3)} s` },
+            { label: "Fluid / shot", value: `${formatNumber(shot.jet.volumeMl, 3)} mL` },
+          ]
+        : []),
+      { label: "Verdict", value: shot?.verdict ?? "No shot predicted" },
+      { label: "Holds", value: shot?.holdsKg === null || shot?.holdsKg === undefined ? "—" : `${formatNumber(shot.holdsKg, 2)} kg` },
+    ];
+    return {
+      name: "Shoot it",
+      setup: setupRows,
+      headline: mode === "single" ? singleReport.headline : twoPartReport.headline,
+      metrics,
+      notes: mode === "single" ? singleReport.notes : twoPartReport.shot?.notes ?? [],
+    };
+  }, [mode, setup, experiment.parts, bParts, ratio, ingredients, singleReport, twoPartReport]);
+
+  useEffect(() => {
+    onTestSummary?.(testSummary);
+  }, [onTestSummary, testSummary]);
 
   useEffect(() => {
     let active = true;
