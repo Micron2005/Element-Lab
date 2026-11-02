@@ -19,11 +19,11 @@ import {
   type TestReport,
 } from "@/lib/bench/materialTests";
 import type { Experiment, RunResult } from "@/lib/bench/types";
+import type { BenchTestId } from "@/lib/share";
 import ShootTest from "./ShootTest";
 import RangeNumberField from "./RangeNumberField";
 import TestViewer, { type TestViewerData } from "./TestViewer";
 
-type BenchTestId = "shoot" | "stretch" | "heat" | "dissolve" | "stick" | "drop";
 const TEST_STORAGE = "elementlab.bench.test";
 const TESTS: { id: BenchTestId; label: string }[] = [
   { id: "shoot", label: "Shoot it" },
@@ -122,12 +122,16 @@ export default function BenchTests({
   experiment,
   result,
   runId,
+  shareTestId = null,
 }: {
   experiment: Experiment;
   result: RunResult;
   runId: number;
+  shareTestId?: BenchTestId | null;
 }) {
-  const [selected, setSelected] = useState<BenchTestId>("shoot");
+  const [selected, setSelected] = useState<BenchTestId>(() =>
+    shareTestId && VALID_TESTS.has(shareTestId) ? shareTestId : "shoot",
+  );
   const [storageReady, setStorageReady] = useState(false);
   const [stretchSetup, setStretchSetup] = useState(DEFAULT_STRETCH);
   const [heatSetup, setHeatSetup] = useState(DEFAULT_HEAT);

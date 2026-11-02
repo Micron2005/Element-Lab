@@ -6,6 +6,9 @@ import { analyze, fmtTime, hazardWord, PRESETS, type Part } from "@/lib/formula"
 import { INGREDIENTS, type Ingredient, type Role } from "@/lib/ingredients";
 import { strandForLoad } from "@/lib/physics";
 import { PageIntro, Panel, roleNames } from "./shared";
+import ShareButton from "./ShareButton";
+import ShareNotice from "./ShareNotice";
+import { decodeShare, readShareHash } from "@/lib/share";
 
 type SavedFormula = { name: string; parts: Part[] };
 const STORAGE_CURRENT = "elementlab.current";
@@ -42,6 +45,8 @@ export default function LabTool() {
   const [saved, setSaved] = useState<SavedFormula[]>([]);
   const [selectedSave, setSelectedSave] = useState("");
   const [message, setMessage] = useState("");
+  const [shareNotice, setShareNotice] = useState<{ invalid: boolean; dropped: string[] } | null>(null);
+  const [shareUndo, setShareUndo] = useState<{ parts: Part[]; selectedPreset: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const [loadInputs, setLoadInputs] = useState({ massKg: 70, strands: 1, dynamicFactor: 2, safetyFactor: 3 });
   const result = useMemo(() => analyze(parts), [parts]);
@@ -72,6 +77,40 @@ export default function LabTool() {
   useEffect(() => {
     if (ready) localStorage.setItem(STORAGE_SAVED, JSON.stringify(saved));
   }, [saved, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    const openShare = () => {
+      const encoded = readShareHash(window.location.hash);
+      if (encoded === null) return;
+
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      const decoded = decodeShare(encoded);
+      if (!decoded || decoded.payload.kind !== "formula") {
+        setShareUndo(null);
+        setShareNotice({ invalid: true, dropped: [] });
+        return;
+      }
+
+      setShareUndo({
+        parts: parts.map((part) => ({ ...part })),
+        selectedPreset,
+      });
+      setParts(decoded.payload.parts);
+      setSelectedPreset("");
+      setMessage("");
+      setShareNotice({ invalid: false, dropped: decoded.dropped });
+    };
+
+    openShare();
+    window.addEventListener("hashchange", openShare);
+    return () => window.removeEventListener("hashchange", openShare);
+  }, [ready, parts, selectedPreset]);
 
   const changePart = (index: number, pct: number) => {
     setParts((current) => current.map((part, i) => i === index ? { ...part, pct: Math.min(100, Math.max(0, pct)) } : part));
@@ -129,8 +168,27 @@ export default function LabTool() {
   const load = strandForLoad({ ...loadInputs, tensileMPa: result.tensileMPa });
   const sortedChecks = [...result.checks].sort((a, b) => ({ bad: 0, warn: 1, good: 2 }[a.level] - { bad: 0, warn: 1, good: 2 }[b.level]));
 
+  function undoSharedFormula() {
+    if (!shareUndo) return;
+    setParts(shareUndo.parts.map((part) => ({ ...part })));
+    setSelectedPreset(shareUndo.selectedPreset);
+    setShareUndo(null);
+    setShareNotice(null);
+  }
+
   return (
     <>
+      {shareNotice && (
+        <ShareNotice
+          invalid={shareNotice.invalid}
+          dropped={shareNotice.dropped}
+          onUndo={shareUndo ? undoSharedFormula : undefined}
+          onDismiss={() => {
+            setShareNotice(null);
+            setShareUndo(null);
+          }}
+        />
+      )}
       <PageIntro eyebrow="TOOL 01 / MATERIALS DESIGN" title="Formula lab" description="Tune a virtual blend and explore how its ingredients could shape strength, stretch, tack, and set." />
       <div className="lab-layout">
         <div className="stack">
@@ -167,6 +225,14 @@ export default function LabTool() {
                 {roles.map((role) => <optgroup label={roleNames[role]} key={role}>{INGREDIENTS.filter((item) => item.role === role && !parts.some((part) => part.id === item.id)).map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</optgroup>)}
               </select>
               <button className="button button-primary" type="button" onClick={addIngredient} disabled={!addId}>Add ingredient</button>
+              <ShareButton
+                build={() => ({
+                  v: 1,
+                  kind: "formula",
+                  parts: parts.map((part) => ({ ...part })),
+                })}
+                label="Share formula"
+              />
             </div>
           </Panel>
           <Panel title="Save your work" subtitle="Your active formula is auto-saved in this browser.">

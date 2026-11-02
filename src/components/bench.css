@@ -584,6 +584,12 @@
   max-width: 460px;
 }
 
+.bench-run-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .bench-page .bench-run-button,
 .bench-page .bench-find-button {
   min-height: 48px;
@@ -1456,6 +1462,12 @@
 
   .bench-page .bench-run-button {
     width: 100%;
+  }
+
+  .bench-run-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .bench-product {
