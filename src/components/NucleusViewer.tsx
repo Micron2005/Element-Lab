@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { decayChain, neutronHit, type NuclearStep, type NucleusRef } from "../lib/nuclearScene";
+import { decayChain, neutronHit, nucleusRef, type NuclearStep, type NucleusRef } from "../lib/nuclearScene";
 import { PlaybackControls, prepareCanvas, useCanvasWidth, usePlayback } from "./usePlayback";
 import "./viewer.css";
 
@@ -23,6 +23,11 @@ const KIND_LABEL: Record<NuclearStep["kind"], string> = {
   "beta-minus": "Beta-minus decay",
   "beta-plus": "Beta-plus decay",
   "neutron-capture": "Neutron capture",
+  bounce: "Bounce",
+  "quasi-fission": "Quasi-fission",
+  "fusion-fission": "Fusion-fission",
+  fusion: "Fusion",
+  evaporation: "Evaporation",
 };
 
 function nucleusRadius(a: number, scale: number) {
@@ -82,7 +87,12 @@ function drawNucleus(
     ctx.fillStyle = "#d6e2df";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(options.label, cx, cy + radius * (1 + stretch * 0.3) + 16);
+    const width = ctx.canvas.clientWidth || ctx.canvas.width;
+    const height = ctx.canvas.clientHeight || ctx.canvas.height;
+    const halfLabel = ctx.measureText(options.label).width / 2;
+    const labelX = Math.max(halfLabel + 2, Math.min(width - halfLabel - 2, cx));
+    const labelY = Math.min(height - 4, cy + radius * (1 + stretch * 0.3) + 16);
+    ctx.fillText(options.label, labelX, labelY);
   }
   return radius;
 }
@@ -114,7 +124,12 @@ function drawParticle(ctx: CanvasRenderingContext2D, x: number, y: number, radiu
     ctx.fillStyle = color;
     ctx.font = "11px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(text, x, y - radius - 5);
+    const width = ctx.canvas.clientWidth || ctx.canvas.width;
+    const height = ctx.canvas.clientHeight || ctx.canvas.height;
+    const halfLabel = ctx.measureText(text).width / 2;
+    const labelX = Math.max(halfLabel + 2, Math.min(width - halfLabel - 2, x));
+    const labelY = Math.max(12, Math.min(height - 4, y - radius - 5));
+    ctx.fillText(text, labelX, labelY);
   }
 }
 
@@ -155,6 +170,235 @@ function drawStep(ctx: CanvasRenderingContext2D, w: number, h: number, step: Nuc
     ctx.fillStyle = "#ffe066";
     ctx.font = "12px Arial";
     ctx.fillText("γ", cx + radius + 16, cy - radius - 8);
+    return;
+  }
+
+  if (step.kind === "bounce") {
+    const projectile = step.projectile;
+    if (!projectile) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      return;
+    }
+    const projectileRadius = nucleusRadius(projectile.z + projectile.n, scale);
+    const startX = projectileRadius + 8;
+    const contactX = Math.max(startX, cx - fromR - projectileRadius + 4);
+    const x =
+      p < 0.55
+        ? lerp(startX, contactX, ease(p / 0.55))
+        : lerp(contactX, startX, ease((p - 0.55) / 0.45));
+    const wobbleAmount = p > 0.42 ? Math.sin(time * 15) * 0.045 : 0;
+    drawNucleus(ctx, cx, cy, from.z, from.n, scale, {
+      wobble: wobbleAmount,
+      label: label(from),
+    });
+    drawNucleus(ctx, x, cy, projectile.z, projectile.n, scale, {
+      label: label(projectile),
+    });
+    return;
+  }
+
+  if (step.kind === "quasi-fission") {
+    const projectile = step.projectile;
+    const fragments = step.to;
+    if (!projectile || fragments.length < 2) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      return;
+    }
+    const projectileRadius = nucleusRadius(projectile.z + projectile.n, scale);
+    const startX = projectileRadius + 8;
+    const contactX = Math.max(startX, cx - fromR - projectileRadius + 4);
+    if (p < 0.27) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      drawNucleus(
+        ctx,
+        lerp(startX, contactX, ease(p / 0.27)),
+        cy,
+        projectile.z,
+        projectile.n,
+        scale,
+        { label: label(projectile) },
+      );
+      return;
+    }
+    if (p < 0.62) {
+      const q = ease((p - 0.27) / 0.35);
+      const compound = nucleusRef(from.z + projectile.z, from.n + projectile.n);
+      drawNucleus(ctx, cx, cy, compound.z, compound.n, scale, {
+        stretch: q * 0.7,
+        wobble: wobble(0.025),
+        label: `${label(compound)}*`,
+      });
+      return;
+    }
+    const q = ease((p - 0.62) / 0.38);
+    const [left, right] = fragments;
+    const edge = Math.max(
+      nucleusRadius(left.z + left.n, scale),
+      nucleusRadius(right.z + right.n, scale),
+    );
+    const maxDistance = Math.max(4, w / 2 - edge - 12);
+    const distance = lerp(4, maxDistance, q);
+    drawNucleus(ctx, cx - distance, cy, left.z, left.n, scale, {
+      label: label(left),
+    });
+    drawNucleus(ctx, cx + distance, cy, right.z, right.n, scale, {
+      label: label(right),
+    });
+    return;
+  }
+
+  if (step.kind === "fusion") {
+    const projectile = step.projectile;
+    const compound = step.to[0];
+    if (!projectile || !compound) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      return;
+    }
+    const projectileRadius = nucleusRadius(projectile.z + projectile.n, scale);
+    const startX = projectileRadius + 8;
+    const contactX = Math.max(startX, cx - fromR - projectileRadius + 4);
+    if (p < 0.4) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      drawNucleus(
+        ctx,
+        lerp(startX, contactX, ease(p / 0.4)),
+        cy,
+        projectile.z,
+        projectile.n,
+        scale,
+        { label: label(projectile) },
+      );
+      return;
+    }
+    const q = ease((p - 0.4) / 0.6);
+    drawNucleus(ctx, cx, cy, compound.z, compound.n, scale, {
+      glow: 1 - q,
+      wobble: wobble(0.035 * (1 - q)),
+      label: `${label(compound)}*`,
+    });
+    return;
+  }
+
+  if (step.kind === "fusion-fission") {
+    const projectile = step.projectile;
+    const fragments = step.to;
+    if (!projectile || fragments.length < 2) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      return;
+    }
+    const projectileRadius = nucleusRadius(projectile.z + projectile.n, scale);
+    const startX = projectileRadius + 8;
+    const contactX = Math.max(startX, cx - fromR - projectileRadius + 4);
+    if (p < 0.22) {
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale, { label: label(from) });
+      drawNucleus(
+        ctx,
+        lerp(startX, contactX, ease(p / 0.22)),
+        cy,
+        projectile.z,
+        projectile.n,
+        scale,
+        { label: label(projectile) },
+      );
+      return;
+    }
+    if (p < 0.67) {
+      const q = (p - 0.22) / 0.45;
+      const compound = nucleusRef(from.z + projectile.z, from.n + projectile.n);
+      drawNucleus(ctx, cx, cy, compound.z, compound.n, scale, {
+        stretch: ease(q) * 0.85,
+        glow: 1 - q,
+        wobble: wobble(0.025),
+        label: `${label(compound)}*`,
+      });
+      return;
+    }
+    const q = ease((p - 0.67) / 0.33);
+    const [left, right] = fragments;
+    const edge = Math.max(
+      nucleusRadius(left.z + left.n, scale),
+      nucleusRadius(right.z + right.n, scale),
+    );
+    const maxDistance = Math.max(4, w / 2 - edge - 12);
+    const distance = lerp(4, maxDistance, q);
+    drawNucleus(ctx, cx - distance, cy, left.z, left.n, scale, {
+      label: label(left),
+    });
+    drawNucleus(ctx, cx + distance, cy, right.z, right.n, scale, {
+      label: label(right),
+    });
+    return;
+  }
+
+  if (step.kind === "evaporation") {
+    const particles = step.emitted
+      .filter((item) => item.type === "n" || item.type === "p" || item.type === "alpha")
+      .flatMap((item) => Array.from({ length: item.count }, () => item.type));
+    const particleSpan = 0.64;
+    const interval = particleSpan / Math.max(1, particles.length);
+    particles.forEach((type, index) => {
+      const start = 0.08 + index * interval;
+      if (p < start || p > start + interval) return;
+      const progress = ease((p - start) / interval);
+      const angle = -Math.PI / 2 + ((index % 5) - 2) * 0.48;
+      const distance = fromR + progress * reach * 0.72;
+      const x = cx + Math.cos(angle) * distance;
+      const y = cy + Math.sin(angle) * distance * 0.72;
+      if (type === "alpha") {
+        drawNucleus(ctx, x, y, 2, 2, scale * 0.55, { label: "α" });
+      } else {
+        const color = type === "p" ? PROTON : NEUTRON;
+        drawParticle(ctx, x, y, 4, color, type);
+      }
+    });
+
+    if (step.emitted.some((item) => item.type === "gamma") && p >= 0.68 && p <= 0.94) {
+      const q = Math.sin(((p - 0.68) / 0.26) * Math.PI);
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach * 0.55);
+      gradient.addColorStop(0, `rgba(255,245,180,${q * 0.5})`);
+      gradient.addColorStop(1, "rgba(255,245,180,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    if (p < 0.58) {
+      const shrink = 1 - 0.15 * ease(p / 0.58);
+      ctx.save();
+      ctx.globalAlpha = 1 - 0.3 * ease(p / 0.58);
+      drawNucleus(ctx, cx, cy, from.z, from.n, scale * shrink, {
+        wobble: wobble(0.02),
+        label: label(from),
+      });
+      ctx.restore();
+    }
+    if (p >= 0.48 && step.to.length > 0) {
+      const q = ease((p - 0.48) / 0.52);
+      const alpha = Math.min(1, 0.25 + q);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      if (step.to.length === 1) {
+        const product = step.to[0];
+        drawNucleus(ctx, cx, cy, product.z, product.n, scale, {
+          glow: 0.3 * (1 - q),
+          label: label(product),
+        });
+      } else {
+        const [left, right] = step.to;
+        const edge = Math.max(
+          nucleusRadius(left.z + left.n, scale),
+          nucleusRadius(right.z + right.n, scale),
+        );
+        const maxDistance = Math.max(4, w / 2 - edge - 12);
+        const distance = lerp(4, maxDistance, q);
+        drawNucleus(ctx, cx - distance, cy, left.z, left.n, scale, {
+          label: label(left),
+        });
+        drawNucleus(ctx, cx + distance, cy, right.z, right.n, scale, {
+          label: label(right),
+        });
+      }
+      ctx.restore();
+    }
     return;
   }
 
@@ -220,23 +464,44 @@ function drawStep(ctx: CanvasRenderingContext2D, w: number, h: number, step: Nuc
   }
 }
 
-export default function NucleusViewer({ z, n }: { z: number; n: number }) {
+export default function NucleusViewer({
+  z,
+  n,
+  steps: suppliedSteps,
+}: {
+  z: number;
+  n: number;
+  steps?: NuclearStep[];
+}) {
   const [mode, setMode] = useState<Mode>("decay");
-  const steps = useMemo(() => (mode === "decay" ? decayChain(z, n) : [neutronHit(z, n)]), [mode, z, n]);
-  const stepSeconds = mode === "neutron" ? STEP_SECONDS * 1.5 : STEP_SECONDS;
-  const playback = usePlayback(steps.length * stepSeconds, false);
+  const defaultSteps = useMemo(
+    () => (mode === "decay" ? decayChain(z, n) : [neutronHit(z, n)]),
+    [mode, z, n],
+  );
+  const steps = suppliedSteps ?? defaultSteps;
+  const hasSuppliedSteps = suppliedSteps !== undefined;
+  const stepSeconds = !hasSuppliedSteps && mode === "neutron" ? STEP_SECONDS * 1.5 : STEP_SECONDS;
+  const playback = usePlayback(steps.length * stepSeconds, hasSuppliedSteps);
   const { ref, width } = useCanvasWidth();
   const { t } = playback;
-  const index = Math.min(steps.length - 1, Math.floor(t * steps.length));
+  const index = Math.max(0, Math.min(steps.length - 1, Math.floor(t * steps.length)));
   const step = steps[index];
   const local = t >= 1 ? 1 : t * steps.length - index;
 
   useEffect(() => {
     const prepared = prepareCanvas(ref.current, width);
     if (prepared && step) {
-      drawStep(prepared.ctx, prepared.w, prepared.h, step, local, t * steps.length * stepSeconds, mode === "neutron");
+      drawStep(
+        prepared.ctx,
+        prepared.w,
+        prepared.h,
+        step,
+        local,
+        t * steps.length * stepSeconds,
+        !hasSuppliedSteps && mode === "neutron",
+      );
     }
-  }, [ref, width, step, local, t, steps.length, stepSeconds, mode]);
+  }, [ref, width, step, local, t, steps.length, stepSeconds, mode, hasSuppliedSteps]);
 
   function choose(next: Mode) {
     setMode(next);
@@ -245,22 +510,24 @@ export default function NucleusViewer({ z, n }: { z: number; n: number }) {
 
   return (
     <div className="viewer">
-      <div className="viewer-modes" role="group" aria-label="What to watch">
-        <button
-          type="button"
-          className={`button ${mode === "decay" ? "button-primary" : "button-secondary"}`}
-          onClick={() => choose("decay")}
-        >
-          Watch it decay
-        </button>
-        <button
-          type="button"
-          className={`button ${mode === "neutron" ? "button-primary" : "button-secondary"}`}
-          onClick={() => choose("neutron")}
-        >
-          Fire a neutron at it
-        </button>
-      </div>
+      {!hasSuppliedSteps && (
+        <div className="viewer-modes" role="group" aria-label="What to watch">
+          <button
+            type="button"
+            className={`button ${mode === "decay" ? "button-primary" : "button-secondary"}`}
+            onClick={() => choose("decay")}
+          >
+            Watch it decay
+          </button>
+          <button
+            type="button"
+            className={`button ${mode === "neutron" ? "button-primary" : "button-secondary"}`}
+            onClick={() => choose("neutron")}
+          >
+            Fire a neutron at it
+          </button>
+        </div>
+      )}
       <div className="viewer-stage">
         <canvas ref={ref} role="img" aria-label={step ? step.caption : "Nucleus animation"} />
         {step && (
@@ -278,7 +545,7 @@ export default function NucleusViewer({ z, n }: { z: number; n: number }) {
           </div>
         )}
       </div>
-      <PlaybackControls playback={playback} label="Nucleus" />
+      <PlaybackControls playback={playback} label={hasSuppliedSteps ? "Fusion" : "Nucleus"} />
       <ol className="viewer-steps">
         {steps.map((item, itemIndex) => (
           <li key={`${item.kind}-${itemIndex}`} className={itemIndex === index ? "is-current" : undefined}>

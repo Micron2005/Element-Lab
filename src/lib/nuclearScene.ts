@@ -1,9 +1,9 @@
 import { analyzeNucleus, bindingEnergy, elementName } from "./nuclear";
 
-export type NuclearStepKind = "stable" | "neutron-drip" | "proton-drip" | "fission" | "alpha" | "beta-minus" | "beta-plus" | "neutron-capture";
+export type NuclearStepKind = "stable" | "neutron-drip" | "proton-drip" | "fission" | "alpha" | "beta-minus" | "beta-plus" | "neutron-capture" | "bounce" | "quasi-fission" | "fusion-fission" | "fusion" | "evaporation";
 export interface NucleusRef { z: number; n: number; symbol: string; name: string }
 export interface Emission { type: "n" | "p" | "alpha" | "e-" | "e+" | "gamma" | "neutrino"; count: number }
-export interface NuclearStep { kind: NuclearStepKind; from: NucleusRef; to: NucleusRef[]; emitted: Emission[]; energyMeV: number; halfLife: string; caption: string }
+export interface NuclearStep { kind: NuclearStepKind; from: NucleusRef; to: NucleusRef[]; emitted: Emission[]; energyMeV: number; halfLife: string; caption: string; projectile?: NucleusRef }
 
 function assertNucleus(z: number, n: number): void {
   if (!Number.isInteger(z) || z < 1 || !Number.isInteger(n) || n < 0) {
@@ -11,7 +11,7 @@ function assertNucleus(z: number, n: number): void {
   }
 }
 
-function nucleusRef(z: number, n: number): NucleusRef {
+export function nucleusRef(z: number, n: number): NucleusRef {
   const element = elementName(z);
   return {
     z,
@@ -21,7 +21,7 @@ function nucleusRef(z: number, n: number): NucleusRef {
   };
 }
 
-function fissionProducts(z: number, n: number): {
+export function fissionProducts(z: number, n: number): {
   to: NucleusRef[];
   emitted: Emission[];
   energyMeV: number;
