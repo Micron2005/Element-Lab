@@ -7,7 +7,7 @@ import type { Experiment, RunResult } from "@/lib/bench/types";
 import { atomCard, mixCard } from "@/lib/play/learn";
 import { StarRow } from "./PlayTool";
 import LearnCard from "./LearnCard";
-import { awardStars, usePlayProgress, useQuestParam } from "./usePlayProgress";
+import { awardDaily, awardStars, useDailyProgress, usePlayProgress, useQuestParam } from "./usePlayProgress";
 import "./play.css";
 
 type Props =
@@ -17,7 +17,13 @@ type Props =
 export default function QuestBanner(props: Props) {
   const questId = useQuestParam();
   const progress = usePlayProgress();
-  const best = questId ? progress.stars[questId] ?? 0 : 0;
+  const dailyProgress = useDailyProgress();
+  const dayKey = questId?.startsWith("daily:") ? questId.slice("daily:".length) : null;
+  const best = dayKey
+    ? dailyProgress.done[dayKey] ?? 0
+    : questId
+      ? progress.stars[questId] ?? 0
+      : 0;
   const [showHint, setShowHint] = useState(false);
   const [startNucleus] = useState(() => (props.mode === "atom" ? `${props.z}-${props.n}` : ""));
 
@@ -49,9 +55,10 @@ export default function QuestBanner(props: Props) {
 
   useEffect(() => {
     if (quest && grade && grade.stars > best) {
-      awardStars(quest.id, grade.stars);
+      if (dayKey) awardDaily(dayKey, grade.stars);
+      else awardStars(quest.id, grade.stars);
     }
-  }, [quest, grade, best]);
+  }, [quest, grade, best, dayKey]);
 
   if (!quest || !fits) return null;
 

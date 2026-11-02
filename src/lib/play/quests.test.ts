@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { KNOWN_MOLECULES } from "./molecule";
 import {
   CHAPTERS,
@@ -16,6 +16,7 @@ import { DEFAULT_CONDITIONS } from "../bench/conditions";
 import { benchPresets } from "../bench/presets";
 import { simulate } from "../bench/simulate";
 import type { Experiment } from "../bench/types";
+import { savePack } from "./packs";
 
 function run(experiment: Experiment) {
   return simulate(experiment);
@@ -28,6 +29,8 @@ function mix(parts: Experiment["parts"], conditions: Partial<Experiment["conditi
   };
 }
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("play quests", () => {
   it("keeps quest ids unique and chapter order grouped", () => {
     expect(new Set(QUESTS.map((quest) => quest.id)).size).toBe(QUESTS.length);
@@ -39,6 +42,25 @@ describe("play quests", () => {
     ]);
     expect(questById("molecule-water")?.title).toBe("Water's bent shape");
     expect(questsIn("mixing")).toHaveLength(6);
+  });
+
+  it("resolves daily and stored pack quest IDs without adding them to built-ins", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    });
+    const daily = questById("daily:2025-04-12");
+    const pack = savePack({
+      title: "Generated",
+      quests: [{ type: "mix", title: "A mix", targets: { minTack: 1 } }],
+    })!;
+
+    expect(daily?.id).toBe("daily:2025-04-12");
+    expect(questById(`pack:${pack.id}:0`)?.title).toBe("A mix");
+    expect(QUESTS.some((quest) => quest.id === `pack:${pack.id}:0`)).toBe(false);
   });
 
   it("gives each molecule quest an existing target and a palette covering its elements", () => {

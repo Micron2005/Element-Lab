@@ -64,5 +64,5 @@ export function isUnlocked(questId: string, progress: PlayProgress): boolean {
 }
 
 export function totalStars(progress: PlayProgress): number {
-  return Object.values(progress.stars).reduce<number>((total, stars) => total + stars, 0);
+  return QUESTS.reduce((total, quest) => total + (progress.stars[quest.id] ?? 0), 0);
 }

@@ -5,6 +5,7 @@ import { analyzeNucleus } from "../nuclear";
 import { decayChain, neutronHit } from "../nuclearScene";
 import { prettyFormula, type KnownMolecule } from "./molecule";
 import type { AtomQuest, MixQuest } from "./quests";
+import { describeTargets } from "./templates";
 
 export interface LearnSection {
   heading: string;
@@ -349,7 +350,7 @@ export function mixCard(
   experiment: Experiment,
   result: RunResult,
 ): LearnCard {
-  const lesson = QUEST_LESSONS[quest.id];
+  const lesson = QUEST_LESSONS[quest.id] ?? templateLesson(quest);
   const sections = [
     { heading: "What it is", body: lesson.whatItIs },
     { heading: "What happened in your run", body: mixRunDetails(experiment, result) },
@@ -407,7 +408,7 @@ export function atomCard(
   z: number,
   n: number,
 ): LearnCard {
-  const lesson = QUEST_LESSONS[quest.id];
+  const lesson = QUEST_LESSONS[quest.id] ?? templateLesson(quest);
   const sections = [
     { heading: "What it is", body: lesson.whatItIs },
     { heading: "What happened in your run", body: nucleusRunDetails(quest, z, n) },
@@ -420,4 +421,15 @@ export function atomCard(
     lesson.usedFor,
     lesson.askPrompt,
   );
+}
+
+function templateLesson(quest: MixQuest | AtomQuest): Lesson {
+  const goals = quest.template ? describeTargets(quest.template) : [quest.goal];
+  return {
+    whatItIs: "This generated quest is a checklist evaluated by the same model used in the lab.",
+    whatItDoes: `The quest checks these goals: ${goals.join("; ")}.`,
+    whyItMatters: "Changing one ingredient or condition at a time helps show which modeled goal changed.",
+    usedFor: ["exploring model-based material and nucleus targets", "comparing different experimental choices"],
+    askPrompt: "Which change in your run helped meet a goal, and what evidence supports your answer?",
+  };
 }
