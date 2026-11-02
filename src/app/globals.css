@@ -42,6 +42,15 @@
 @media(max-width:850px){.topbar{gap:13px;padding:0 19px}.lab-status{display:none}.nav-links{flex:1;overflow-x:auto;scrollbar-width:none}.nav-links::-webkit-scrollbar{display:none}.nav-links a{padding:10px 9px}.main-content{width:min(100% - 36px,720px);padding-top:38px}.lab-layout,.tool-layout,.element-layout{grid-template-columns:1fr}.assistant-layout{grid-template-columns:1fr}.assistant-side{grid-template-columns:repeat(2,minmax(0,1fr))}.chat-panel{max-height:none;min-height:520px}.site-footer{width:min(100% - 36px,720px)}}
 @media(max-width:560px){.topbar{min-height:62px;flex-wrap:wrap;gap:7px;padding:9px 15px 7px}.brand{display:inline-flex;align-items:center;min-height:44px;gap:7px;font-size:10px}.brand-mark{width:28px;height:28px}.nav-links{flex-basis:100%;order:2;margin:0 -3px}.nav-links a{padding:8px 10px;font-size:12px}.main-content{width:calc(100% - 28px);padding:31px 0 48px}.page-intro{margin-bottom:23px}.intro-copy{font-size:14px}.tool-grid{display:grid;grid-template-columns:1fr;gap:10px}.tool-card,.tool-card:nth-last-child(-n + 2){min-height:193px;grid-column:auto;padding:18px}.tool-card h2{margin-top:20px}.panel{padding:16px}.preset-row{grid-template-columns:minmax(0,1fr) auto}.preset-row>div:first-child{grid-column:1/-1}.ingredient-control{grid-template-columns:78px minmax(70px,1fr) 33px;gap:8px}.save-grid{grid-template-columns:1fr 1fr}.save-grid .button{grid-column:1/-1}.result-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.result-tile{min-height:76px}.strength-row{grid-template-columns:90px 1fr 36px}.fields-grid{gap:10px 8px}.fields-grid .field-label{font-size:10px}.unit-field .input{padding:10px 43px 10px 8px;font-size:12px}.unit{right:8px;font-size:9px}.chemical-layout{grid-template-columns:1fr}.chemical-image{width:min(100%,230px)}.element-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.assistant-side{grid-template-columns:1fr}.chat-panel{min-height:68vh;padding:14px}.message{max-width:95%}.chat-compose{align-items:stretch}.chat-compose .button{padding-inline:10px}.site-footer{width:calc(100% - 28px);display:block;padding:17px 0 23px;line-height:1.5}.site-footer p{margin-top:6px;text-align:left}}
 
+@media(max-width:560px){
+  .lab-layout .select,
+  .lab-layout .input,
+  .lab-layout .button,
+  .lab-layout input[type=range],
+  .lab-layout .icon-button{min-height:44px}
+  .lab-layout .icon-button{width:44px;height:44px}
+}
+
 .fusion-content{display:grid;gap:18px;min-width:0}
 .fusion-recipes,.fusion-controls,.fusion-result{min-width:0}
 .fusion-recipe-list{display:flex;flex-wrap:wrap;gap:8px}

@@ -97,10 +97,14 @@ export default function LabTool() {
         return;
       }
 
-      setShareUndo({
-        parts: parts.map((part) => ({ ...part })),
-        selectedPreset,
-      });
+      if (parts.length > 0) {
+        setShareUndo({
+          parts: parts.map((part) => ({ ...part })),
+          selectedPreset,
+        });
+      } else {
+        setShareUndo(null);
+      }
       setParts(decoded.payload.parts);
       setSelectedPreset("");
       setMessage("");
