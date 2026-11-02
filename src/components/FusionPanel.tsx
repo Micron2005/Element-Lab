@@ -256,10 +256,16 @@ export default function FusionPanel({
             </div>
             <div className="metric-card">
               <span className="metric-label">
-                {report.energyReleasedMeV < 0 ? "Energy cost" : "Energy released"}
+                {report.residue.length === 0
+                  ? "Energy released"
+                  : report.energyReleasedMeV < 0
+                    ? "Energy cost"
+                    : "Energy released"}
               </span>
               <p className="metric-value">
-                {Math.abs(report.energyReleasedMeV).toFixed(2)} MeV
+                {report.residue.length === 0
+                  ? "—"
+                  : `${Math.abs(report.energyReleasedMeV).toFixed(2)} MeV`}
               </p>
             </div>
             <div className="metric-card">

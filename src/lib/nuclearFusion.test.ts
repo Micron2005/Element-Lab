@@ -91,10 +91,12 @@ describe("nuclear fusion model", () => {
     expect(report.residue[0].z).toBe(118);
   });
 
-  it("reports a sub-barrier Ca-48 + Cf-249 shot as a negligible bounce", () => {
+  it("reports no residue or energy release for a sub-barrier Ca-48 + Cf-249 shot", () => {
     const report = fuse(projectile("ca48"), { z: 98, n: 151 }, 150);
     expect(report.dominant).toBe("bounce");
     expect(report.crossSectionBarn).toBeLessThan(1e-20);
+    expect(report.energyReleasedMeV).toBe(0);
+    expect(report.residue).toEqual([]);
   });
 
   it("makes very low-energy D-T collisions overwhelmingly bounce", () => {

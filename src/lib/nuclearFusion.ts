@@ -554,11 +554,11 @@ function finishReport(
       chancePerCollision = 0;
       crossSectionBarn = 0;
       atomsPerDay = 0;
-      energyReleasedMeV =
-        -bestBinding(projectile.z, projectile.n) -
-        bestBinding(target.z, target.n);
+      energyReleasedMeV = 0;
     }
   }
+
+  if (residue.length === 0) energyReleasedMeV = 0;
 
   const residueMeasured =
     residue.length > 0 &&
