@@ -69,10 +69,30 @@
 .fusion-product{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:4px;padding:9px;border:1px solid #263638;border-radius:8px;background:#0d1416;font-size:12px}
 .fusion-product-heading{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
 .fusion-notes{display:grid;gap:6px;margin:13px 0 0;padding-left:17px;color:#aab9b7;font-size:11px;line-height:1.55}
+.element-main-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.element-main-actions>.button{min-height:44px}
 
 @media(max-width:560px){
   .fusion-controls{grid-template-columns:minmax(0,1fr)}
   .fusion-slider-field{grid-column:auto}
   .fusion-recipe-list .button{flex:1 1 auto}
   .fusion-metrics .metric-value{font-size:14px}
+}
+
+.share-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.share-button{min-height:44px}
+.share-status{color:var(--green);font-size:12px}
+.share-link-input{min-width:220px;min-height:44px;flex:1 1 100%;font-size:16px!important}
+.share-banner{display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:12px 14px;border:1px solid #31634c;border-radius:11px;background:#10201a;color:#d7eee2}
+.share-banner-invalid{border-color:#704141;background:#211516;color:#ffd3d3}
+.share-banner-copy{display:grid;flex:1;gap:4px;min-width:0}
+.share-banner-copy p{margin:0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.share-banner-action{min-height:44px;flex:0 0 auto}
+.share-banner-close{display:inline-grid;width:44px;height:44px;flex:0 0 44px;place-items:center;border:1px solid #334447;border-radius:8px;background:#11191b;color:#d6e2df;font-size:21px}
+
+@media(max-width:560px){
+  .share-banner{align-items:flex-start;gap:7px;padding:10px}
+  .share-banner-action{align-self:center;padding-inline:9px}
+  .share-banner-close{width:44px;height:44px;flex-basis:44px}
+  .share-link-input{min-width:100%}
 }

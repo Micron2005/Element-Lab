@@ -75,16 +75,22 @@ function displayHalfLife(value: string | undefined, fallback: string): string {
 export default function FusionPanel({
   z,
   n,
+  projectileId,
+  beamLabMeV,
+  onProjectileChange,
+  onBeamChange,
   onTarget,
   onExplore,
 }: {
   z: number;
   n: number;
+  projectileId: string;
+  beamLabMeV: number;
+  onProjectileChange: (projectileId: string) => void;
+  onBeamChange: (beamLabMeV: number) => void;
   onTarget: (z: number, n: number) => void;
   onExplore: (z: number, n: number) => void;
 }) {
-  const [projectileId, setProjectileId] = useState("ca48");
-  const [beamLabMeV, setBeamLabMeV] = useState(260);
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   const projectile = projectileFromId(projectileId);
   const report = useMemo(
@@ -122,14 +128,14 @@ export default function FusionPanel({
 
   function chooseRecipe(recipe: FusionRecipe) {
     const nextProjectile = projectileFromId(recipe.projectileId);
-    setProjectileId(nextProjectile.id);
-    setBeamLabMeV(Number(recipeBeam(recipe, nextProjectile).toPrecision(4)));
+    onProjectileChange(nextProjectile.id);
+    onBeamChange(Number(recipeBeam(recipe, nextProjectile).toPrecision(4)));
     setActiveRecipeId(recipe.id);
     onTarget(recipe.target.z, recipe.target.n);
   }
 
   function changeBeam(value: number) {
-    setBeamLabMeV(Math.max(MIN_BEAM_MEV, Math.min(MAX_BEAM_MEV, value)));
+    onBeamChange(Math.max(MIN_BEAM_MEV, Math.min(MAX_BEAM_MEV, value)));
     setActiveRecipeId(null);
   }
 
@@ -177,7 +183,7 @@ export default function FusionPanel({
               id="fusion-projectile"
               value={projectileId}
               onChange={(event) => {
-                setProjectileId(event.target.value);
+                onProjectileChange(event.target.value);
                 setActiveRecipeId(null);
               }}
             >

@@ -6,6 +6,9 @@ import NucleusViewer from "./NucleusViewer";
 import FusionPanel from "./FusionPanel";
 import QuestBanner from "./QuestBanner";
 import { analyzeNucleus, bindingEnergy, stableZ } from "@/lib/nuclear";
+import ShareButton from "./ShareButton";
+import ShareNotice from "./ShareNotice";
+import { decodeShare, readShareHash } from "@/lib/share";
 
 function tickStep(range: number, intervals: number) {
   const roughStep = range / intervals;
@@ -18,9 +21,42 @@ function tickStep(range: number, intervals: number) {
 export default function ElementsTool() {
   const [z, setZ] = useState(120);
   const [n, setN] = useState(184);
+  const [projectileId, setProjectileId] = useState("ca48");
+  const [beamLabMeV, setBeamLabMeV] = useState(260);
+  const [shareNotice, setShareNotice] = useState<{ invalid: boolean; dropped: string[] } | null>(null);
   const [chartWidth, setChartWidth] = useState(760);
   const chartRef = useRef<HTMLDivElement>(null);
   const report = useMemo(() => analyzeNucleus(z, n), [z, n]);
+
+  useEffect(() => {
+    const openShare = () => {
+      const encoded = readShareHash(window.location.hash);
+      if (encoded === null) return;
+
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      const decoded = decodeShare(encoded);
+      if (!decoded || decoded.payload.kind !== "nucleus") {
+        setShareNotice({ invalid: true, dropped: [] });
+        return;
+      }
+
+      const payload = decoded.payload;
+      setZ(payload.z);
+      setN(payload.n);
+      setProjectileId(payload.fusion?.projectileId ?? "ca48");
+      setBeamLabMeV(payload.fusion?.beamLabMeV ?? 260);
+      setShareNotice({ invalid: false, dropped: decoded.dropped });
+    };
+
+    openShare();
+    window.addEventListener("hashchange", openShare);
+    return () => window.removeEventListener("hashchange", openShare);
+  }, []);
+
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -78,6 +114,13 @@ export default function ElementsTool() {
       <Suspense fallback={null}>
         <QuestBanner mode="atom" z={z} n={n} />
       </Suspense>
+      {shareNotice && (
+        <ShareNotice
+          invalid={shareNotice.invalid}
+          dropped={shareNotice.dropped}
+          onDismiss={() => setShareNotice(null)}
+        />
+      )}
       <div className="element-layout">
         <div className="stack">
           <Panel title="Nucleus controls" subtitle="Explore Z from 1–200 and N from 0–320.">
@@ -86,7 +129,19 @@ export default function ElementsTool() {
                 ["Protons (Z)", z, setZ, 1, 200],
                 ["Neutrons (N)", n, setN, 0, 320],
               ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label}</label><div className="dual-slider"><input aria-label={`${label} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
-              <button className="button button-secondary" type="button" onClick={snapToStable}>Snap N to most stable</button>
+              <div className="element-main-actions">
+                <button className="button button-secondary" type="button" onClick={snapToStable}>Snap N to most stable</button>
+                <ShareButton
+                  build={() => ({
+                    v: 1,
+                    kind: "nucleus",
+                    z,
+                    n,
+                    fusion: { projectileId, beamLabMeV },
+                  })}
+                  label="Share nucleus"
+                />
+              </div>
             </div>
             <p className="small muted" style={{ marginBottom: 0, marginTop: 14 }}>Snap iterates the beta-stability estimate from the selected proton count.</p>
           </Panel>
@@ -113,6 +168,10 @@ export default function ElementsTool() {
           <FusionPanel
             z={z}
             n={n}
+            projectileId={projectileId}
+            beamLabMeV={beamLabMeV}
+            onProjectileChange={setProjectileId}
+            onBeamChange={setBeamLabMeV}
             onTarget={(nextZ, nextN) => {
               setZ(nextZ);
               setN(nextN);

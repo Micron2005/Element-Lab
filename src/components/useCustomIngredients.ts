@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CUSTOM_STORAGE,
   parseStoredCustom,
@@ -33,26 +33,31 @@ export function loadCustomIngredients(): BenchIngredient[] {
 
 export function useCustomIngredients(): {
   list: BenchIngredient[];
+  ready: boolean;
   save(ingredient: BenchIngredient): void;
+  saveMany(ingredients: BenchIngredient[]): BenchIngredient[];
   remove(id: string): void;
 } {
   const [list, setList] = useState<BenchIngredient[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
-      if (active) setList(loadCustomIngredients());
+      if (!active) return;
+      setList(loadCustomIngredients());
+      setReady(true);
     });
     return () => {
       active = false;
     };
   }, []);
 
-  function persist(next: BenchIngredient[]) {
+  const persist = useCallback((next: BenchIngredient[]) => {
     localStorage.setItem(CUSTOM_STORAGE, JSON.stringify(next));
     setCustomIngredients(next);
     setList(next);
-  }
+  }, []);
 
   function save(ingredient: BenchIngredient) {
     const existing = list.some((item) => item.id === ingredient.id);
@@ -65,9 +70,23 @@ export function useCustomIngredients(): {
     persist(next);
   }
 
+  const saveMany = useCallback((ingredients: BenchIngredient[]) => {
+    const next = [...list];
+    for (const ingredient of ingredients) {
+      const existingIndex = next.findIndex((item) => item.id === ingredient.id);
+      if (existingIndex >= 0) {
+        next[existingIndex] = ingredient;
+      } else if (next.length < MAX_CUSTOM_INGREDIENTS) {
+        next.push(ingredient);
+      }
+    }
+    persist(next);
+    return next;
+  }, [list, persist]);
+
   function remove(id: string) {
     persist(list.filter((ingredient) => ingredient.id !== id));
   }
 
-  return { list, save, remove };
+  return { list, ready, save, saveMany, remove };
 }

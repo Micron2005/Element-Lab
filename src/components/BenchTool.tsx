@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { fmtTime, hazardWord } from "@/lib/formula";
 import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
-import { CUSTOM_PREFIX } from "@/lib/bench/custom";
+import { CUSTOM_PREFIX, newCustomId } from "@/lib/bench/custom";
 import { allBenchIngredients, benchById } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
 import { benchPresets } from "@/lib/bench/presets";
@@ -14,6 +14,14 @@ import MixViewer from "./MixViewer";
 import RangeNumberField from "./RangeNumberField";
 import BenchTests from "./BenchTests";
 import { useCustomIngredients } from "./useCustomIngredients";
+import ShareButton from "./ShareButton";
+import ShareNotice from "./ShareNotice";
+import {
+  decodeShare,
+  isBenchTestId,
+  readShareHash,
+  type BenchTestId,
+} from "@/lib/share";
 import type {
   BenchIngredient,
   Candidate,
@@ -45,6 +53,14 @@ interface NotebookEntry {
   createdAt: string;
   experiment: Experiment;
   result: RunResult;
+}
+
+interface BenchShareUndo {
+  experiment: Experiment;
+  selectedPreset: string;
+  result: RunResult | null;
+  lastRunExperiment: Experiment | null;
+  testId: string | null;
 }
 
 const CURRENT_KEY = "elementlab.bench.current";
@@ -254,7 +270,9 @@ function partsSummary(experiment: Experiment): string {
 export default function BenchTool() {
   const {
     list: customList,
+    ready: customReady,
     save: saveCustomIngredient,
+    saveMany: saveManyCustomIngredients,
     remove: removeCustomIngredient,
   } = useCustomIngredients();
   const [experiment, setExperiment] = useState<Experiment>(() =>
@@ -288,6 +306,10 @@ export default function BenchTool() {
   const [customFormOpen, setCustomFormOpen] = useState(false);
   const [customFormInitial, setCustomFormInitial] = useState<BenchIngredient>();
   const [customSaveError, setCustomSaveError] = useState("");
+  const [shareNotice, setShareNotice] = useState<{ invalid: boolean; dropped: string[] } | null>(null);
+  const [shareUndo, setShareUndo] = useState<BenchShareUndo | null>(null);
+  const [sharedTestId, setSharedTestId] = useState<BenchTestId | null>(null);
+  const [shareTestVersion, setShareTestVersion] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -319,6 +341,125 @@ export default function BenchTool() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!ready || !customReady) return;
+
+    const openShare = () => {
+      const encoded = readShareHash(window.location.hash);
+      if (encoded === null) return;
+
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      const decoded = decodeShare(encoded);
+      if (!decoded || decoded.payload.kind !== "bench") {
+        setShareUndo(null);
+        setShareNotice({ invalid: true, dropped: [] });
+        return;
+      }
+
+      let previousTestId: string | null = null;
+      try {
+        previousTestId = window.localStorage.getItem("elementlab.bench.test");
+      } catch {
+        previousTestId = null;
+      }
+      setShareUndo({
+        experiment: cloneExperiment(experiment),
+        selectedPreset,
+        result,
+        lastRunExperiment: lastRunExperiment
+          ? cloneExperiment(lastRunExperiment)
+          : null,
+        testId: previousTestId,
+      });
+
+      const idMap = new Map<string, string>();
+      const planned = new Map(customList.map((ingredient) => [ingredient.id, ingredient]));
+      const additions: BenchIngredient[] = [];
+      for (const ingredient of decoded.payload.custom ?? []) {
+        const existing = planned.get(ingredient.id);
+        if (existing && JSON.stringify(existing) === JSON.stringify(ingredient)) {
+          idMap.set(ingredient.id, ingredient.id);
+          continue;
+        }
+
+        let imported = ingredient;
+        if (existing) {
+          const plannedIds = new Set(planned.keys());
+          let id = newCustomId();
+          while (plannedIds.has(id)) id = `${newCustomId()}-${plannedIds.size}`;
+          imported = { ...ingredient, id };
+        }
+        planned.set(imported.id, imported);
+        idMap.set(ingredient.id, imported.id);
+        additions.push(imported);
+      }
+
+      let savedCustom = customList;
+      if (additions.length > 0) {
+        try {
+          savedCustom = saveManyCustomIngredients(additions);
+        } catch {
+          savedCustom = customList;
+        }
+      }
+      const savedIds = new Set(savedCustom.map((ingredient) => ingredient.id));
+      const dropped = new Set(decoded.dropped);
+      const parts = decoded.payload.experiment.parts.flatMap((part) => {
+        const id = idMap.get(part.id) ?? part.id;
+        if (part.id.startsWith(CUSTOM_PREFIX) && !savedIds.has(id)) {
+          dropped.add(part.id);
+          return [];
+        }
+        return [{ ...part, id }];
+      });
+      const previousBathId = decoded.payload.experiment.conditions.bathId;
+      const bathId = previousBathId
+        ? idMap.get(previousBathId) ?? previousBathId
+        : undefined;
+      const conditions = {
+        ...decoded.payload.experiment.conditions,
+        bathId:
+          bathId && bathId.startsWith(CUSTOM_PREFIX) && !savedIds.has(bathId)
+            ? DEFAULT_CONDITIONS.bathId
+            : bathId,
+      };
+      const nextExperiment = { parts, conditions };
+
+      if (decoded.payload.testId) {
+        try {
+          window.localStorage.setItem("elementlab.bench.test", decoded.payload.testId);
+        } catch {
+          // The share state still opens if storage is unavailable.
+        }
+      }
+      setSharedTestId(decoded.payload.testId ?? null);
+      setShareTestVersion((version) => version + 1);
+      setExperiment(nextExperiment);
+      setSelectedPreset("custom");
+      setResult(null);
+      setLastRunExperiment(null);
+      setRunError("");
+      setShareNotice({ invalid: false, dropped: [...dropped] });
+    };
+
+    openShare();
+    window.addEventListener("hashchange", openShare);
+    return () => window.removeEventListener("hashchange", openShare);
+  }, [
+    ready,
+    customReady,
+    customList,
+    saveManyCustomIngredients,
+    experiment,
+    selectedPreset,
+    result,
+    lastRunExperiment,
+  ]);
 
   useEffect(() => {
     if (!ready) return;
@@ -555,11 +696,70 @@ export default function BenchTool() {
     .map((id) => notebook.find((entry) => entry.id === id))
     .filter((entry): entry is NotebookEntry => Boolean(entry));
 
+  function undoSharedExperiment() {
+    if (!shareUndo) return;
+    setExperiment(cloneExperiment(shareUndo.experiment));
+    setSelectedPreset(shareUndo.selectedPreset);
+    setResult(shareUndo.result);
+    setLastRunExperiment(
+      shareUndo.lastRunExperiment
+        ? cloneExperiment(shareUndo.lastRunExperiment)
+        : null,
+    );
+    if (isBenchTestId(shareUndo.testId)) {
+      try {
+        window.localStorage.setItem("elementlab.bench.test", shareUndo.testId);
+      } catch {
+        // The previous mix can still be restored without storage.
+      }
+      setSharedTestId(shareUndo.testId);
+    } else {
+      try {
+        window.localStorage.setItem("elementlab.bench.test", "shoot");
+      } catch {
+        // The previous mix can still be restored without storage.
+      }
+      setSharedTestId("shoot");
+    }
+    setShareTestVersion((version) => version + 1);
+    setShareUndo(null);
+    setShareNotice(null);
+  }
+
+  function buildBenchShare() {
+    const usedIds = new Set(experiment.parts.map((part) => part.id));
+    if (experiment.conditions.bathId) usedIds.add(experiment.conditions.bathId);
+    let storedTestId: string | null = null;
+    try {
+      storedTestId = window.localStorage.getItem("elementlab.bench.test");
+    } catch {
+      storedTestId = null;
+    }
+    return {
+      v: 1 as const,
+      kind: "bench" as const,
+      experiment: cloneExperiment(experiment),
+      custom: customList.filter((ingredient) => usedIds.has(ingredient.id)),
+      ...(isBenchTestId(storedTestId) ? { testId: storedTestId } : {}),
+    };
+  }
+
   return (
     <main className="bench-page">
       <Suspense fallback={null}>
         <QuestBanner mode="mix" experiment={lastRunExperiment} result={result} />
       </Suspense>
+      {shareNotice && (
+        <ShareNotice
+          invalid={shareNotice.invalid}
+          dropped={shareNotice.dropped}
+          onUndo={shareUndo ? undoSharedExperiment : undefined}
+          onDismiss={() => {
+            setShareNotice(null);
+            setShareUndo(null);
+          }}
+        />
+      )}
       <header className="bench-intro">
         <p className="bench-eyebrow">RULE-BASED MATERIALS SANDBOX</p>
         <h1>Experiment Bench</h1>
@@ -994,9 +1194,16 @@ export default function BenchTool() {
             onChange={(event) => setNotebookName(event.target.value)}
           />
         </label>
-        <button className="button bench-run-button" type="button" onClick={() => runExperiment()}>
-          Run experiment
-        </button>
+        <div className="bench-run-actions">
+          <button className="button bench-run-button" type="button" onClick={() => runExperiment()}>
+            Run experiment
+          </button>
+          <ShareButton
+            build={buildBenchShare}
+            label="Share experiment"
+            disabledReason={experiment.parts.length ? undefined : "Add an ingredient first"}
+          />
+        </div>
         {runError && <p className="bench-empty" role="alert">{runError}</p>}
       </section>
 
@@ -1035,10 +1242,11 @@ export default function BenchTool() {
               <h3>Test it</h3>
               {lastRunExperiment && (
                 <BenchTests
-                  key={runId}
+                  key={`${runId}-${shareTestVersion}`}
                   runId={runId}
                   experiment={lastRunExperiment}
                   result={result}
+                  shareTestId={sharedTestId}
                 />
               )}
             </section>
