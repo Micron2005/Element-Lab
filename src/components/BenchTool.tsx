@@ -367,15 +367,19 @@ export default function BenchTool() {
       } catch {
         previousTestId = null;
       }
-      setShareUndo({
-        experiment: cloneExperiment(experiment),
-        selectedPreset,
-        result,
-        lastRunExperiment: lastRunExperiment
-          ? cloneExperiment(lastRunExperiment)
-          : null,
-        testId: previousTestId,
-      });
+      if (experiment.parts.length > 0) {
+        setShareUndo({
+          experiment: cloneExperiment(experiment),
+          selectedPreset,
+          result,
+          lastRunExperiment: lastRunExperiment
+            ? cloneExperiment(lastRunExperiment)
+            : null,
+          testId: previousTestId,
+        });
+      } else {
+        setShareUndo(null);
+      }
 
       const idMap = new Map<string, string>();
       const planned = new Map(customList.map((ingredient) => [ingredient.id, ingredient]));
