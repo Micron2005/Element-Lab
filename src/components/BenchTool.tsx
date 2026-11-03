@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { fmtTime, hazardWord } from "@/lib/formula";
 import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
+import { compareRuns, isNotSolid, reactionStatusLabel } from "@/lib/bench/compare";
 import { CUSTOM_PREFIX, newCustomId } from "@/lib/bench/custom";
 import { allBenchIngredients, benchById } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
@@ -172,10 +173,6 @@ function formatToughness(value: number): string {
 
 function formatCost(value: number): string {
   return value < 10 ? value.toFixed(2) : Math.round(value).toString();
-}
-
-function isNotSolid(product: RunResult["product"]): boolean {
-  return ["solution", "nothing", "clumps", "dangerous"].includes(product);
 }
 
 function formattedMechanicalValue(
@@ -640,7 +637,7 @@ export default function BenchTool() {
   function toggleCompare(id: string) {
     setCompareIds((previous) => {
       if (previous.includes(id)) return previous.filter((value) => value !== id);
-      if (previous.length >= 2) return [previous[1], id];
+      if (previous.length >= 3) return [...previous.slice(1), id];
       return [...previous, id];
     });
     setCompareVisible(false);
@@ -700,9 +697,12 @@ export default function BenchTool() {
     }
   }
 
-  const comparison = compareIds
+  const comparisonEntries = compareIds
     .map((id) => notebook.find((entry) => entry.id === id))
     .filter((entry): entry is NotebookEntry => Boolean(entry));
+  const comparison = comparisonEntries.length >= 2
+    ? compareRuns(comparisonEntries.map(({ name, experiment, result }) => ({ name, experiment, result })))
+    : null;
 
   function undoSharedExperiment() {
     if (!shareUndo) return;
@@ -1564,85 +1564,95 @@ export default function BenchTool() {
           <button
             className="button button-secondary"
             type="button"
-            disabled={compareIds.length !== 2}
+            disabled={compareIds.length < 2}
             onClick={() => setCompareVisible(true)}
           >
-            Compare selected ({compareIds.length}/2)
+            Compare selected ({compareIds.length}/3)
           </button>
         </div>
-        {compareVisible && comparison.length === 2 && (
-          <div className="bench-table-wrap">
-            <table className="bench-compare-table">
-              <thead>
-                <tr>
-                  <th>Measure</th>
-                  <th>{comparison[0].name}</th>
-                  <th>{comparison[1].name}</th>
-                  <th>Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                <CompareRow
-                  label="Ingredients"
-                  left={partsSummary(comparison[0].experiment)}
-                  right={partsSummary(comparison[1].experiment)}
-                />
-                <CompareRow
-                  label="Conditions"
-                  left={conditionSummary(comparison[0].experiment)}
-                  right={conditionSummary(comparison[1].experiment)}
-                />
-                <CompareRow label="Product" left={comparison[0].result.productLabel} right={comparison[1].result.productLabel} />
-                <NumericCompareRow
-                  label="Tensile (MPa)"
-                  left={comparison[0].result.tensileMPa}
-                  right={comparison[1].result.tensileMPa}
-                  format={formatMPa}
-                  leftSolid={!isNotSolid(comparison[0].result.product)}
-                  rightSolid={!isNotSolid(comparison[1].result.product)}
-                />
-                <NumericCompareRow
-                  label="Stretch (%)"
-                  left={comparison[0].result.elongationPct}
-                  right={comparison[1].result.elongationPct}
-                  format={formatPercent}
-                  leftSolid={!isNotSolid(comparison[0].result.product)}
-                  rightSolid={!isNotSolid(comparison[1].result.product)}
-                />
-                <NumericCompareRow
-                  label="Tack (/10)"
-                  left={comparison[0].result.tack}
-                  right={comparison[1].result.tack}
-                  format={formatTack}
-                  leftSolid={!isNotSolid(comparison[0].result.product)}
-                  rightSolid={!isNotSolid(comparison[1].result.product)}
-                />
-                <NumericCompareRow
-                  label="Toughness (MJ/m³)"
-                  left={comparison[0].result.toughnessMJm3}
-                  right={comparison[1].result.toughnessMJm3}
-                  format={formatToughness}
-                  leftSolid={!isNotSolid(comparison[0].result.product)}
-                  rightSolid={!isNotSolid(comparison[1].result.product)}
-                />
-                <CompareRow
-                  label="Set time"
-                  left={showTime(comparison[0].result.setSeconds)}
-                  right={showTime(comparison[1].result.setSeconds)}
-                />
-                <NumericCompareRow
-                  label="Cost ($/kg)"
-                  left={comparison[0].result.costPerKg}
-                  right={comparison[1].result.costPerKg}
-                  format={formatCost}
-                />
-                <CompareRow
-                  label="Safety"
-                  left={`Mix ${hazardLabel(comparison[0].result.wetToxicity)}, cured ${hazardLabel(comparison[0].result.curedToxicity)}, skin ${hazardLabel(comparison[0].result.skin)}`}
-                  right={`Mix ${hazardLabel(comparison[1].result.wetToxicity)}, cured ${hazardLabel(comparison[1].result.curedToxicity)}, skin ${hazardLabel(comparison[1].result.skin)}`}
-                />
-              </tbody>
-            </table>
+        {compareVisible && comparison && (
+          <div className="bench-comparison">
+            <div className="bench-compare-why">
+              <h3>What changed and why</h3>
+              <ul>
+                {comparison.why.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}
+              </ul>
+            </div>
+            <div className="bench-table-wrap">
+              <table className="bench-compare-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Compare</th>
+                    {comparison.names.map((name, index) => (
+                      <th scope="col" key={`${index}-${name}`}>
+                        <div className="bench-compare-column-heading">
+                          <span>{name}</span>
+                          <button
+                            className="bench-compare-load"
+                            type="button"
+                            onClick={() => loadNotebookEntry(comparisonEntries[index])}
+                          >
+                            Load
+                          </button>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <ComparisonSection heading="Ingredients" colSpan={comparison.names.length + 1} />
+                  {comparison.ingredients.map((ingredient) => (
+                    <tr key={`ingredient-${ingredient.id}`}>
+                      <th scope="row">
+                        {ingredient.name}
+                        {ingredient.changed && <ChangedTag />}
+                      </th>
+                      {ingredient.pcts.map((pct, index) => (
+                        <td key={index}>{pct === null ? "—" : `${Number.isInteger(pct) ? pct : Number(pct.toFixed(1))}%`}</td>
+                      ))}
+                    </tr>
+                  ))}
+                  <ComparisonSection heading="Conditions" colSpan={comparison.names.length + 1} />
+                  {comparison.conditions.map((condition) => (
+                    <tr key={`condition-${condition.label}`}>
+                      <th scope="row">
+                        {condition.label}
+                        {condition.changed && <ChangedTag />}
+                      </th>
+                      {condition.values.map((value, index) => <td key={index}>{value}</td>)}
+                    </tr>
+                  ))}
+                  <ComparisonSection heading="Results" colSpan={comparison.names.length + 1} />
+                  {comparison.measures.map((measure) => (
+                    <tr key={`measure-${measure.label}`}>
+                      <th scope="row">
+                        {measure.label}
+                        {measure.values.some((value) => value !== measure.values[0]) && <ChangedTag />}
+                      </th>
+                      {measure.values.map((value, index) => (
+                        <td key={index}>
+                          <span>{value}</span>
+                          {measure.best === index && <strong className="bench-compare-best">★ best</strong>}
+                          {measure.deltas[index] !== "—" && <small className="bench-compare-delta">Δ {measure.deltas[index]}</small>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <ComparisonSection heading="Reactions" colSpan={comparison.names.length + 1} />
+                  {comparison.reactions.map((reaction) => (
+                    <tr key={`reaction-${reaction.name}`}>
+                      <th scope="row">
+                        {reaction.name}
+                        {reaction.changed && <ChangedTag />}
+                      </th>
+                      {reaction.statuses.map((status, index) => (
+                        <td key={index}>{reactionStatusLabel(status)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
         {notebook.length === 0 ? (
@@ -1703,51 +1713,14 @@ function SafetyMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CompareRow({
-  label,
-  left,
-  right,
-}: {
-  label: string;
-  left: string;
-  right: string;
-}) {
+function ComparisonSection({ heading, colSpan }: { heading: string; colSpan: number }) {
   return (
-    <tr>
-      <th scope="row">{label}</th>
-      <td>{left}</td>
-      <td>{right}</td>
-      <td>{left === right ? "No change" : "Changed"}</td>
+    <tr className="bench-compare-section">
+      <th colSpan={colSpan}>{heading}</th>
     </tr>
   );
 }
 
-function NumericCompareRow({
-  label,
-  left,
-  right,
-  format,
-  leftSolid = true,
-  rightSolid = true,
-}: {
-  label: string;
-  left: number;
-  right: number;
-  format: (value: number) => string;
-  leftSolid?: boolean;
-  rightSolid?: boolean;
-}) {
-  const delta = Math.round((right - left) * 100) / 100;
-  const change =
-    !leftSolid || !rightSolid
-      ? "—"
-      : `${delta > 0 ? "+" : ""}${format(delta)}`;
-  return (
-    <tr>
-      <th scope="row">{label}</th>
-      <td>{leftSolid ? format(left) : "— (not a solid)"}</td>
-      <td>{rightSolid ? format(right) : "— (not a solid)"}</td>
-      <td>{change}</td>
-    </tr>
-  );
+function ChangedTag() {
+  return <span className="bench-compare-changed">Changed</span>;
 }
