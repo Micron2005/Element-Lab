@@ -318,12 +318,12 @@ export default function BenchTool() {
         const savedExperiment = localStorage.getItem(CURRENT_KEY);
         if (savedExperiment) {
           const parsed = JSON.parse(savedExperiment) as Experiment;
-          const spiderPreset = benchPresets.find((preset) => preset.id === "spider-web");
-          const isLegacySpider = spiderPreset &&
+          const silkFiberPreset = benchPresets.find((preset) => preset.id === "spider-web");
+          const isLegacySilkFiber = silkFiberPreset &&
             Array.isArray(parsed.parts) &&
             parsed.conditions &&
-            experimentsEqual(parsed, spiderPreset.experiment);
-          if (Array.isArray(parsed.parts) && parsed.conditions && !isLegacySpider) {
+            experimentsEqual(parsed, silkFiberPreset.experiment);
+          if (Array.isArray(parsed.parts) && parsed.conditions && !isLegacySilkFiber) {
             setExperiment(cloneExperiment(parsed));
             setSelectedPreset("custom");
           }
@@ -650,7 +650,7 @@ export default function BenchTool() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "elementlab-notebook.json";
+    link.download = "science-lab-notebook.json";
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -769,7 +769,7 @@ export default function BenchTool() {
         />
       )}
       <header className="bench-intro">
-        <p className="bench-eyebrow">RULE-BASED MATERIALS SANDBOX</p>
+        <p className="bench-eyebrow">VIRTUAL EXPERIMENT SANDBOX</p>
         <h1>Experiment Bench</h1>
         <p>
           Mix proteins, enzymes, polymers, salts, and process conditions. Run a

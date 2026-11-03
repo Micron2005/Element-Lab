@@ -66,7 +66,7 @@ export default function LabTool() {
         const stored = JSON.parse(localStorage.getItem(STORAGE_SAVED) ?? "[]");
         if (Array.isArray(stored)) setSaved(stored.filter((item) => item && typeof item.name === "string" && safeParts(item.parts)).map((item) => ({ name: item.name, parts: safeParts(item.parts) ?? [] })));
       } catch {
-        setMessage("Saved data could not be read; starting with the Bio web preset.");
+        setMessage("Saved data could not be read; starting with the silk adhesive preset.");
       }
       setReady(true);
     });
@@ -139,11 +139,11 @@ export default function LabTool() {
     setMessage(`Saved “${name}”.`);
   };
   const downloadFormula = () => {
-    const blob = new Blob([JSON.stringify({ name: "Element Lab formula", parts }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ name: "Science Lab formula", parts }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "element-lab-formula.json";
+    anchor.download = "science-lab-formula.json";
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -157,7 +157,7 @@ export default function LabTool() {
       setSelectedPreset("");
       setMessage("Formula imported.");
     } catch {
-      setMessage("That file does not contain a valid Element Lab formula.");
+      setMessage("That file does not contain a valid Science Lab formula.");
     }
   };
   const loadFormula = () => {
@@ -196,7 +196,7 @@ export default function LabTool() {
           }}
         />
       )}
-      <PageIntro eyebrow="TOOL 01 / MATERIALS DESIGN" title="Formula lab" description="Tune a virtual blend and explore how its ingredients could shape strength, stretch, tack, and set." />
+      <PageIntro eyebrow="TOOL 01 / MATERIALS & ENGINEERING" title="Formula lab" description="Explore how ingredient and process choices may shape a formula’s strength, stretch, tack, and setting behavior." />
       <div className="lab-layout">
         <div className="stack">
           <Panel title="Build your mix" subtitle="Adjust percentages freely. The model normalizes the composition when it analyzes your formula.">
@@ -301,12 +301,12 @@ export default function LabTool() {
           <Panel title="Where & how to make it">
             <ul className="plain-list">{result.environment.map((line, index) => <li key={index}><span className="check-icon good">›</span>{line}</li>)}</ul>
           </Panel>
-          <Panel title="Can it hold me?" subtitle="An idealized load estimate—not a safety guarantee. Never test a person.">
+          <Panel title="Load capacity estimate" subtitle="A simplified estimate under a modeled load—not a safety guarantee. Never test a person.">
             <div className="load-inputs">
               {([
                 ["Body mass", "massKg", "kg", 1, 300],
                 ["Strands", "strands", "count", 1, 100],
-                ["Swing factor", "dynamicFactor", "×", 1, 10],
+                ["Dynamic load factor", "dynamicFactor", "×", 1, 10],
                 ["Safety factor", "safetyFactor", "×", 1, 10],
               ] as const).map(([label, key, unit, min, max]) => <div key={key}><label className="field-label" htmlFor={`load-${key}`}>{label} ({unit})</label><input className="input" id={`load-${key}`} type="number" min={min} max={max} step={key === "strands" ? 1 : 0.1} value={loadInputs[key]} onChange={(event) => setLoadInputs((current) => ({ ...current, [key]: Math.max(min, Number(event.target.value) || min) }))} /></div>)}
             </div>

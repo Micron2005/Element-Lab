@@ -43,7 +43,7 @@ export interface ReportExtra {
 }
 
 const BENCH_DISCLAIMER =
-  "Estimate from Element Lab's rule-based model, not a lab measurement. Don't make or handle this mix for real without a qualified supervisor.";
+  "Estimate from Science Lab's rule-based model, not a lab measurement. Don't make or handle this mix for real without a qualified supervisor.";
 const FUSION_DISCLAIMER =
   "liquid-drop model, no shell corrections, and real values can differ a lot.";
 
@@ -411,5 +411,5 @@ function slug(text: string): string {
 export function reportFileName(doc: LabReportDoc): string {
   const kind = slug(doc.kind);
   const title = slug(doc.title).slice(0, 40).replace(/-+$/g, "") || "report";
-  return `element-lab-${kind}-${title}-${doc.createdAt.toISOString().slice(0, 10)}.pdf`;
+  return `science-lab-${kind}-${title}-${doc.createdAt.toISOString().slice(0, 10)}.pdf`;
 }

@@ -56,7 +56,7 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
-  pdf.text("ELEMENT LAB · LAB REPORT", MARGIN, y);
+  pdf.text("SCIENCE LAB · LAB REPORT", MARGIN, y);
   y += 27;
   pdf.setFontSize(20);
   const titleLines = wrapped(pdf, doc.title, CONTENT_WIDTH);
@@ -178,7 +178,7 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
   }
 
   if (doc.shareUrl) {
-    const shareText = "Open this experiment in Element Lab";
+    const shareText = "Open this experiment in Science Lab";
     ensureSpace(LINE_HEIGHT * 2 + 8);
     pdf.setTextColor(25, 95, 105);
     pdf.textWithLink(pdfSafe(shareText), MARGIN, y, { url: doc.shareUrl });
@@ -193,7 +193,7 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.setTextColor(90, 100, 100);
-    pdf.text("Element Lab · model estimate, not a lab measurement", MARGIN, PAGE_HEIGHT - 27);
+    pdf.text("Science Lab · model estimate, not a lab measurement", MARGIN, PAGE_HEIGHT - 27);
     pdf.text(`Page ${page} of ${pageCount}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 27, { align: "right" });
   }
 

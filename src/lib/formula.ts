@@ -151,7 +151,7 @@ export function analyze(parts: Part[]): FormulaResult {
   } else if (cure.includes("moisture")) cureSeconds = 300;
   else if (cure.includes("covalent")) cureSeconds = 600;
   else if (cure.includes("cooling")) cureSeconds = 30;
-  if (cureSeconds > 30) checks.push({ level: "warn", text: `Takes ~${fmtTime(cureSeconds)} to set: a strand would still be liquid when it lands. Spider silk sets in under a second from shear and water loss.` });
+  if (cureSeconds > 30) checks.push({ level: "warn", text: `Takes ~${fmtTime(cureSeconds)} to set: a sprayed or extruded strand would still be liquid when it lands. Fast-setting fibers like natural silk set in under a second.` });
 
   const wetToxicity = items.reduce<number>((m, i) => Math.max(m, i.w > 0.001 ? i.ing.toxicity : 0), 0) as Hazard;
   const curedToxicity = items
@@ -159,7 +159,7 @@ export function analyze(parts: Part[]): FormulaResult {
     .reduce<number>((m, i) => Math.max(m, i.ing.role === "crosslinker" ? Math.min(i.ing.toxicity, 1) : i.ing.toxicity), 0) as Hazard;
   const skin = items.reduce<number>((m, i) => Math.max(m, i.ing.skin), 0) as Hazard;
   const edible = items.every((i) => i.ing.edible);
-  if (skin >= 3) checks.push({ level: "bad", text: "Contains something that burns or glues skin. Not safe to shoot from your wrist." });
+  if (skin >= 3) checks.push({ level: "bad", text: "Contains something that can burn or glue skin. Do not apply it to skin or handle it without appropriate protection." });
   if (items.some((i) => i.ing.id === "borax")) checks.push({ level: "warn", text: "Borax is a reproductive toxicant; fine for toy slime handling, not for constant skin contact." });
 
   const dissolveTime =
@@ -215,7 +215,7 @@ export function fmtTime(s: number) {
 
 export const PRESETS: { name: string; parts: Part[] }[] = [
   {
-    name: "Bio web (silk + mussel glue)",
+    name: "Silk adhesive (silk + mussel glue)",
     parts: [
       { id: "spider-silk", pct: 20 },
       { id: "dopamine", pct: 2 },
@@ -225,7 +225,7 @@ export const PRESETS: { name: string; parts: Part[] }[] = [
     ],
   },
   {
-    name: "Budget web (fibroin + chitosan)",
+    name: "Budget silk fiber (fibroin + chitosan)",
     parts: [
       { id: "silk-fibroin", pct: 18 },
       { id: "genipin", pct: 0.5 },
@@ -235,7 +235,7 @@ export const PRESETS: { name: string; parts: Part[] }[] = [
     ],
   },
   {
-    name: "Stretchy rubber web",
+    name: "Stretchy rubber fiber",
     parts: [
       { id: "pu", pct: 70 },
       { id: "pib", pct: 25 },

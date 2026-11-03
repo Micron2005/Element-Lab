@@ -41,7 +41,7 @@ export default function ShareButton({
 
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: "Element Lab experiment", url });
+        await navigator.share({ title: "Science Lab experiment", url });
         return;
       } catch (error) {
         if (

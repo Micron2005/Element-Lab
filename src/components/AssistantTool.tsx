@@ -19,8 +19,8 @@ type LearnContext = { title: string; context: string };
 type SavedUserKey = { provider: Provider; apiKey: string };
 const STORAGE_KEY = "elementlab.chat";
 const HANDOFF_KEY = "elementlab.assistant.handoff";
-const welcome: Message = { role: "assistant", content: "Hi, I’m your lab partner. Ask me about a material, a formula, or what these estimates can—and can’t—tell you." };
-const prompts = ["Why would this mix fail?", "What’s missing to make it hold my weight?", "Is it safe on skin?", "Do I need a vacuum to make it?", "Could we make a new element?"];
+const welcome: Message = { role: "assistant", content: "Hi, I’m your lab partner. Ask about a science question, an experiment, or what these estimates can—and can’t—tell you." };
+const prompts = ["Why might this experiment fail?", "What could improve this material’s load capacity?", "Is it safe on skin?", "Do I need a vacuum for this process?", "Could we make a new element?"];
 const cureNames: Record<string, string> = {
   evaporation: "solvent evaporation",
   "ionic-bath": "ionic bath",
@@ -334,7 +334,7 @@ export default function AssistantTool() {
 
   return (
     <>
-      <PageIntro eyebrow="TOOL 05 / YOUR LAB PARTNER" title="Ask the lab assistant" description="A practical science companion for reasoning about materials, safety, and what your model can tell you." />
+      <PageIntro eyebrow="TOOL 05 / YOUR LAB PARTNER" title="Ask the lab assistant" description="A practical science partner for exploring questions, planning safe tests, and understanding what estimates can tell you." />
       <div className="assistant-layout">
         <Panel title="Conversation" subtitle="Replies are estimates and explanations—not proof that a material is safe or strong." className="chat-panel">
           <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> Lab partner</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>Clear chat</button></div>
