@@ -48,8 +48,17 @@
 .play-learn-card p, .play-learn-card li { margin: 0; color: #c2d0ce; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-line; }
 .play-learn-card ul { display: grid; gap: 4px; margin: 0; padding-left: 18px; }
 .play-learn-card .play-learn-ask { min-height: 44px; justify-self: start; max-width: 100%; font-size: 14px; }
-.play-molecule-card { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 14px; align-items: center; }
-.play-molecule-shape { display: grid; place-items: center; min-height: 120px; border: 1px solid #24403b; border-radius: 10px; background: #0a1214; }
+.play-molecule-card { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 14px; }
+.play-molecule-info { width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.molecule3d { display: grid; width: min(100%, 320px); min-width: 0; justify-items: center; gap: 8px; }
+.molecule3d-scene { display: block; width: 100%; aspect-ratio: 1; overflow: hidden; border: 1px solid #24403b; border-radius: 14px; background: radial-gradient(circle at 50% 40%, #11262a, #080e10 75%); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.molecule3d-scene:active { cursor: grabbing; }
+.molecule3d-scene:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.molecule3d-controls { display: flex; width: 100%; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.molecule3d-controls .button { min-width: 88px; min-height: 44px; }
+.molecule3d-angle { margin: 0; color: #c2d0ce; font-size: 14px; text-align: center; }
+.play-3d-toggle .button { min-height: 44px; }
+.play-3d-hint { margin: 0; color: var(--muted); font-size: 14px; }
 .play-molecule-info h3 { margin: 0 0 6px; font-size: 16px; }
 .play-molecule-info p { margin: 0 0 6px; color: #c2d0ce; }
 .play-formula { margin-left: 4px; color: var(--accent); font-weight: 600; }
@@ -151,7 +160,6 @@
   .play-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
   .play-tabs button { padding: 0 10px; }
   .play-molecule-card { grid-template-columns: 1fr; }
-  .play-molecule-shape { min-height: 110px; }
   .play-learn-card .play-learn-ask { width: 100%; }
   .daily-card, .pack-section { padding: 14px; }
   .daily-card-footer .button { width: 100%; margin-left: 0; }

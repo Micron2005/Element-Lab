@@ -174,10 +174,12 @@ export function MoleculeDrawing({ graph, label }: { graph: MolGraph; label: stri
 export default function MoleculeBoard({
   palette,
   onCheck,
+  onGraphChange,
   onEdit,
 }: {
   palette: AtomSymbol[];
   onCheck: (graph: MolGraph) => void;
+  onGraphChange?: (graph: MolGraph) => void;
   onEdit?: () => void;
 }) {
   const [graph, setGraph] = useState<MolGraph>(EMPTY_GRAPH);
@@ -191,6 +193,7 @@ export default function MoleculeBoard({
     if (next === graph) return;
     setHistory((past) => [...past.slice(-40), graph]);
     setGraph(next);
+    onGraphChange?.(next);
     onEdit?.();
   }
 
@@ -262,9 +265,12 @@ export default function MoleculeBoard({
       if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < 7) return;
       current.moved = true;
       setHistory((past) => [...past.slice(-40), graph]);
+      onEdit?.();
     }
     const point = toBoard(event);
-    setGraph((g) => moveAtom(g, current.id, point.x, point.y));
+    const next = moveAtom(graph, current.id, point.x, point.y);
+    setGraph(next);
+    onGraphChange?.(next);
   }
 
   function onPointerUp(event: React.PointerEvent) {
@@ -279,6 +285,7 @@ export default function MoleculeBoard({
     if (!previous) return;
     setHistory(history.slice(0, -1));
     setGraph(previous);
+    onGraphChange?.(previous);
     setSelected(null);
     setNotice("");
     onEdit?.();
