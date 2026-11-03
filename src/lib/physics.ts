@@ -4,7 +4,7 @@ export interface LoadInput {
   massKg: number;
   tensileMPa: number;
   strands: number;
-  /** Extra force from swinging/catching a fall (2 = a swing roughly doubles the pull). */
+  /** Extra dynamic load factor (2 = dynamic motion doubles the pull). */
   dynamicFactor: number;
   safetyFactor: number;
 }

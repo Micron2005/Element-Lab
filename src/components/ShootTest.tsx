@@ -175,14 +175,14 @@ export default function ShootTest({
         ? [
             { label: "Pressure", value: `${formatBar(shot.jet.pressureBar)} bar` },
             { label: "Flight time", value: `${formatNumber(shot.jet.flightS, 3)} s` },
-            { label: "Fluid / shot", value: `${formatNumber(shot.jet.volumeMl, 3)} mL` },
+            { label: "Fluid / test", value: `${formatNumber(shot.jet.volumeMl, 3)} mL` },
           ]
         : []),
-      { label: "Verdict", value: shot?.verdict ?? "No shot predicted" },
+      { label: "Verdict", value: shot?.verdict ?? "No extrusion predicted" },
       { label: "Holds", value: shot?.holdsKg === null || shot?.holdsKg === undefined ? "—" : `${formatNumber(shot.holdsKg, 2)} kg` },
     ];
     return {
-      name: "Shoot it",
+      name: "Nozzle test",
       setup: setupRows,
       headline: mode === "single" ? singleReport.headline : twoPartReport.headline,
       metrics,
@@ -259,12 +259,12 @@ export default function ShootTest({
       <div className="bench-shoot-heading">
         <div>
           <span className="bench-kicker">NOZZLE TEST</span>
-          <h4>Shoot it</h4>
+          <h4>Nozzle test</h4>
         </div>
         <span className="bench-shoot-label">Setup controls only</span>
       </div>
 
-      <div className="bench-shot-mode" role="group" aria-label="Shot mode">
+      <div className="bench-shot-mode" role="group" aria-label="Extrusion mode">
         <button
           className="button button-secondary"
           type="button"
@@ -547,7 +547,7 @@ export default function ShootTest({
         <div className="bench-shot-tiles">
           <Metric label="Flight time" value={`${formatNumber(jetResult.flightS, 3)} s`} />
           <Metric label="Sag" value={`${formatNumber(jetResult.dropM, 3)} m`} />
-          <Metric label="Fluid / shot" value={`${formatNumber(jetResult.volumeMl, 3)} mL`} />
+          <Metric label="Fluid / test" value={`${formatNumber(jetResult.volumeMl, 3)} mL`} />
           <Metric
             label={mode === "single" ? "Shots / cartridge" : "Shots per refill"}
             value={formatNumber(

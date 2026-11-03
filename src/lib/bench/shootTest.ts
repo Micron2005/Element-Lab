@@ -223,7 +223,7 @@ export function shootTest(
     (part) => part.ingredient.category !== "solvent",
   );
   if (parts.length === 0 || (!hasLiquid && !hasSolids)) {
-    return report(fluid, "nothing-to-shoot", "Nothing to shoot from this mix.", fluid.notes);
+    return report(fluid, "nothing-to-shoot", "Nothing to extrude from this mix.", fluid.notes);
   }
   if (fluid.viscosityPas === null) {
     return report(

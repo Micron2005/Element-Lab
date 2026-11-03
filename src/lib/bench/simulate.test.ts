@@ -166,8 +166,8 @@ describe("bench simulation", () => {
   });
 
   it("caps spider-silk strength and gives the preset a nonzero set time", () => {
-    const spiderPreset = benchPresets.find((preset) => preset.id === "spider-web")!;
-    const result = simulate(spiderPreset.experiment);
+    const silkFiberPreset = benchPresets.find((preset) => preset.id === "spider-web")!;
+    const result = simulate(silkFiberPreset.experiment);
 
     expect(result.tensileMPa).toBeLessThanOrEqual(1375);
     expect(result.setSeconds).toBeGreaterThan(0);

@@ -28,7 +28,7 @@ import { Term } from "./Term";
 
 const TEST_STORAGE = "elementlab.bench.test";
 const TESTS: { id: BenchTestId; label: string }[] = [
-  { id: "shoot", label: "Shoot it" },
+  { id: "shoot", label: "Nozzle test" },
   { id: "stretch", label: "Stretch" },
   { id: "heat", label: "Heat" },
   { id: "dissolve", label: "Dissolve" },

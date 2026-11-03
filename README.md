@@ -1,15 +1,15 @@
-# Element Lab
+# Science Lab
 
-An interactive materials lab for exploring formula estimates, nozzle tests, chemical data, and nuclear models.
+A virtual science lab for curious minds—students, teachers, scientists, and people building projects at home. Explore chemistry, materials science, physics, and engineering through interactive models, experiments, and estimates.
 
 ## Pages
 
 - `/` — overview of the lab tools.
-- `/bench` — build a mixture, run an experiment, and shoot-test it through a nozzle.
+- `/bench` — build a mixture, run an experiment, and explore its behavior in a modeled nozzle test.
 - `/lab` — build and save material formulas, then review estimated properties and safety checks.
 - `/chemicals` — look up compound properties and hazard classifications from PubChem.
 - `/elements` — explore nuclear binding energy and stability estimates.
-- `/assistant` — ask a lab assistant about materials and science.
+- `/assistant` — ask a lab assistant about science questions, experiments, and model estimates.
 
 ## Run locally
 

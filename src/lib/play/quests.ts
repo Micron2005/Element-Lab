@@ -272,7 +272,7 @@ function experiment(parts: Experiment["parts"], conditions: Partial<Experiment["
   };
 }
 
-const spiderConditions = presetExperiment("spider-web").conditions;
+const silkFiberConditions = presetExperiment("spider-web").conditions;
 
 const enzymeEventIds: Record<string, string[]> = {
   transglutaminase: ["transglutaminase"],
@@ -431,8 +431,8 @@ const mixQuests: MixQuest[] = [
   {
     id: "mix-strand",
     chapter: "mixing",
-    title: "Strand you can hang from",
-    story: "A tiny fiber model needs enough strength to carry a load and enough stretch to bend.",
+    title: "Strong, stretchy fiber",
+    story: "A fiber sample needs enough strength to carry a test load while staying flexible.",
     goal: "Form a fiber with a strong network and at least 15% elongation.",
     hint: "Silk can form stronger beta-sheet regions; a little plasticizer can increase stretch.",
     learn: "Fiber strength and stretch are separate properties, and changing one can trade off against the other.",
@@ -448,7 +448,7 @@ const mixQuests: MixQuest[] = [
         { id: "ethanol", pct: 5 },
         { id: "glycerol", pct: 10 },
       ],
-      conditions: { ...spiderConditions },
+      conditions: { ...silkFiberConditions },
     },
     grade: (_experiment, result) => {
       if (result.product !== "fiber") return { stars: 0, feedback: ["The forming conditions have not made a fiber."] };

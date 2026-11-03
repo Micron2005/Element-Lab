@@ -171,7 +171,7 @@ export function checkCartridge(
   });
 
   if (result.product === "dangerous") {
-    return check("unsafe", `Cartridge ${label} is unsafe to shoot.`);
+    return check("unsafe", `Cartridge ${label} is unsafe to extrude.`);
   }
   if (viscosityPas === null) {
     return check("no-liquid", `Cartridge ${label} has no flowing liquid.`);

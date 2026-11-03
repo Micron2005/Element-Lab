@@ -141,7 +141,7 @@ export const benchPresets: BenchPreset[] = [
   },
   {
     id: "spider-web",
-    name: "Spider-style web fiber (silk + β-sheet bath)",
+    name: "Silk fiber (β-sheet bath)",
     experiment: {
       parts: [
         { id: "spider-silk", pct: 55 },

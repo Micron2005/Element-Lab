@@ -91,7 +91,7 @@ describe("lab report documents", () => {
   it("creates a dated, slugged file name", () => {
     const report = nucleusReport(118, 176, undefined, { now: new Date("2025-04-03T12:00:00Z") });
     expect(reportFileName(report)).toBe(
-      "element-lab-elements-nucleus-oganesson-294-2025-04-03.pdf",
+      "science-lab-elements-nucleus-oganesson-294-2025-04-03.pdf",
     );
   });
 

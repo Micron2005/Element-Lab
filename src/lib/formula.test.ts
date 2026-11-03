@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { analyze, PRESETS } from "./formula";
 
 describe("analyze", () => {
-  it("estimates Bio web strength and flags that it is not edible", () => {
-    const result = analyze(PRESETS.find((preset) => preset.name.startsWith("Bio web"))!.parts);
+  it("estimates silk adhesive strength and flags that it is not edible", () => {
+    const result = analyze(PRESETS.find((preset) => preset.name.startsWith("Silk adhesive"))!.parts);
     expect(result.tensileMPa).toBeGreaterThan(500);
     expect(result.checks.some((check) => check.level === "bad")).toBe(false);
     expect(result.edible).toBe(false);

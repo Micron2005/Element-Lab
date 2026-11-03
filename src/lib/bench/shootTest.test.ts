@@ -98,7 +98,7 @@ describe("shootTest", () => {
     expect(shootTest(graphene, simulate(graphene), DEFAULT_SHOT).verdict).toBe("too-thick");
   });
 
-  it("shoots the spider-web preset when the strand clears the launch height", () => {
+  it("tests the silk fiber preset when the strand clears the launch height", () => {
     const exp = preset("spider-web");
     const shot = shootTest(exp, simulate(exp), {
       ...DEFAULT_SHOT,
@@ -114,7 +114,7 @@ describe("shootTest", () => {
     expect(shot.holdsKg).toBeGreaterThan(0);
   });
 
-  it("reports a spider-web strand that hits the ground before the target", () => {
+  it("reports a silk fiber strand that hits the ground before the target", () => {
     const exp = preset("spider-web");
     const shot = shootTest(exp, simulate(exp), {
       ...DEFAULT_SHOT,

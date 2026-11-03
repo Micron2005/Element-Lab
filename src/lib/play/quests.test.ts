@@ -134,8 +134,8 @@ describe("play quests", () => {
     expect(sticky.grade(weakerGlue, run(weakerGlue)).stars).toBe(1);
 
     const strand = questById("mix-strand") as MixQuest;
-    const spiderPreset = benchPresets.find((preset) => preset.id === "spider-web")!.experiment;
-    expect(strand.grade(spiderPreset, run(spiderPreset)).stars).toBe(2);
+    const silkFiberPreset = benchPresets.find((preset) => preset.id === "spider-web")!.experiment;
+    expect(strand.grade(silkFiberPreset, run(silkFiberPreset)).stars).toBe(2);
 
     const enzyme = questById("mix-enzyme-helper") as MixQuest;
     const weakerEnzyme = mix([
