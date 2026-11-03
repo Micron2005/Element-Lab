@@ -939,7 +939,7 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     (warning, index) => warnings.findIndex((item) => item.text === warning.text) === index,
   );
 
-  return translateTree(locale, {
+  const localizedResult = translateTree(locale, {
     product,
     productLabel: productLabel(product),
     summary,
@@ -962,6 +962,13 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     notModelled: notModelled,
     confidence: roundTo(confidence, 2),
   });
+  return {
+    ...localizedResult,
+    events: localizedResult.events.map((event, index) => ({
+      ...event,
+      status: eventResults[index]?.status ?? event.status,
+    })),
+  };
 }
 
 export { effectivePH, solventBoilingPointC, waterBoilingPointC };

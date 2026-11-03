@@ -56,6 +56,21 @@ describe("bench simulation", () => {
     expect(beaker.warnings[0]?.text).toBe(tr("es", "ui.gelsOnContactWarning"));
   });
 
+  it("keeps reaction status identifiers stable when localizing a run", () => {
+    const result = simulate(
+      experiment(
+        [
+          { id: "alginate", pct: 10 },
+          { id: "water", pct: 90 },
+        ],
+        { forming: "extrude-bath", bathId: "cacl2" },
+      ),
+      "es",
+    );
+
+    expect(result.events.find((event) => event.id === "alginate-calcium")?.status).toBe("happened");
+  });
+
   it("activates transglutaminase at its optimum and blocks it when denatured", () => {
     const ingredients = [
       { id: "gelatin", pct: 40 },
