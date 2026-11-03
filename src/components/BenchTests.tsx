@@ -24,6 +24,7 @@ import type { TestSummary } from "@/lib/labReport";
 import ShootTest from "./ShootTest";
 import RangeNumberField from "./RangeNumberField";
 import TestViewer, { type TestViewerData } from "./TestViewer";
+import { Term } from "./Term";
 
 const TEST_STORAGE = "elementlab.bench.test";
 const TESTS: { id: BenchTestId; label: string }[] = [
@@ -54,7 +55,7 @@ function TestResultCard({
       <header className="bench-test-card-heading">
         <div>
           <p className="bench-test-kicker">{kicker}</p>
-          <h4>{heading}</h4>
+          <h4>{heading === "Stretch" ? <Term id="stretch">{heading}</Term> : heading}</h4>
         </div>
         <span className="bench-test-setup-label">Setup controls only</span>
       </header>

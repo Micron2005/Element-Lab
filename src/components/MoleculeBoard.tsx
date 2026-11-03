@@ -302,7 +302,6 @@ export default function MoleculeBoard({
             type="button"
             className="mol-palette-atom"
             onClick={() => add(el)}
-            aria-label={`Add ${ATOMS[el].name}, makes ${ATOMS[el].valence} bond${ATOMS[el].valence === 1 ? "" : "s"}`}
           >
             <span className="mol-palette-dot" style={{ background: ATOMS[el].color, color: ATOMS[el].textColor }}>{el}</span>
             <span className="mol-palette-text">

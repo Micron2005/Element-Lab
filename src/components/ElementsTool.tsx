@@ -12,6 +12,7 @@ import LabReportButton from "./LabReportButton";
 import { nucleusReport } from "@/lib/labReport";
 import { PROJECTILES, fuse } from "@/lib/nuclearFusion";
 import { decodeShare, readShareHash, shareUrl } from "@/lib/share";
+import { Term } from "./Term";
 
 function tickStep(range: number, intervals: number) {
   const roughStep = range / intervals;
@@ -131,7 +132,7 @@ export default function ElementsTool() {
               {([
                 ["Protons (Z)", z, setZ, 1, 200],
                 ["Neutrons (N)", n, setN, 0, 320],
-              ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label}</label><div className="dual-slider"><input aria-label={`${label} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
+              ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label.startsWith("Protons") ? <Term id="proton">{label}</Term> : <Term id="neutron">{label}</Term>}</label><div className="dual-slider"><input aria-label={`${label} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
               <div className="element-main-actions">
                 <button className="button button-secondary" type="button" onClick={snapToStable}>Snap N to most stable</button>
                 <ShareButton
@@ -166,19 +167,19 @@ export default function ElementsTool() {
             <p className="small muted" style={{ marginBottom: 0, marginTop: 14 }}>Snap iterates the beta-stability estimate from the selected proton count.</p>
           </Panel>
           <Panel title="At a glance">
-            <div className="element-tile"><div className="element-symbol">{report.symbol}</div><div><h2 className="element-title">{report.name}</h2><p className="small muted" style={{ margin: 0 }}>Z = {report.z} protons</p><span className={`badge ${report.known ? "badge-good" : "badge-warn"}`} style={{ marginTop: 9 }}>{report.known ? "Known element" : "Hypothetical · systematic IUPAC name"}</span></div></div>
+            <div className="element-tile"><div className="element-symbol">{report.symbol}</div><div><h2 className="element-title">{report.name}</h2><p className="small muted" style={{ margin: 0 }}>Z = {report.z} <Term id="proton">protons</Term></p><span className={`badge ${report.known ? "badge-good" : "badge-warn"}`} style={{ marginTop: 9 }}>{report.known ? "Known element" : "Hypothetical · systematic IUPAC name"}</span></div></div>
             <div className="element-facts">
-              <div className="fact"><span className="metric-label">MASS NUMBER A</span><strong>{report.a}</strong></div>
-              <div className="fact"><span className="metric-label">BINDING / NUCLEON</span><strong>{report.perNucleonMeV.toFixed(2)} MeV</strong></div>
-              <div className="fact"><span className="metric-label">FISSILITY</span><strong>{report.fissility.toFixed(2)}</strong></div>
-              <div className="fact"><span className="metric-label">EST. HALF-LIFE</span><strong>{report.halfLife}</strong></div>
+              <div className="fact"><span className="metric-label"><Term id="mass-number">Mass number</Term> A</span><strong>{report.a}</strong></div>
+              <div className="fact"><span className="metric-label"><Term id="binding-energy">Binding</Term> / <Term id="nucleon">nucleon</Term></span><strong>{report.perNucleonMeV.toFixed(2)} <Term id="mev">MeV</Term></strong></div>
+              <div className="fact"><span className="metric-label"><Term id="fissility">Fissility</Term></span><strong>{report.fissility.toFixed(2)}</strong></div>
+              <div className="fact"><span className="metric-label">Est. <Term id="half-life">half-life</Term></span><strong>{report.halfLife}</strong></div>
             </div>
             <p className={`small ${report.bound ? "good" : "bad"}`} style={{ lineHeight: 1.65 }}>{report.verdict}</p>
             <p className="section-label">Decay modes</p>
-            {report.modes.length ? <ul className="plain-list">{report.modes.map((mode) => <li key={mode}><span className="check-icon warn">›</span>{mode}</li>)}</ul> : <p className="small good">No decay modes predicted by this model.</p>}
+            {report.modes.length ? <ul className="plain-list">{report.modes.map((mode) => <li key={mode}><span className="check-icon warn">›</span>{mode.toLowerCase().includes("alpha") ? <Term id="alpha-decay">{mode}</Term> : mode.toLowerCase().includes("beta") ? <Term id="beta-decay">{mode}</Term> : mode}</li>)}</ul> : <p className="small good">No decay modes predicted by this model.</p>}
             <div className="divider" />
-            <p className="section-label">Magic numbers</p>
-            <div className="chip-row">{report.magicZ && <span className="badge badge-good">Magic Z · {z}</span>}{report.magicN && <span className="badge badge-good">Magic N · {n}</span>}{!report.magicZ && !report.magicN && <span className="small muted">Neither count is a listed magic number.</span>}</div>
+            <p className="section-label"><Term id="magic-numbers">Magic numbers</Term></p>
+            <div className="chip-row">{report.magicZ && <span className="badge badge-good"><Term id="magic-numbers">Magic Z</Term> · {z}</span>}{report.magicN && <span className="badge badge-good"><Term id="magic-numbers">Magic N</Term> · {n}</span>}{!report.magicZ && !report.magicN && <span className="small muted">Neither count is a listed magic number.</span>}</div>
           </Panel>
         </div>
         <div className="stack">
