@@ -5,6 +5,7 @@ import type { Experiment, Hazard, Product, RunResult } from "../bench/types";
 import { REACTIONS } from "../bench/reactions";
 import { KNOWN_MOLECULES } from "./molecule";
 import type { AtomQuest, Grade, MoleculeQuest, MixQuest, Quest, Stars } from "./quests";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
 
 export interface MixTargets {
   product?: Product[];
@@ -52,7 +53,7 @@ export function isNotSolid(product: Product): boolean {
   return NON_SOLID.has(product);
 }
 
-function targetLines(t: QuestTemplate): string[] {
+function targetLines(t: QuestTemplate, locale: Locale = DEFAULT_LOCALE): string[] {
   if (t.type === "molecule") {
     const molecule = KNOWN_MOLECULES.find(({ id }) => id === t.moleculeId);
     return molecule ? [`Build ${molecule.name} (${molecule.formula}).`] : [];
@@ -60,10 +61,10 @@ function targetLines(t: QuestTemplate): string[] {
   if (t.type === "nucleus") {
     const targets = t.targets;
     return [
-      ...(targets.z !== undefined ? [`Proton count Z = ${targets.z}`] : []),
-      ...(targets.minZ !== undefined ? [`Proton count Z at least ${targets.minZ}`] : []),
-      ...(targets.bound !== undefined ? [targets.bound ? "Nucleus is bound" : "Nucleus is not bound"] : []),
-      ...(targets.minHalfLifeS !== undefined ? [`Half-life at least ${targets.minHalfLifeS} s`] : []),
+      ...(targets.z !== undefined ? [tr(locale, "play.target.protonExact", { z: targets.z })] : []),
+      ...(targets.minZ !== undefined ? [tr(locale, "play.target.protonMinimum", { z: targets.minZ })] : []),
+      ...(targets.bound !== undefined ? [tr(locale, targets.bound ? "play.target.bound" : "play.target.unbound")] : []),
+      ...(targets.minHalfLifeS !== undefined ? [tr(locale, "play.target.halfLifeMinimum", { seconds: targets.minHalfLifeS })] : []),
     ];
   }
   const targets = t.targets;
@@ -81,8 +82,8 @@ function targetLines(t: QuestTemplate): string[] {
   ];
 }
 
-export function describeTargets(t: QuestTemplate): string[] {
-  return targetLines(t);
+export function describeTargets(t: QuestTemplate, locale: Locale = DEFAULT_LOCALE): string[] {
+  return targetLines(t, locale);
 }
 
 function starsFor(checks: { met: boolean; feedback: string }[]): Grade {
@@ -156,8 +157,8 @@ function nucleusChecks(targets: NucleusTargets, z: number, n: number) {
   return checks;
 }
 
-export function compileTemplate(id: string, t: QuestTemplate): Quest {
-  const goal = targetLines(t).join("; ");
+export function compileTemplate(id: string, t: QuestTemplate, locale: Locale = DEFAULT_LOCALE): Quest {
+  const goal = targetLines(t, locale).join("; ");
   if (t.type === "molecule") {
     const molecule = KNOWN_MOLECULES.find(({ id: moleculeId }) => moleculeId === t.moleculeId);
     if (!molecule) throw new Error(`Unknown molecule template: ${t.moleculeId}`);

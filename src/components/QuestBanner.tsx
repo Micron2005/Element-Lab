@@ -8,6 +8,7 @@ import { atomCard, mixCard } from "@/lib/play/learn";
 import { StarRow } from "./PlayTool";
 import LearnCard from "./LearnCard";
 import { awardDaily, awardStars, useDailyProgress, usePlayProgress, useQuestParam } from "./usePlayProgress";
+import { useT } from "./LocaleProvider";
 import "./play.css";
 
 type Props =
@@ -15,6 +16,7 @@ type Props =
   | { mode: "atom"; z: number; n: number };
 
 export default function QuestBanner(props: Props) {
+  const { locale } = useT();
   const questId = useQuestParam();
   const progress = usePlayProgress();
   const dailyProgress = useDailyProgress();
@@ -45,13 +47,13 @@ export default function QuestBanner(props: Props) {
   const learnCard = useMemo(() => {
     if (stars === 0 || !quest || !fits) return null;
     if (quest.chapter === "mixing" && props.mode === "mix" && mixExperiment && mixResult) {
-      return mixCard(quest, mixExperiment, mixResult);
+      return mixCard(quest, mixExperiment, mixResult, locale);
     }
     if (quest.chapter === "atoms" && props.mode === "atom") {
-      return atomCard(quest, z, n);
+      return atomCard(quest, z, n, locale);
     }
     return null;
-  }, [stars, quest, fits, props.mode, mixExperiment, mixResult, z, n]);
+  }, [stars, quest, fits, props.mode, mixExperiment, mixResult, z, n, locale]);
 
   useEffect(() => {
     if (quest && grade && grade.stars > best) {

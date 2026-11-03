@@ -1,4 +1,5 @@
 import { byId, CureMechanism, Hazard, Ingredient } from "./ingredients";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "./i18n";
 
 export interface Part {
   id: string;
@@ -41,7 +42,7 @@ function normalize(parts: Part[]) {
     .map((p) => ({ ing: byId[p.id] as Ingredient, w: p.pct / total }));
 }
 
-export function analyze(parts: Part[]): FormulaResult {
+export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): FormulaResult {
   const items = normalize(parts);
   const checks: Check[] = [];
   const solids = items.filter((i) => i.ing.role !== "solvent");
@@ -151,7 +152,7 @@ export function analyze(parts: Part[]): FormulaResult {
   } else if (cure.includes("moisture")) cureSeconds = 300;
   else if (cure.includes("covalent")) cureSeconds = 600;
   else if (cure.includes("cooling")) cureSeconds = 30;
-  if (cureSeconds > 30) checks.push({ level: "warn", text: `Takes ~${fmtTime(cureSeconds)} to set: a sprayed or extruded strand would still be liquid when it lands. Fast-setting fibers like natural silk set in under a second.` });
+  if (cureSeconds > 30) checks.push({ level: "warn", text: `Takes ~${fmtTime(cureSeconds, locale)} to set: a sprayed or extruded strand would still be liquid when it lands. Fast-setting fibers like natural silk set in under a second.` });
 
   const wetToxicity = items.reduce<number>((m, i) => Math.max(m, i.w > 0.001 ? i.ing.toxicity : 0), 0) as Hazard;
   const curedToxicity = items
@@ -185,7 +186,7 @@ export function analyze(parts: Part[]): FormulaResult {
   environment.push("Degas under vacuum after mixing (a few minutes): bubbles become weak spots in the strand. You do not need to mix inside a vacuum.");
   if (solvents.some((s) => s.ing.toxicity >= 2)) environment.push("Toxic solvent: mix only in a fume hood with gloves and goggles.");
 
-  return {
+  return translateTree(locale, {
     solidsPct: solidW * 100,
     tensileMPa: tensile,
     elongationPct: elong,
@@ -204,13 +205,13 @@ export function analyze(parts: Part[]): FormulaResult {
     densityCured,
     environment,
     checks,
-  };
+  });
 }
 
-export function fmtTime(s: number) {
-  if (s < 60) return `${Math.round(s)} s`;
-  if (s < 3600) return `${Math.round(s / 60)} min`;
-  return `${(s / 3600).toFixed(1)} h`;
+export function fmtTime(s: number, locale: Locale = DEFAULT_LOCALE) {
+  if (s < 60) return `${Math.round(s).toLocaleString(locale === "es" ? "es" : "en-US")} s`;
+  if (s < 3600) return `${Math.round(s / 60).toLocaleString(locale === "es" ? "es" : "en-US")} min`;
+  return `${(s / 3600).toLocaleString(locale === "es" ? "es" : "en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`;
 }
 
 export const PRESETS: { name: string; parts: Part[] }[] = [

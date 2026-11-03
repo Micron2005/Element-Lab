@@ -1,6 +1,7 @@
 import { benchById } from "./library";
 import { jet } from "../physics";
 import type { Experiment, RunResult } from "./types";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
 
 export const LAUNCH_HEIGHT_M = 1.5;
 
@@ -47,11 +48,11 @@ export interface ShotReport {
   holdsKg: number | null;
 }
 
-export function formatBar(pressureBar: number): string {
+export function formatBar(pressureBar: number, locale: Locale = DEFAULT_LOCALE): string {
   if (pressureBar >= 1e6) {
     return `${(pressureBar / 1e6).toPrecision(3)} million`;
   }
-  return Math.round(pressureBar).toLocaleString("en-US");
+  return Math.round(pressureBar).toLocaleString(locale === "es" ? "es" : "en-US");
 }
 
 interface KnownPart {
@@ -202,10 +203,11 @@ function report(
   return { fluid, jet: null, verdict, headline, notes, holdsKg: null };
 }
 
-export function shootTest(
+function shootTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: ShotSetup,
+  locale: Locale,
 ): ShotReport {
   const fluid = fluidFromMix(experiment, result);
   const parts = knownParts(experiment);
@@ -287,7 +289,7 @@ export function shootTest(
       fluid,
       jet: j,
       verdict: "too-thick",
-      headline: `Won't fire: it would need about ${formatBar(j.pressureBar)} bar; this test caps pumps at 1,000 bar.`,
+      headline: `Won't fire: it would need about ${formatBar(j.pressureBar, locale)} bar; this test caps pumps at 1,000 bar.`,
       notes: [
         ...notes,
         speedNote,
@@ -369,4 +371,13 @@ export function shootTest(
     notes,
     holdsKg,
   };
+}
+
+export function shootTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: ShotSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): ShotReport {
+  return translateTree(locale, shootTestCore(experiment, result, setup, locale));
 }

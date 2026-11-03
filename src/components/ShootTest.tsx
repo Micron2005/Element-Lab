@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fmtTime } from "@/lib/formula";
+import { trText } from "@/lib/i18n";
 import { allBenchIngredients, benchById } from "@/lib/bench/library";
 import {
   DEFAULT_SHOT,
@@ -19,6 +20,7 @@ import {
   type TwoPartSetup,
 } from "@/lib/bench/twoPart";
 import type { Experiment, Part, RunResult } from "@/lib/bench/types";
+import { useT } from "./LocaleProvider";
 import type { TestSummary } from "@/lib/labReport";
 import JetViewer from "./JetViewer";
 import RangeNumberField from "./RangeNumberField";
@@ -89,6 +91,7 @@ export default function ShootTest({
   result: RunResult;
   onTestSummary?: (summary: TestSummary | null) => void;
 }) {
+  const { locale } = useT();
   const [setup, setSetup] = useState<ShotSetup>(DEFAULT_SHOT);
   const [mode, setMode] = useState<ShotMode>("single");
   const [ratio, setRatio] = useState<TwoPartSetup>(DEFAULT_RATIO);
@@ -99,12 +102,12 @@ export default function ShootTest({
   );
   const ingredients = allBenchIngredients();
   const singleReport = useMemo(
-    () => shootTest(experiment, result, setup),
-    [experiment, result, setup],
+    () => shootTest(experiment, result, setup, locale),
+    [experiment, result, setup, locale],
   );
   const twoPartReport = useMemo(
-    () => twoPartShoot(experiment, bParts, ratio, setup),
-    [experiment, bParts, ratio, setup],
+    () => twoPartShoot(experiment, bParts, ratio, setup, locale),
+    [experiment, bParts, ratio, setup, locale],
   );
   const combinedFluid = useMemo(
     () =>
@@ -321,7 +324,7 @@ export default function ShootTest({
                   >
                     {ingredients.map((ingredient) => (
                       <option key={ingredient.id} value={ingredient.id}>
-                        {ingredient.name}
+                        {trText(locale, ingredient.name)}
                       </option>
                     ))}
                   </select>

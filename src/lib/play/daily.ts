@@ -2,6 +2,7 @@ import { DEFAULT_CONDITIONS } from "../bench/conditions";
 import type { Experiment } from "../bench/types";
 import type { Stars } from "./quests";
 import type { QuestTemplate } from "./templates";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
 
 export const DAILY_PROGRESS_KEY = "elementlab.daily";
 
@@ -121,13 +122,14 @@ export function dailyKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function dailyFor(key: string): { id: string; template: QuestTemplate } {
+export function dailyFor(key: string, locale: Locale = DEFAULT_LOCALE): { id: string; template: QuestTemplate } {
   let index = hashString(key) % DAILY_POOL.length;
   if (validKey(key)) {
     const yesterdayIndex = hashString(shiftDay(key, -1)) % DAILY_POOL.length;
     if (index === yesterdayIndex) index = (index + 1) % DAILY_POOL.length;
   }
-  return { id: `daily:${key}`, template: DAILY_POOL[index] };
+  const result = { id: `daily:${key}`, template: DAILY_POOL[index] };
+  return locale === DEFAULT_LOCALE ? result : translateTree(locale, result);
 }
 
 function isStars(value: unknown): value is Stars {

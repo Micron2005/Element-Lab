@@ -6,6 +6,7 @@ import { allBenchIngredients } from "./bench/library";
 import { CUSTOM_PREFIX } from "./bench/custom";
 import type { Experiment, RunResult } from "./bench/types";
 import type { FusionReport } from "./nuclearFusion";
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
 
 export interface ReportSection {
   heading: string;
@@ -25,6 +26,7 @@ export interface LabReportDoc {
   sections: ReportSection[];
   shareUrl?: string;
   disclaimer: string;
+  locale?: Locale;
 }
 
 export interface TestSummary {
@@ -40,6 +42,7 @@ export interface ReportExtra {
   question?: string;
   shareUrl?: string;
   now?: Date;
+  locale?: Locale;
 }
 
 const BENCH_DISCLAIMER =
@@ -58,6 +61,7 @@ function baseDoc(
     title,
     kind,
     createdAt: extra?.now ?? new Date(),
+    locale: extra?.locale ?? DEFAULT_LOCALE,
     ...(extra?.student ? { student: extra.student } : {}),
     ...(extra?.question ? { question: extra.question } : {}),
     sections: [
@@ -82,7 +86,9 @@ export function benchReport(
   result: RunResult,
   test?: TestSummary,
   extra?: ReportExtra,
+  locale: Locale = DEFAULT_LOCALE,
 ): LabReportDoc {
+  extra = { ...extra, locale };
   const ingredients = new Map(allBenchIngredients().map((ingredient) => [ingredient.id, ingredient]));
   const sections: ReportSection[] = [
     {
@@ -196,7 +202,9 @@ export function nucleusReport(
   n: number,
   fusion?: { report: FusionReport; projectileLabel: string; beamLabMeV: number },
   extra?: ReportExtra,
+  locale: Locale = DEFAULT_LOCALE,
 ): LabReportDoc {
+  extra = { ...extra, locale };
   const nucleus = analyzeNucleus(z, n);
   const hypothetical = z > 118 || !nucleus.known;
   const sections: ReportSection[] = [
@@ -292,7 +300,9 @@ export function formulaReport(
   parts: FormulaPart[],
   result: FormulaResult,
   extra?: ReportExtra,
+  locale: Locale = DEFAULT_LOCALE,
 ): LabReportDoc {
+  extra = { ...extra, locale };
   const sections: ReportSection[] = [
     {
       heading: "Materials",

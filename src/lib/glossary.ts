@@ -194,6 +194,59 @@ export const GLOSSARY = {
 
 export type TermId = keyof typeof GLOSSARY;
 
+export const GLOSSARY_ES: Record<TermId, GlossaryEntry> = {
+  mpa: { term: "MPa", plain: "Un megapascal es una unidad de presión o resistencia. 1 MPa equivale a un millón de pascales.", example: "Un material de 5 MPa resiste más esfuerzo de tracción que uno de 2 MPa." },
+  "tensile-strength": { term: "Resistencia a la tracción", plain: "Cuánto esfuerzo de tracción soporta un material antes de romperse." },
+  stretch: { term: "Elongación", plain: "Cuánto se alarga un material al tirar de él antes de romperse, expresado como porcentaje." },
+  toughness: { term: "Tenacidad", plain: "Cuánta energía puede absorber un material antes de romperse." },
+  tack: { term: "Adherencia inicial", plain: "Qué tan pegajoso se siente un material al tocar otra superficie por primera vez." },
+  "set-time": { term: "Tiempo de fraguado", plain: "Cuánto tarda una mezcla en endurecerse lo suficiente para conservar su forma." },
+  viscosity: { term: "Viscosidad", plain: "Cuánto se resiste un líquido a fluir. La miel tiene más viscosidad que el agua." },
+  density: { term: "Densidad", plain: "Cuánta masa cabe en un espacio determinado." },
+  "surface-tension": { term: "Tensión superficial", plain: "La superficie de un líquido tiende a contraerse, como una piel elástica muy delgada." },
+  ph: { term: "pH", plain: "Escala que indica qué tan ácida o básica es una solución acuosa." },
+  acid: { term: "Ácido", plain: "Sustancia que puede ceder iones de hidrógeno en una reacción." },
+  base: { term: "Base", plain: "Sustancia que puede aceptar iones de hidrógeno en una reacción." },
+  buffer: { term: "Solución amortiguadora", plain: "Mezcla que ayuda a evitar cambios rápidos en el pH." },
+  pka: { term: "pKa", plain: "Número que indica qué tan fácilmente un ácido cede un ion de hidrógeno. Un pKa menor suele indicar un ácido más fuerte." },
+  polymer: { term: "Polímero", plain: "Molécula grande formada por muchas partes pequeñas que se repiten." },
+  crosslink: { term: "Enlace cruzado", plain: "Conexión que une una cadena de polímero con otra." },
+  plasticizer: { term: "Plastificante", plain: "Ingrediente que puede volver un polímero más suave o flexible." },
+  solvent: { term: "Disolvente", plain: "Líquido que puede disolver otra sustancia." },
+  filler: { term: "Carga", plain: "Material agregado que cambia el costo o las propiedades físicas de una mezcla." },
+  enzyme: { term: "Enzima", plain: "Molécula, a menudo una proteína, que acelera una reacción química." },
+  protein: { term: "Proteína", plain: "Molécula grande formada por aminoácidos que cumple funciones en los seres vivos." },
+  hydrogel: { term: "Hidrogel", plain: "Red blanda de material que puede retener mucha agua." },
+  toxicity: { term: "Toxicidad", plain: "Capacidad de una sustancia para dañar a los seres vivos." },
+  confidence: { term: "Confianza", plain: "Qué tanto respaldan una estimación las reglas y los datos del modelo. No es una garantía." },
+  proton: { term: "Protón", plain: "Partícula con carga positiva que está en el núcleo de un átomo." },
+  neutron: { term: "Neutrón", plain: "Partícula sin carga eléctrica que está en el núcleo de un átomo." },
+  nucleon: { term: "Nucleón", plain: "Protón o neutrón que forma parte de un núcleo atómico." },
+  isotope: { term: "Isótopo", plain: "Átomos del mismo elemento con distinta cantidad de neutrones son isótopos diferentes." },
+  "mass-number": { term: "Número másico", plain: "Cantidad total de protones y neutrones en un núcleo." },
+  "binding-energy": { term: "Energía de enlace", plain: "Energía necesaria para separar por completo las partículas de un núcleo." },
+  mev: { term: "MeV", plain: "Un megaelectronvoltio, unidad para medir la energía de partículas muy pequeñas." },
+  fissility: { term: "Fisilidad", plain: "Medida del modelo que indica qué tan fácil podría dividirse un núcleo." },
+  "half-life": { term: "Vida media", plain: "Tiempo en que se desintegra la mitad de los átomos de una muestra radiactiva." },
+  "alpha-decay": { term: "Decaimiento alfa", plain: "Tipo de decaimiento en que un núcleo emite dos protones y dos neutrones." },
+  "beta-decay": { term: "Decaimiento beta", plain: "Tipo de decaimiento que convierte un neutrón en protón, o un protón en neutrón, y emite otras partículas." },
+  fission: { term: "Fisión", plain: "Proceso en que un núcleo atómico pesado se divide en núcleos más pequeños." },
+  fusion: { term: "Fusión", plain: "Proceso en que dos núcleos atómicos ligeros se unen para formar uno más pesado." },
+  "coulomb-barrier": { term: "Barrera de Coulomb", plain: "Repulsión eléctrica que dificulta que dos núcleos con carga positiva se acerquen." },
+  "cross-section": { term: "Sección eficaz", plain: "Medida de la probabilidad de que una partícula participe en una reacción nuclear." },
+  "magic-numbers": { term: "Números mágicos", plain: "Cantidades de protones o neutrones que pueden hacer que un núcleo sea especialmente estable." },
+  molecule: { term: "Molécula", plain: "Grupo de átomos unidos por enlaces químicos." },
+  bond: { term: "Enlace", plain: "Fuerza que mantiene unidos los átomos de una molécula." },
+  "double-bond": { term: "Enlace doble", plain: "Enlace en que dos átomos comparten dos pares de electrones." },
+  "lone-pair": { term: "Par solitario", plain: "Par de electrones externos que no se comparte en un enlace." },
+  valence: { term: "Valencia", plain: "Cómo puede un átomo unirse con otros, según sus electrones externos." },
+  "bond-angle": { term: "Ángulo de enlace", plain: "Ángulo entre dos enlaces que se unen en el mismo átomo." },
+};
+
+export function glossaryFor(locale: "en" | "es"): Record<TermId, GlossaryEntry> {
+  return locale === "es" ? GLOSSARY_ES : GLOSSARY;
+}
+
 export const GLOSSARY_GROUPS = {
   Bench: [
     "mpa",

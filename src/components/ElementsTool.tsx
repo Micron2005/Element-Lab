@@ -13,6 +13,7 @@ import { nucleusReport } from "@/lib/labReport";
 import { PROJECTILES, fuse } from "@/lib/nuclearFusion";
 import { decodeShare, readShareHash, shareUrl } from "@/lib/share";
 import { Term } from "./Term";
+import { useT } from "./LocaleProvider";
 
 function tickStep(range: number, intervals: number) {
   const roughStep = range / intervals;
@@ -23,6 +24,7 @@ function tickStep(range: number, intervals: number) {
 }
 
 export default function ElementsTool() {
+  const { locale, t } = useT();
   const [z, setZ] = useState(120);
   const [n, setN] = useState(184);
   const [projectileId, setProjectileId] = useState("ca48");
@@ -30,7 +32,7 @@ export default function ElementsTool() {
   const [shareNotice, setShareNotice] = useState<{ invalid: boolean; dropped: string[] } | null>(null);
   const [chartWidth, setChartWidth] = useState(760);
   const chartRef = useRef<HTMLDivElement>(null);
-  const report = useMemo(() => analyzeNucleus(z, n), [z, n]);
+  const report = useMemo(() => analyzeNucleus(z, n, locale), [z, n, locale]);
 
   useEffect(() => {
     const openShare = () => {
@@ -132,9 +134,9 @@ export default function ElementsTool() {
               {([
                 ["Protons (Z)", z, setZ, 1, 200],
                 ["Neutrons (N)", n, setN, 0, 320],
-              ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label.startsWith("Protons") ? <Term id="proton">{label}</Term> : <Term id="neutron">{label}</Term>}</label><div className="dual-slider"><input aria-label={`${label} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
+              ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label.startsWith("Protons") ? <Term id="proton">{t(label)}</Term> : <Term id="neutron">{t(label)}</Term>}</label><div className="dual-slider"><input aria-label={`${t(label)} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
               <div className="element-main-actions">
-                <button className="button button-secondary" type="button" onClick={snapToStable}>Snap N to most stable</button>
+                <button className="button button-secondary" type="button" onClick={snapToStable}>{t("ui.snapStable")}</button>
                 <ShareButton
                   build={() => ({
                     v: 1,
@@ -143,12 +145,12 @@ export default function ElementsTool() {
                     n,
                     fusion: { projectileId, beamLabMeV },
                   })}
-                  label="Share nucleus"
+                  label={t("ui.shareNucleus")}
                 />
                 <LabReportButton
                   build={(extra) => {
                     const projectile = PROJECTILES.find((item) => item.id === projectileId) ?? PROJECTILES[0];
-                    const fusion = fuse(projectile, { z, n }, beamLabMeV);
+                    const fusion = fuse(projectile, { z, n }, beamLabMeV, locale);
                     const url = shareUrl(
                       window.location.origin,
                       `${window.location.pathname}${window.location.search}`,
@@ -159,12 +161,13 @@ export default function ElementsTool() {
                       n,
                       { report: fusion, projectileLabel: projectile.label, beamLabMeV },
                       { ...extra, shareUrl: url },
+                      locale,
                     );
                   }}
                 />
               </div>
             </div>
-            <p className="small muted" style={{ marginBottom: 0, marginTop: 14 }}>Snap iterates the beta-stability estimate from the selected proton count.</p>
+            <p className="small muted" style={{ marginBottom: 0, marginTop: 14 }}>{t("ui.snapDescription")}</p>
           </Panel>
           <Panel title="At a glance">
             <div className="element-tile"><div className="element-symbol">{report.symbol}</div><div><h2 className="element-title">{report.name}</h2><p className="small muted" style={{ margin: 0 }}>Z = {report.z} <Term id="proton">protons</Term></p><span className={`badge ${report.known ? "badge-good" : "badge-warn"}`} style={{ marginTop: 9 }}>{report.known ? "Known element" : "Hypothetical · systematic IUPAC name"}</span></div></div>
@@ -175,8 +178,8 @@ export default function ElementsTool() {
               <div className="fact"><span className="metric-label">Est. <Term id="half-life">half-life</Term></span><strong>{report.halfLife}</strong></div>
             </div>
             <p className={`small ${report.bound ? "good" : "bad"}`} style={{ lineHeight: 1.65 }}>{report.verdict}</p>
-            <p className="section-label">Decay modes</p>
-            {report.modes.length ? <ul className="plain-list">{report.modes.map((mode) => <li key={mode}><span className="check-icon warn">›</span>{mode.toLowerCase().includes("alpha") ? <Term id="alpha-decay">{mode}</Term> : mode.toLowerCase().includes("beta") ? <Term id="beta-decay">{mode}</Term> : mode}</li>)}</ul> : <p className="small good">No decay modes predicted by this model.</p>}
+            <p className="section-label">{t("ui.decayModes")}</p>
+            {report.modes.length ? <ul className="plain-list">{report.modes.map((mode) => <li key={mode}><span className="check-icon warn">›</span>{mode.toLowerCase().includes("alpha") ? <Term id="alpha-decay">{mode}</Term> : mode.toLowerCase().includes("beta") ? <Term id="beta-decay">{mode}</Term> : mode}</li>)}</ul> : <p className="small good">{t("ui.noDecay")}</p>}
             <div className="divider" />
             <p className="section-label"><Term id="magic-numbers">Magic numbers</Term></p>
             <div className="chip-row">{report.magicZ && <span className="badge badge-good"><Term id="magic-numbers">Magic Z</Term> · {z}</span>}{report.magicN && <span className="badge badge-good"><Term id="magic-numbers">Magic N</Term> · {n}</span>}{!report.magicZ && !report.magicN && <span className="small muted">Neither count is a listed magic number.</span>}</div>

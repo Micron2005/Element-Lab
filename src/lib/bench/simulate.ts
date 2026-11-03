@@ -1,6 +1,7 @@
 import { effectivePH, solventBoilingPointC, waterBoilingPointC } from "./conditions";
 import { CUSTOM_PREFIX } from "./custom";
 import { benchById } from "./library";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
 import {
   REACTIONS,
   statusForActivity,
@@ -463,7 +464,7 @@ function resultProduct(
   return "solution";
 }
 
-export function simulate(experiment: Experiment): RunResult {
+export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE): RunResult {
   const inputParts = experiment.parts.filter(
     (part) => benchById[part.id] && Number.isFinite(part.pct) && part.pct > 0,
   );
@@ -938,7 +939,7 @@ export function simulate(experiment: Experiment): RunResult {
     (warning, index) => warnings.findIndex((item) => item.text === warning.text) === index,
   );
 
-  return {
+  return translateTree(locale, {
     product,
     productLabel: productLabel(product),
     summary,
@@ -960,7 +961,7 @@ export function simulate(experiment: Experiment): RunResult {
     warnings: warningsDeduplicated,
     notModelled: notModelled,
     confidence: roundTo(confidence, 2),
-  };
+  });
 }
 
 export { effectivePH, solventBoilingPointC, waterBoilingPointC };

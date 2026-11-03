@@ -25,6 +25,7 @@ import ShootTest from "./ShootTest";
 import RangeNumberField from "./RangeNumberField";
 import TestViewer, { type TestViewerData } from "./TestViewer";
 import { Term } from "./Term";
+import { useT } from "./LocaleProvider";
 
 const TEST_STORAGE = "elementlab.bench.test";
 const TESTS: { id: BenchTestId; label: string }[] = [
@@ -50,14 +51,15 @@ function TestResultCard({
   viewer: TestViewerData;
   report: TestReport<string>;
 }) {
+  const { t } = useT();
   return (
-    <article className="bench-shoot-card bench-test-card" aria-label={`${heading} test`}>
+    <article className="bench-shoot-card bench-test-card" aria-label={t("bench.test.aria", { test: t(heading) })}>
       <header className="bench-test-card-heading">
         <div>
           <p className="bench-test-kicker">{kicker}</p>
-          <h4>{heading === "Stretch" ? <Term id="stretch">{heading}</Term> : heading}</h4>
+          <h4>{heading === "Stretch" ? <Term id="stretch">{t(heading)}</Term> : t(heading)}</h4>
         </div>
-        <span className="bench-test-setup-label">Setup controls only</span>
+        <span className="bench-test-setup-label">{t("bench.test.setupOnly")}</span>
       </header>
       <div className="bench-test-controls">{controls}</div>
       <TestViewer key={`${viewer.type}-${JSON.stringify(viewer.setup)}-${report.verdict}`} data={viewer} />
@@ -73,7 +75,7 @@ function TestResultCard({
           </div>
         ))}
         <div>
-          <dt>Model confidence</dt>
+            <dt>{t("bench.test.modelConfidence")}</dt>
           <dd>{Math.round(report.confidence * 100)}%</dd>
         </div>
       </dl>
@@ -84,7 +86,7 @@ function TestResultCard({
           ))}
         </ul>
       )}
-      <p className="bench-test-footnote">Rough model estimate, not a lab measurement.</p>
+      <p className="bench-test-footnote">{t("bench.test.footnote")}</p>
     </article>
   );
 }
@@ -133,6 +135,7 @@ export default function BenchTests({
   shareTestId?: BenchTestId | null;
   onTestSummary?: (summary: TestSummary | null) => void;
 }) {
+  const { locale, t } = useT();
   const [selected, setSelected] = useState<BenchTestId>(() =>
     shareTestId && VALID_TESTS.has(shareTestId) ? shareTestId : "shoot",
   );
@@ -168,24 +171,24 @@ export default function BenchTests({
   }, [selected, storageReady]);
 
   const stretch = useMemo(
-    () => stretchTest(experiment, result, stretchSetup),
-    [experiment, result, stretchSetup],
+    () => stretchTest(experiment, result, stretchSetup, locale),
+    [experiment, result, stretchSetup, locale],
   );
   const heat = useMemo(
-    () => heatTest(experiment, result, heatSetup),
-    [experiment, result, heatSetup],
+    () => heatTest(experiment, result, heatSetup, locale),
+    [experiment, result, heatSetup, locale],
   );
   const dissolve = useMemo(
-    () => dissolveTest(experiment, result, dissolveSetup),
-    [experiment, result, dissolveSetup],
+    () => dissolveTest(experiment, result, dissolveSetup, locale),
+    [experiment, result, dissolveSetup, locale],
   );
   const stick = useMemo(
-    () => stickTest(experiment, result, stickSetup),
-    [experiment, result, stickSetup],
+    () => stickTest(experiment, result, stickSetup, locale),
+    [experiment, result, stickSetup, locale],
   );
   const drop = useMemo(
-    () => dropTest(experiment, result, dropSetup),
-    [experiment, result, dropSetup],
+    () => dropTest(experiment, result, dropSetup, locale),
+    [experiment, result, dropSetup, locale],
   );
   const selectedSummary = useMemo<TestSummary | null>(() => {
     if (selected === "shoot") return null;
@@ -243,7 +246,7 @@ export default function BenchTests({
       };
     }
     return {
-      name: "Drop",
+        name: "Drop",
       setup: [
         ["Drop height", `${dropSetup.heightM} m`],
         ["Sample diameter", `${dropSetup.diameterMm} mm`],
@@ -492,7 +495,7 @@ export default function BenchTests({
 
   return (
     <div className="bench-tests">
-      <div className="bench-test-picker" role="group" aria-label="Choose a test">
+      <div className="bench-test-picker" role="group" aria-label={t("bench.test.choose")}>
         {TESTS.map(({ id, label }) => (
           <button
             key={id}
@@ -501,7 +504,7 @@ export default function BenchTests({
             aria-pressed={selected === id}
             onClick={() => setSelected(id)}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>

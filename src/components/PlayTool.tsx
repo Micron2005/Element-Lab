@@ -43,6 +43,8 @@ import { benchLibrary } from "@/lib/bench/library";
 import { REACTIONS } from "@/lib/bench/reactions";
 import type { Product } from "@/lib/bench/types";
 import { decodeShare, readShareHash } from "@/lib/share";
+import { useT } from "./LocaleProvider";
+import { translateTree } from "@/lib/i18n";
 import LearnCard from "./LearnCard";
 import ShareButton from "./ShareButton";
 import ShareNotice from "./ShareNotice";
@@ -79,21 +81,23 @@ export function StarRow({ stars }: { stars: number }) {
 }
 
 function MoleculeCard({ molecule }: { molecule: KnownMolecule }) {
+  const { locale, t } = useT();
+  const localized = translateTree(locale, molecule);
   return (
     <div className="play-molecule-card">
       <Molecule3D
-        graph={molecule.graph}
-        label={`${molecule.name}, ${molecule.shape}${molecule.angle ? `, ${molecule.angle}` : ""}`}
+        graph={localized.graph}
+        label={`${localized.name}, ${localized.shape}${localized.angle ? `, ${localized.angle}` : ""}`}
       />
       <div className="play-molecule-info">
         <h3>
-          {molecule.name} <span className="play-formula">{prettyFormula(molecule.formula)}</span>
+          {localized.name} <span className="play-formula">{prettyFormula(localized.formula)}</span>
         </h3>
-        <p><strong><Term id="molecule">Molecule</Term> shape:</strong> {molecule.shape}</p>
-        <p><strong><Term id="bond-angle">Bond angle</Term>:</strong> {molecule.angle ?? "Not listed"}</p>
-        <p><strong>Used for:</strong> {molecule.uses}</p>
-        <p>{molecule.fact}</p>
-        {molecule.caution && <p className="play-caution">Caution: {molecule.caution}</p>}
+        <p><strong><Term id="molecule">{t("ui.molecule")}</Term> {t("ui.shape")}:</strong> {localized.shape}</p>
+        <p><strong><Term id="bond-angle">{t("ui.bondAngle")}</Term>:</strong> {localized.angle ?? t("ui.notListed")}</p>
+        <p><strong>{t("ui.usedFor")}:</strong> {localized.uses}</p>
+        <p>{localized.fact}</p>
+        {localized.caution && <p className="play-caution">{t("ui.caution")} {localized.caution}</p>}
       </div>
     </div>
   );
@@ -108,13 +112,14 @@ function MoleculeQuestPlay({
   onAward: (stars: Stars) => void;
   onNext?: () => void;
 }) {
+  const { locale, t } = useT();
   const [hintsUsed, setHintsUsed] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const [grade, setGrade] = useState<Grade | null>(null);
   const [match, setMatch] = useState<KnownMolecule | undefined>();
 
   function check(graph: MolGraph) {
-    const next = gradeMolecule(quest, graph, hintsUsed);
+    const next = translateTree(locale, gradeMolecule(quest, graph, hintsUsed));
     setGrade(next);
     setMatch(checkMolecule(graph).match);
     if (next.stars > 0) onAward(next.stars);
@@ -132,23 +137,23 @@ function MoleculeQuestPlay({
             setShowHint((open) => !open);
           }}
         >
-          {showHint ? "Hide hint" : hintsUsed ? "Show hint" : "Hint (costs a star)"}
+          {showHint ? t("ui.hideHint") : hintsUsed ? t("ui.showHint") : t("ui.hintCostsStar")}
         </button>
       </div>
       {showHint && <p className="play-hint">{quest.hint}</p>}
       {grade && grade.stars > 0 && (
         <div className="play-success" role="status">
-          <p className="play-result-title"><StarRow stars={grade.stars} /> Quest complete!</p>
+          <p className="play-result-title"><StarRow stars={grade.stars} /> {t("ui.questComplete")}</p>
           <ul>{grade.feedback.map((line) => <li key={line}>{line}</li>)}</ul>
           {match && <MoleculeCard molecule={match} />}
           <p className="play-learn">{quest.learn}</p>
-          {match && <LearnCard card={moleculeCard(match)} />}
-          {onNext && <button type="button" className="button button-primary" onClick={onNext}>Next quest →</button>}
+          {match && <LearnCard card={moleculeCard(match, locale)} />}
+          {onNext && <button type="button" className="button button-primary" onClick={onNext}>{t("ui.nextQuest")}</button>}
         </div>
       )}
       {grade && grade.stars === 0 && (
         <div className="play-fail" role="status">
-          <p className="play-result-title">Not quite yet</p>
+          <p className="play-result-title">{t("ui.notQuiteYet")}</p>
           <ul>{grade.feedback.map((line) => <li key={line}>{line}</li>)}</ul>
         </div>
       )}
@@ -157,6 +162,7 @@ function MoleculeQuestPlay({
 }
 
 function FreeBuild() {
+  const { locale } = useT();
   const [check, setCheck] = useState<MolCheck | null>(null);
   const [graph, setGraph] = useState<MolGraph>({ atoms: [], bonds: [] });
   const [show3d, setShow3d] = useState(false);
@@ -197,7 +203,7 @@ function FreeBuild() {
       {check?.match && (
         <div className="play-success" role="status">
           <MoleculeCard molecule={check.match} />
-          <LearnCard card={moleculeCard(check.match)} />
+          <LearnCard card={moleculeCard(check.match, locale)} />
         </div>
       )}
       {check && !check.match && check.complete && (
@@ -233,15 +239,16 @@ function QuestView({
   onAward: (stars: Stars) => void;
   onNext?: () => void;
 }) {
+  const { t } = useT();
   const chapter = CHAPTERS.find((item) => item.id === quest.chapter);
   const external = quest.chapter === "mixing" ? "/bench" : "/elements";
   return (
     <section className="play-quest">
-      <button type="button" className="button button-secondary play-back" onClick={onBack}>← All quests</button>
-      <p className="eyebrow">{chapter?.title}</p>
+      <button type="button" className="button button-secondary play-back" onClick={onBack}>{t("ui.allQuestsBack")}</button>
+      <p className="eyebrow">{chapter ? t(chapter.title) : ""}</p>
       <h2>{quest.title}</h2>
       <p className="play-story">{quest.story}</p>
-      <p className="play-goal"><strong>Goal:</strong> {quest.goal}</p>
+      <p className="play-goal"><strong>{t("ui.goalLabel")}</strong> {quest.goal}</p>
       <ol className="play-star-goals">
         {quest.starGoals.map((goal, index) => (
           <li key={goal} className={best > index ? "on" : ""}>
@@ -254,12 +261,12 @@ function QuestView({
       ) : (
         <div className="play-launch">
           <p>
-            {quest.chapter === "mixing"
+            {t(quest.chapter === "mixing"
               ? "This quest runs on the real Experiment Bench. Build your mix, press Run, and you'll be graded there."
-              : "This quest runs in the Element explorer. Move the proton and neutron sliders and you'll be graded as you go."}
+              : "This quest runs in the Element explorer. Move the proton and neutron sliders and you'll be graded as you go.")}
           </p>
           <Link className="button button-primary" href={`${external}?quest=${quest.id}`}>
-            {quest.chapter === "mixing" ? "Start at the Bench" : "Start in Elements"}
+            {t(quest.chapter === "mixing" ? "Start at the Bench" : "Start in Elements")}
           </Link>
         </div>
       )}
@@ -503,6 +510,7 @@ function PackQuestEditor({
 }
 
 export default function PlayTool() {
+  const { locale, t } = useT();
   const progress = usePlayProgress();
   const dailyProgress = useDailyProgress();
   const today = useSyncExternalStore(subscribeToToday, todaySnapshot, () => "");
@@ -551,16 +559,17 @@ export default function PlayTool() {
     return () => window.removeEventListener("hashchange", openPackLink);
   }, []);
 
-  const active = activeId ? questById(activeId) : undefined;
-  const chapterQuests = active ? questsIn(active.chapter) : [];
+  const activeSource = activeId ? questById(activeId) : undefined;
+  const active = activeSource ? translateTree(locale, activeSource) : undefined;
+  const chapterQuests = active ? questsIn(active.chapter).map((quest) => translateTree(locale, quest)) : [];
   const builtInActive = active ? QUESTS.some((quest) => quest.id === active.id) : false;
   const nextIndex = active && builtInActive
     ? chapterQuests.findIndex((quest) => quest.id === active.id) + 1
     : -1;
   const nextQuest = nextIndex >= 0 ? chapterQuests[nextIndex] : undefined;
   const maxStars = QUESTS.length * 3;
-  const todayDaily = today ? dailyFor(today) : null;
-  const dailyQuest = todayDaily ? compileTemplate(todayDaily.id, todayDaily.template) : null;
+  const todayDaily = today ? dailyFor(today, locale) : null;
+  const dailyQuest = todayDaily ? compileTemplate(todayDaily.id, todayDaily.template, locale) : null;
   const currentDailyStars = today ? dailyProgress.done[today] ?? 0 : 0;
   const currentStreak = today ? streak(dailyProgress.done, today) : 0;
   const activeDailyKey = active?.id.startsWith("daily:") ? active.id.slice("daily:".length) : null;
@@ -600,12 +609,12 @@ export default function PlayTool() {
 
   function saveCurrentPack() {
     if (!normalizedDraft) {
-      setPackMessage("Add a title and at least one quest with a goal.");
+      setPackMessage(t("ui.questGoalPrompt"));
       return;
     }
     const saved = savePack(normalizedDraft.pack);
     if (!saved) {
-      setPackMessage("This pack could not be saved. Check its title and goals.");
+      setPackMessage(t("ui.packSaveError"));
       return;
     }
     setOpenedPackId(saved.id);
@@ -637,19 +646,19 @@ export default function PlayTool() {
         <section className="daily-card" aria-labelledby="daily-title">
           <div className="daily-card-heading">
             <div>
-              <p className="eyebrow">TODAY · <time dateTime={today}>{today}</time></p>
-              <h2 id="daily-title">Daily challenge</h2>
+              <p className="eyebrow">{t("ui.today")} · <time dateTime={today}>{new Date(`${today}T00:00:00Z`).toLocaleDateString(locale === "es" ? "es" : "en-US")}</time></p>
+              <h2 id="daily-title">{t("ui.dailyChallenge")}</h2>
             </div>
             <StarRow stars={currentDailyStars} />
           </div>
           <h3>{dailyQuest.title}</h3>
           {dailyQuest.story && <p className="play-story">{dailyQuest.story}</p>}
           <ul className="daily-goals">
-            {describeTargets(todayDaily.template).map((goal) => <li key={goal}>{goal}</li>)}
+            {describeTargets(todayDaily.template, locale).map((goal) => <li key={goal}>{goal}</li>)}
           </ul>
           <div className="daily-card-footer">
-            <p><strong>Stars earned today:</strong> {currentDailyStars} / 3</p>
-            <p><strong>Streak:</strong> {currentStreak} days</p>
+            <p><strong>{t("ui.starsEarnedToday")}</strong> {currentDailyStars} / 3</p>
+            <p><strong>{t("ui.streak")}</strong> {currentStreak} {t("ui.days")}</p>
             {dailyQuest.chapter === "molecules" ? (
               <button
                 type="button"
@@ -659,14 +668,14 @@ export default function PlayTool() {
                   setActiveId(dailyQuest.id);
                 }}
               >
-                Play today&apos;s challenge
+                {t("ui.playToday")}
               </button>
             ) : (
               <Link
                 className="button button-primary"
                 href={`${dailyQuest.chapter === "mixing" ? "/bench" : "/elements"}?quest=${encodeURIComponent(dailyQuest.id)}`}
               >
-                Play today&apos;s challenge
+                {t("ui.playToday")}
               </Link>
             )}
           </div>
@@ -676,7 +685,7 @@ export default function PlayTool() {
         <StarRow stars={3} />
         <span><strong>{totalStars(progress)}</strong> / {maxStars} stars</span>
       </div>
-      <div className="play-tabs" role="tablist" aria-label="Chapters">
+      <div className="play-tabs" role="tablist" aria-label={t("ui.chapters")}>
         {CHAPTERS.map((chapter) => (
           <button
             key={chapter.id}
@@ -686,7 +695,7 @@ export default function PlayTool() {
             className={tab === chapter.id ? "is-active" : ""}
             onClick={() => openTab(chapter.id)}
           >
-            {chapter.title}
+            {t(chapter.title)}
           </button>
         ))}
         <button type="button" role="tab" aria-selected={tab === "free"} className={tab === "free" ? "is-active" : ""} onClick={() => openTab("free")}>
@@ -708,9 +717,10 @@ export default function PlayTool() {
 
       {tab !== "free" && !active && (
         <>
-          <p className="play-blurb">{CHAPTERS.find((chapter) => chapter.id === tab)?.blurb}</p>
+          <p className="play-blurb">{CHAPTERS.find((chapter) => chapter.id === tab) ? t(CHAPTERS.find((chapter) => chapter.id === tab)!.blurb) : ""}</p>
           <ol className="play-quest-list">
-            {questsIn(tab).map((quest, index) => {
+            {questsIn(tab).map((sourceQuest, index) => {
+              const quest = translateTree(locale, sourceQuest);
               const unlocked = isUnlocked(quest.id, progress);
               return (
                 <li key={quest.id}>
@@ -718,9 +728,9 @@ export default function PlayTool() {
                     <span className="play-quest-num">{index + 1}</span>
                     <span className="play-quest-text">
                       <strong>{quest.title}</strong>
-                      <span>{unlocked ? quest.goal : "Earn a star on the previous quest to unlock"}</span>
+                      <span>{unlocked ? quest.goal : t("ui.playLocked")}</span>
                     </span>
-                    {unlocked ? <StarRow stars={progress.stars[quest.id] ?? 0} /> : <span className="play-lock">Locked</span>}
+                    {unlocked ? <StarRow stars={progress.stars[quest.id] ?? 0} /> : <span className="play-lock">{t("ui.locked")}</span>}
                   </button>
                 </li>
               );
@@ -732,13 +742,13 @@ export default function PlayTool() {
       <section className="pack-section" aria-labelledby="packs-title">
         <div className="pack-section-heading">
           <div>
-            <p className="eyebrow">SHAREABLE QUESTS</p>
-            <h2 id="packs-title">Quest packs</h2>
+            <p className="eyebrow">{t("ui.shareableQuests")}</p>
+            <h2 id="packs-title">{t("ui.questPacks")}</h2>
           </div>
         </div>
-        <p className="pack-teacher-note">Teachers: share a pack link with your class. Stars are saved on each student&apos;s device.</p>
+        <p className="pack-teacher-note">{t("ui.teacherNote")}</p>
         {packs.length === 0 ? (
-          <p className="play-blurb">No saved packs yet. Make one below or open a pack link.</p>
+          <p className="play-blurb">{t("ui.noSavedPacks")}</p>
         ) : (
           <div className="pack-list">
             {packs.map((pack) => {
@@ -821,7 +831,7 @@ export default function PlayTool() {
             }
           }}
         >
-          {packEditorOpen ? "− Hide editor" : "+ Make a pack"}
+          {packEditorOpen ? t("ui.hideEditor") : t("ui.makePack")}
         </button>
         <div
           className="pack-maker"

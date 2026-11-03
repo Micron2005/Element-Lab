@@ -9,6 +9,7 @@ import { allBenchIngredients, benchById } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
 import { benchPresets } from "@/lib/bench/presets";
 import { simulate } from "@/lib/bench/simulate";
+import { trText } from "@/lib/i18n";
 import { buildMixScene } from "@/lib/bench/scene";
 import CustomIngredientForm from "./CustomIngredientForm";
 import MixViewer from "./MixViewer";
@@ -39,6 +40,7 @@ import type {
 import "./bench.css";
 import QuestBanner from "./QuestBanner";
 import { Term } from "./Term";
+import { useT } from "./LocaleProvider";
 
 type IngredientFilter =
   | "All"
@@ -269,6 +271,7 @@ function partsSummary(experiment: Experiment): string {
 }
 
 export default function BenchTool() {
+  const { locale, t } = useT();
   const {
     list: customList,
     ready: customReady,
@@ -601,11 +604,11 @@ export default function BenchTool() {
       return;
     }
     setRunError("");
-    const nextResult = simulate(snapshot);
+    const nextResult = simulate(snapshot, locale);
     setResult(nextResult);
     setLastRunExperiment(snapshot);
     setRunId((id) => id + 1);
-    const name = notebookName.trim() || `Experiment ${new Date().toLocaleString()}`;
+    const name = notebookName.trim() || `${t("bench.experiment")} ${new Date().toLocaleString(locale === "es" ? "es" : "en-US")}`;
     const entry: NotebookEntry = {
       id: makeNotebookId(),
       name,
@@ -770,33 +773,32 @@ export default function BenchTool() {
         />
       )}
       <header className="bench-intro">
-        <p className="bench-eyebrow">VIRTUAL EXPERIMENT SANDBOX</p>
-        <h1>Experiment Bench</h1>
+        <p className="bench-eyebrow">{t("VIRTUAL EXPERIMENT SANDBOX")}</p>
+        <h1>{t("Experiment Bench")}</h1>
         <p>
-          Mix proteins, enzymes, polymers, salts, and process conditions. Run a
-          model, see what changed, or search for a better mix.
+          {t("ui.benchDescription")}
         </p>
       </header>
 
       <section className="bench-panel">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">01 · BUILD</p>
-            <h2>Your mixture</h2>
+            <p className="bench-kicker">01 · {t("Build")}</p>
+            <h2>{t("ui.yourMixture")}</h2>
           </div>
           <div className="bench-preset-control">
-            <label htmlFor="bench-preset">Load a preset</label>
+            <label htmlFor="bench-preset">{t("ui.loadPreset")}</label>
             <select
               className="select"
               id="bench-preset"
               value={selectedPreset}
               onChange={(event) => loadPreset(event.target.value)}
             >
-              <option value="">Choose a preset…</option>
-              <option value="custom">Custom mix</option>
+              <option value="">{t("ui.choosePreset")}</option>
+              <option value="custom">{t("ui.customMix")}</option>
               {benchPresets.map((preset) => (
                 <option value={preset.id} key={preset.id}>
-                  {preset.name}
+                  {trText(locale, preset.name)}
                 </option>
               ))}
             </select>
@@ -806,14 +808,14 @@ export default function BenchTool() {
         <div className="bench-builder-grid">
           <section className="bench-subpanel" aria-labelledby="bench-library-heading">
             <div className="bench-subheading bench-library-heading">
-              <h3 id="bench-library-heading">Ingredient library</h3>
-              <span>{visibleIngredients.length} items</span>
+              <h3 id="bench-library-heading">{t("ui.ingredientLibrary")}</h3>
+              <span>{visibleIngredients.length} {t("ui.items")}</span>
               <button
                 className="button button-secondary bench-custom-create"
                 type="button"
                 onClick={openNewCustomIngredient}
               >
-                + Make your own
+                {t("ui.makeYourOwn")}
               </button>
             </div>
             {customSaveError && (
@@ -832,7 +834,7 @@ export default function BenchTool() {
                 onDelete={customFormInitial ? deleteOpenCustomIngredient : undefined}
               />
             )}
-            <div className="bench-filter-list" aria-label="Ingredient categories">
+            <div className="bench-filter-list" aria-label={t("ui.ingredientCategories")}>
               {filterOptions.map((option) => (
                 <button
                   className={`chip bench-chip${filter === option ? " is-active" : ""}`}
@@ -841,18 +843,18 @@ export default function BenchTool() {
                   aria-pressed={filter === option}
                   onClick={() => setFilter(option)}
                 >
-                  {option}
+                  {t(`ui.category.${option}`)}
                 </button>
               ))}
             </div>
             <label className="bench-search-label" htmlFor="bench-search">
-              Search ingredients
+              {t("ui.searchIngredients")}
             </label>
             <input
               id="bench-search"
               className="input"
               type="search"
-              placeholder="Try “calcium” or “silk”"
+              placeholder={t("ui.tryCalciumSilk")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -862,10 +864,10 @@ export default function BenchTool() {
                 return (
                   <div className="bench-library-item" key={ingredient.id}>
                     <div className="bench-library-copy">
-                      <strong>{ingredient.name}</strong>
+                      <strong>{trText(locale, ingredient.name)}</strong>
                       <span>{ingredient.formula}</span>
                       {ingredient.id.startsWith(CUSTOM_PREFIX) && (
-                        <span className="bench-yours-badge">Yours</span>
+                      <span className="bench-yours-badge">{t("ui.yours")}</span>
                       )}
                     </div>
                     <div className="bench-library-actions">
@@ -875,7 +877,7 @@ export default function BenchTool() {
                         disabled={added}
                         onClick={() => addIngredient(ingredient.id)}
                       >
-                        {added ? "Added" : "Add"}
+                        {added ? t("ui.added") : t("ui.add")}
                       </button>
                       {ingredient.id.startsWith(CUSTOM_PREFIX) && (
                         <button
@@ -883,7 +885,7 @@ export default function BenchTool() {
                           type="button"
                           onClick={() => openCustomIngredient(ingredient)}
                         >
-                          Edit
+                          {t("ui.edit")}
                         </button>
                       )}
                     </div>
@@ -891,20 +893,20 @@ export default function BenchTool() {
                 );
               })}
               {visibleIngredients.length === 0 && (
-                <p className="bench-muted">No ingredients match that search.</p>
+                <p className="bench-muted">{t("ui.noIngredientsMatch")}</p>
               )}
             </div>
           </section>
 
           <section className="bench-subpanel" aria-labelledby="bench-mix-heading">
             <div className="bench-subheading">
-              <h3 id="bench-mix-heading">Mixing order</h3>
+              <h3 id="bench-mix-heading">{t("ui.mixingOrder")}</h3>
               <span className={Math.abs(totalPct - 100) > 0.1 ? "bench-total-warn" : ""}>
                 {totalPct.toFixed(1)}%
               </span>
             </div>
             {experiment.parts.length === 0 ? (
-              <div className="bench-empty">Add ingredients from the library to start a mix.</div>
+              <div className="bench-empty">{t("ui.addIngredientsStart")}</div>
             ) : (
               <div className="bench-mix-list">
                 {experiment.parts.map((part, index) => {
@@ -942,13 +944,13 @@ export default function BenchTool() {
                       <div className="bench-mix-row-top">
                         <div className="bench-mix-title">
                           <span className="bench-order">{String(index + 1).padStart(2, "0")}</span>
-                          <strong>{ingredient.name}</strong>
+                          <strong>{trText(locale, ingredient.name)}</strong>
                         </div>
                         <span className="badge bench-category-badge">{ingredient.category}</span>
                       </div>
                       <div className="bench-mix-controls">
                         <input
-                          aria-label={`${ingredient.name} percentage slider`}
+                          aria-label={`${trText(locale, ingredient.name)} percentage slider`}
                           className="bench-range"
                           type="range"
                           min="0"
@@ -958,7 +960,7 @@ export default function BenchTool() {
                           onChange={(event) => setPartPct(index, Number(event.target.value))}
                         />
                         <label className="bench-percent-field">
-                          <span className="sr-only">{ingredient.name} percentage</span>
+                          <span className="sr-only">{trText(locale, ingredient.name)} percentage</span>
                           <input
                             className="input"
                             type="number"
@@ -974,7 +976,7 @@ export default function BenchTool() {
                       <div className="bench-row-actions">
                         <button
                           className="button button-secondary bench-icon-button"
-                          aria-label={`Move ${ingredient.name} up`}
+                          aria-label={`Move ${trText(locale, ingredient.name)} up`}
                           type="button"
                           disabled={index === 0}
                           onClick={() => movePart(index, -1)}
@@ -983,7 +985,7 @@ export default function BenchTool() {
                         </button>
                         <button
                           className="button button-secondary bench-icon-button"
-                          aria-label={`Move ${ingredient.name} down`}
+                          aria-label={`Move ${trText(locale, ingredient.name)} down`}
                           type="button"
                           disabled={index === experiment.parts.length - 1}
                           onClick={() => movePart(index, 1)}
@@ -1022,7 +1024,7 @@ export default function BenchTool() {
                   updateExperiment({ ...experiment, parts: normalizeMix(experiment.parts) })
                 }
               >
-                Normalize to 100%
+                {t("ui.normalizeBench")}
               </button>
               <p>Order matters for contact reactions.</p>
             </div>
@@ -1033,8 +1035,8 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-conditions-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">02 · PROCESS</p>
-            <h2 id="bench-conditions-heading">Conditions</h2>
+            <p className="bench-kicker">02 · {t("Process")}</p>
+            <h2 id="bench-conditions-heading">{t("ui.conditions")}</h2>
           </div>
         </div>
         <div className="bench-condition-grid">
@@ -1164,7 +1166,7 @@ export default function BenchTool() {
                   .filter((ingredient) => ["salt", "solvent"].includes(ingredient.category))
                   .map((ingredient) => (
                     <option value={ingredient.id} key={ingredient.id}>
-                      {ingredient.name}
+                      {trText(locale, ingredient.name)}
                     </option>
                   ))}
               </select>
@@ -1205,7 +1207,7 @@ export default function BenchTool() {
         </label>
         <div className="bench-run-actions">
           <button className="button bench-run-button" type="button" onClick={() => runExperiment()}>
-            Run experiment
+            {t("ui.runExperiment")}
           </button>
           <ShareButton
             build={buildBenchShare}
@@ -1220,7 +1222,7 @@ export default function BenchTool() {
         <div className="bench-panel-heading">
           <div>
             <p className="bench-kicker">03 · RESULTS</p>
-            <h2 id="bench-results-heading">What formed?</h2>
+            <h2 id="bench-results-heading">{t("ui.whatFormed")}</h2>
           </div>
           {changedSinceRun && <span className="bench-changed">Conditions changed — run again.</span>}
         </div>
@@ -1248,7 +1250,7 @@ export default function BenchTool() {
               </section>
             )}
             <section className="bench-result-section" aria-label="Test it">
-              <h3>Test it</h3>
+              <h3>{t("ui.testIt")}</h3>
               {lastRunExperiment && (
                 <BenchTests
                   key={`${runId}-${shareTestVersion}`}
@@ -1348,7 +1350,7 @@ export default function BenchTool() {
             return benchReport(lastRunExperiment, result, testSummary ?? undefined, {
               ...extra,
               shareUrl: url,
-            });
+            }, locale);
           }}
         />
       </section>
@@ -1503,7 +1505,7 @@ export default function BenchTool() {
         {optimizing && (
           <div className="bench-progress" aria-live="polite">
             <progress max={progress.total || 2500} value={progress.completed} />
-            <span>{progress.completed.toLocaleString()} / {progress.total.toLocaleString()} mixes checked</span>
+            <span>{progress.completed.toLocaleString(locale === "es" ? "es" : "en-US")} / {progress.total.toLocaleString(locale === "es" ? "es" : "en-US")} {t("ui.mixesChecked")}</span>
           </div>
         )}
         {optimizerError && <p className="bench-inline-error">{optimizerError}</p>}
@@ -1605,7 +1607,7 @@ export default function BenchTool() {
                   {comparison.ingredients.map((ingredient) => (
                     <tr key={`ingredient-${ingredient.id}`}>
                       <th scope="row">
-                        {ingredient.name}
+                        {trText(locale, ingredient.name)}
                         {ingredient.changed && <ChangedTag />}
                       </th>
                       {ingredient.pcts.map((pct, index) => (
@@ -1676,7 +1678,7 @@ export default function BenchTool() {
                   onClick={() => loadNotebookEntry(entry)}
                 >
                   <strong>{entry.name}</strong>
-                  <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                  <span>{new Date(entry.createdAt).toLocaleString(locale === "es" ? "es" : "en-US")}</span>
                   <span>
                     {entry.result.productLabel} · {formattedMechanicalValue(entry.result, `${formatMPa(entry.result.tensileMPa)} MPa`)} · {formattedMechanicalValue(entry.result, `${formatPercent(entry.result.elongationPct)}% stretch`)}
                   </span>

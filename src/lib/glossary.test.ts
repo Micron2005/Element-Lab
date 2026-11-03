@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GLOSSARY } from "./glossary";
+import { GLOSSARY, GLOSSARY_ES } from "./glossary";
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -18,6 +18,15 @@ describe("glossary", () => {
       expect(entry.plain.trim(), id).not.toBe("");
       expect(entry.plain.length, id).toBeLessThanOrEqual(220);
     }
+  });
+
+  it("defines Spanish entries within the same length limit", () => {
+    for (const [id, entry] of Object.entries(GLOSSARY_ES)) {
+      expect(entry.term.trim(), id).not.toBe("");
+      expect(entry.plain.trim(), id).not.toBe("");
+      expect(entry.plain.length, id).toBeLessThanOrEqual(220);
+    }
+    expect(Object.keys(GLOSSARY_ES).sort()).toEqual(Object.keys(GLOSSARY).sort());
   });
 
   it("contains every Term id used by TSX source", () => {

@@ -6,6 +6,7 @@ import {
   type NuclearStep,
   type NucleusRef,
 } from "./nuclearScene";
+import { DEFAULT_LOCALE, tr, translateTree, type Locale } from "./i18n";
 
 const AMU_MEV = 931.494;
 const ALPHA = 1 / 137.036;
@@ -241,7 +242,7 @@ function compactNumber(value: number): string {
   return Number(value.toPrecision(3)).toString();
 }
 
-export function fmtCrossSection(barn: number): string {
+export function fmtCrossSection(barn: number, locale: "en" | "es" = "en"): string {
   if (!Number.isFinite(barn) || barn < 1e-15) return "< 1 fb";
   const scales = [
     [1, "b"],
@@ -252,10 +253,11 @@ export function fmtCrossSection(barn: number): string {
     [1e-15, "fb"],
   ] as const;
   const [scale, unit] = scales.find(([threshold]) => barn >= threshold)!;
-  return `${compactNumber(barn / scale)} ${unit}`;
+  const value = compactNumber(barn / scale);
+  return `${locale === "es" ? value.replace(".", ",") : value} ${unit}`;
 }
 
-export function fmtOneIn(probability: number): string {
+export function fmtOneIn(probability: number, locale: "en" | "es" = "en"): string {
   if (!Number.isFinite(probability) || probability <= 0) return "never";
   if (probability >= 0.5) return "most hits";
   const odds = 1 / probability;
@@ -266,7 +268,9 @@ export function fmtOneIn(probability: number): string {
       ? `1 in 10^${exponent}`
       : `1 in ${compactNumber(coefficient)}×10^${exponent}`;
   }
-  return `1 in ${Math.round(odds).toLocaleString("en-US")}`;
+  return locale === "es"
+    ? `1 de cada ${Math.round(odds).toLocaleString("es")}`
+    : `1 in ${Math.round(odds).toLocaleString("en-US")}`;
 }
 
 function separations(z: number, n: number): Separation[] {
@@ -331,8 +335,8 @@ function mostHits(dominant: FusionReport["dominant"]): string {
   return "The nuclei fuse and the compound cools.";
 }
 
-function oneInPhrase(probability: number): string {
-  const value = fmtOneIn(probability);
+function oneInPhrase(probability: number, locale: Locale): string {
+  const value = fmtOneIn(probability, locale);
   return value.startsWith("1 in ") ? value.slice(5) : value;
 }
 
@@ -393,6 +397,7 @@ function finishReport(
   projectile: { z: number; n: number },
   target: { z: number; n: number },
   beamLabMeV: number,
+  locale: Locale,
 ): FusionReport {
   const a1 = projectile.z + projectile.n;
   const a2 = target.z + target.n;
@@ -564,7 +569,7 @@ function finishReport(
     residue.length > 0 &&
     residue.every((item) => MEASURED_BINDING.has(massKey(item.z, item.n)));
   if (residue.length === 1) {
-    residueReport = analyzeNucleus(residue[0].z, residue[0].n);
+    residueReport = analyzeNucleus(residue[0].z, residue[0].n, locale);
   }
   if (residue.some((item) => item.z >= 119)) {
     const predictedZ = Math.max(...residue.map((item) => item.z));
@@ -577,7 +582,7 @@ function finishReport(
       const key = massKey(item.z, item.n);
       if (key === "2,3" || key === "4,4") return true;
       if (measuredHalfLife(item.z, item.n) !== undefined) return false;
-      const report = analyzeNucleus(item.z, item.n);
+      const report = analyzeNucleus(item.z, item.n, locale);
       return !report.bound || report.fissility >= 1;
     })
   ) {
@@ -592,7 +597,10 @@ function finishReport(
     emitted,
   );
   const products = reactionProducts(residue, emitted);
-  const successCaption = `1 hit in ${oneInPhrase(chancePerCollision)}: ${products.join(" + ") || "the compound forms"}.`;
+  const successCaption = tr(locale, "fusion.successCaption", {
+    odds: oneInPhrase(chancePerCollision, locale),
+    products: products.join(" + ") || "the compound forms",
+  });
   if (dominant !== "fuses") {
     steps.push(failureStep(dominant, targetRef, projectileRef, compound));
   }
@@ -623,7 +631,7 @@ function finishReport(
     });
   }
 
-  return {
+  return translateTree(locale, {
     light,
     reaction,
     dominant,
@@ -648,13 +656,14 @@ function finishReport(
     residueMeasured,
     notes,
     steps,
-  };
+  });
 }
 
 export function fuse(
   projectile: { z: number; n: number },
   target: { z: number; n: number },
   beamLabMeV: number,
+  locale: Locale = DEFAULT_LOCALE,
 ): FusionReport {
-  return finishReport(projectile, target, Math.max(0, beamLabMeV));
+  return finishReport(projectile, target, Math.max(0, beamLabMeV), locale);
 }

@@ -13,6 +13,7 @@ import { maskKey, USER_KEY_STORAGE, validateUserKey } from "@/lib/assistantKey";
 import type { Provider } from "@/lib/assistantKey";
 import { loadCustomIngredients } from "./useCustomIngredients";
 import { PageIntro, Panel } from "./shared";
+import { useT } from "./LocaleProvider";
 
 type Message = { role: "user" | "assistant"; content: string };
 type LearnContext = { title: string; context: string };
@@ -184,6 +185,7 @@ function readLearnHandoff(
 }
 
 export default function AssistantTool() {
+  const { locale, t } = useT();
   const [messages, setMessages] = useState<Message[]>([welcome]);
   const [ready, setReady] = useState(false);
   const [input, setInput] = useState("");
@@ -269,10 +271,10 @@ export default function AssistantTool() {
     }
   };
   const keyStatus = userKey
-    ? `Using your ${userKey.provider === "anthropic" ? "Anthropic" : "OpenAI"} key`
+    ? t("assistant.keyUsing", { provider: userKey.provider === "anthropic" ? "Anthropic" : "OpenAI" })
     : siteKey
-      ? "Using the site's key"
-      : "Assistant is off. Add your own key to turn it on.";
+      ? t("assistant.keySite")
+      : t("assistant.keyOff");
 
   const sendMessage = async (content: string) => {
     const question = content.trim();
@@ -293,6 +295,7 @@ export default function AssistantTool() {
         method: "POST",
         headers: {
           "content-type": "application/json",
+          "x-lang": locale,
           ...(userKey
             ? { "x-user-api-key": userKey.apiKey, "x-user-provider": userKey.provider }
             : {}),
@@ -304,7 +307,7 @@ export default function AssistantTool() {
       });
       const result = await response.json();
       if (response.status === 503 && result.error === "no-key") {
-        setMessages([...conversation, { role: "assistant", content: "The assistant is off. Add your own Anthropic or OpenAI key in **Your AI key** (stays on this device), or the site owner can add one in Vercel." }]);
+        setMessages([...conversation, { role: "assistant", content: t("assistant.noKeyMessage") }]);
       } else if (response.status === 401 && result.error === "key-rejected") {
         const rejectionMessage = userKey
           ? `Your key was rejected by ${userKey.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Check it, or remove it and paste a new one.`
@@ -329,20 +332,20 @@ export default function AssistantTool() {
   };
   const clearChat = () => {
     setMessages([welcome]);
-    setNotice("Conversation cleared.");
+    setNotice(t("assistant.clearNotice"));
   };
 
   return (
     <>
       <PageIntro eyebrow="TOOL 05 / YOUR LAB PARTNER" title="Ask the lab assistant" description="A practical science partner for exploring questions, planning safe tests, and understanding what estimates can tell you." />
       <div className="assistant-layout">
-        <Panel title="Conversation" subtitle="Replies are estimates and explanations—not proof that a material is safe or strong." className="chat-panel">
-          <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> Lab partner</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>Clear chat</button></div>
+        <Panel title="assistant.conversation" subtitle="assistant.conversationHint" className="chat-panel">
+          <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> {t("assistant.partner")}</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>{t("assistant.clear")}</button></div>
           <div className="divider" />
           <div className="chat-messages" aria-live="polite">
             {messages.map((message, index) => (
               <article className={`message message-${message.role}`} key={`${index}-${message.role}`}>
-                <span className="metric-label">{message.role === "user" ? "YOU" : "LAB ASSISTANT"}</span>
+                <span className="metric-label">{message.role === "user" ? t("assistant.you") : t("assistant.label")}</span>
                 <div style={{ marginTop: 5 }}>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
@@ -354,21 +357,21 @@ export default function AssistantTool() {
                       ),
                     }}
                   >
-                    {message.content}
+                    {message.role === "assistant" ? t(message.content) : message.content}
                   </ReactMarkdown>
                 </div>
               </article>
             ))}
-            {loading && <div className="message message-assistant"><span className="metric-label">LAB ASSISTANT</span><p style={{ margin: "6px 0 0" }}>Thinking through the chemistry…</p></div>}
+            {loading && <div className="message message-assistant"><span className="metric-label">{t("assistant.label")}</span><p style={{ margin: "6px 0 0" }}>{t("assistant.thinking")}</p></div>}
             <div ref={endRef} />
           </div>
-          <form className="chat-compose" onSubmit={submit}><textarea className="textarea" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about your formula…" aria-label="Your message" rows={2} /><button className="button button-primary" type="submit" disabled={loading || !input.trim()}>Send ↗</button></form>
+          <form className="chat-compose" onSubmit={submit}><textarea className="textarea" value={input} onChange={(event) => setInput(event.target.value)} placeholder={t("assistant.askFormula")} aria-label={t("assistant.yourMessage")} rows={2} /><button className="button button-primary" type="submit" disabled={loading || !input.trim()}>{t("assistant.send")}</button></form>
         </Panel>
         <aside className="assistant-side">
-          <Panel title="Your AI key">
+          <Panel title="assistant.keyTitle">
             <p className="small muted" role="status">{keyStatus}</p>
             <fieldset style={{ border: 0, margin: "12px 0 0", padding: 0 }}>
-              <legend className="field-label">Provider</legend>
+              <legend className="field-label">{t("assistant.provider")}</legend>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 7 }}>
                 {(["anthropic", "openai"] as const).map((option) => (
                   <label
@@ -400,7 +403,7 @@ export default function AssistantTool() {
                 ))}
               </div>
             </fieldset>
-            <label className="field-label" htmlFor="assistant-user-key">API key</label>
+            <label className="field-label" htmlFor="assistant-user-key">{t("assistant.apiKey")}</label>
             <input
               id="assistant-user-key"
               className="input"
@@ -411,31 +414,31 @@ export default function AssistantTool() {
               value={keyDraft}
               onChange={(event) => setKeyDraft(event.target.value)}
             />
-            {keyError && <p className="small bad" role="alert">{keyError}</p>}
+            {keyError && <p className="small bad" role="alert">{t(keyError)}</p>}
             {userKey && (
               <p className="small muted" style={{ overflowWrap: "anywhere" }} role="status">
-                Saved on this device: <code>{maskKey(userKey.apiKey)}</code>
+                {t("assistant.savedDevice")} <code>{maskKey(userKey.apiKey)}</code>
               </p>
             )}
             <div className="button-row" style={{ marginTop: 10 }}>
-              <button className="button button-primary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={saveUserKey}>Save</button>
+              <button className="button button-primary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={saveUserKey}>{t("assistant.save")}</button>
               {userKey && (
-                <button className="button button-secondary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={removeUserKey}>Remove</button>
+                <button className="button button-secondary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={removeUserKey}>{t("assistant.remove")}</button>
               )}
             </div>
             <p className="small muted" style={{ margin: "12px 0 0" }}>
-              Your key stays in this browser. It&apos;s sent with each message to this site&apos;s server, which passes it to Anthropic/OpenAI and doesn&apos;t save it. Remove it on shared devices.
+              {t("assistant.keyPrivacy")}
             </p>
             <div className="small" style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", marginTop: 7 }}>
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an Anthropic key</a>
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an OpenAI key</a>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>{t("assistant.getAnthropic")}</a>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>{t("assistant.getOpenai")}</a>
             </div>
           </Panel>
-          <Panel title="Context">
+          <Panel title="assistant.context">
             {learnContext && (
               <div className="chat-heading">
                 <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                  From Play: {learnContext.title}
+                  {t("assistant.fromPlay", { title: learnContext.title })}
                 </span>
                 <button
                   className="button button-secondary button-small"
@@ -447,19 +450,19 @@ export default function AssistantTool() {
                 </button>
               </div>
             )}
-            <label className="toggle-row"><span>Include my current Bench mix and lab formula</span><input type="checkbox" checked={includeLab} onChange={(event) => setIncludeLab(event.target.checked)} /></label>
-            <p className="small muted">When enabled, the current Bench mix and Formula Lab analysis are sent with your latest question.</p>
-            <p className="small muted">Chat history is saved in this browser.</p>
+            <label className="toggle-row"><span>{t("assistant.includeLab")}</span><input type="checkbox" checked={includeLab} onChange={(event) => setIncludeLab(event.target.checked)} /></label>
+            <p className="small muted">{t("assistant.contextHint")}</p>
+            <p className="small muted">{t("assistant.historyHint")}</p>
           </Panel>
-          <Panel title="Try asking">
+          <Panel title="assistant.tryAsking">
             <div className="prompt-list">
               {[...prompts, ...(learnContext ? ["Explain what I just made more deeply"] : [])].map((prompt) => (
-                <button className="chip" type="button" key={prompt} onClick={() => void sendMessage(prompt)} disabled={loading}>{prompt}</button>
+                <button className="chip" type="button" key={prompt} onClick={() => void sendMessage(prompt)} disabled={loading}>{t(prompt)}</button>
               ))}
             </div>
           </Panel>
-          {notice && <p className="small muted" role="status">{notice}</p>}
-          <div className="notice">This is a learning tool. Never use its estimates as a substitute for testing, safety data, or professional advice.</div>
+          {notice && <p className="small muted" role="status">{t(notice)}</p>}
+          <div className="notice">{t("assistant.notice")}</div>
         </aside>
       </div>
     </>

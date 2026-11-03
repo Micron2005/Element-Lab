@@ -16,6 +16,7 @@ import { analyzeNucleus, elementName } from "@/lib/nuclear";
 import NucleusViewer from "./NucleusViewer";
 import { Panel } from "./shared";
 import { Term } from "./Term";
+import { useT } from "./LocaleProvider";
 
 const MIN_BEAM_MEV = 0.001;
 const MAX_BEAM_MEV = 2000;
@@ -55,10 +56,10 @@ function particleSummary(emitted: { type: string; count: number }[]): string {
     .join(", ");
 }
 
-function formatAtomsPerDay(value: number): string {
+function formatAtomsPerDay(value: number, locale: string): string {
   if (value === 0) return "0";
   if (value < 0.01) return value.toExponential(2);
-  return new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(value);
+  return new Intl.NumberFormat(locale === "es" ? "es" : "en-US", { maximumSignificantDigits: 3 }).format(value);
 }
 
 function resultTone(dominant: string): "good" | "warn" | "bad" {
@@ -92,11 +93,12 @@ export default function FusionPanel({
   onTarget: (z: number, n: number) => void;
   onExplore: (z: number, n: number) => void;
 }) {
+  const { locale } = useT();
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   const projectile = projectileFromId(projectileId);
   const report = useMemo(
-    () => fuse(projectile, { z, n }, beamLabMeV),
-    [projectile, z, n, beamLabMeV],
+    () => fuse(projectile, { z, n }, beamLabMeV, locale),
+    [projectile, z, n, beamLabMeV, locale],
   );
   const activeRecipe = FUSION_RECIPES.find((item) => item.id === activeRecipeId);
   const activeRecipeProjectile = activeRecipe
@@ -277,7 +279,7 @@ export default function FusionPanel({
             </div>
             <div className="metric-card">
               <span className="metric-label">Chance per hit</span>
-              <p className="metric-value">{fmtOneIn(report.chancePerCollision)}</p>
+              <p className="metric-value">{fmtOneIn(report.chancePerCollision, locale)}</p>
             </div>
             {report.light ? (
               <div className="metric-card">
@@ -288,11 +290,11 @@ export default function FusionPanel({
               <>
                 <div className="metric-card">
                   <span className="metric-label"><Term id="cross-section">Cross-section</Term></span>
-                  <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0)}</p>
+                  <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0, locale)}</p>
                 </div>
                 <div className="metric-card">
                   <span className="metric-label">Atoms/day</span>
-                  <p className="metric-value">{formatAtomsPerDay(report.atomsPerDay ?? 0)}</p>
+                  <p className="metric-value">{formatAtomsPerDay(report.atomsPerDay ?? 0, locale)}</p>
                 </div>
               </>
             )}

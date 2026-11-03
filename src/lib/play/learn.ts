@@ -6,6 +6,7 @@ import { decayChain, neutronHit } from "../nuclearScene";
 import { prettyFormula, type KnownMolecule } from "./molecule";
 import type { AtomQuest, MixQuest } from "./quests";
 import { describeTargets } from "./templates";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
 
 export interface LearnSection {
   heading: string;
@@ -299,7 +300,10 @@ function createCard(
   };
 }
 
-export function moleculeCard(molecule: KnownMolecule): LearnCard {
+export function moleculeCard(
+  molecule: KnownMolecule,
+  locale: Locale = DEFAULT_LOCALE,
+): LearnCard {
   const lesson = MOLECULE_LESSONS[molecule.id];
   const spokenName = molecule.name.charAt(0).toLowerCase() + molecule.name.slice(1);
   const sections = [
@@ -311,15 +315,15 @@ export function moleculeCard(molecule: KnownMolecule): LearnCard {
       body: lesson.whyItMatters + (molecule.caution ? ` Safety note: ${molecule.caution}` : ""),
     },
   ];
-  return createCard(
+  return translateTree(locale, createCard(
     `${molecule.name} (${prettyFormula(molecule.formula)})`,
     sections,
     lesson.usedFor,
     `How do ${spokenName}'s bonds and shape help explain what it does and where it is used?`,
-  );
+  ));
 }
 
-function mixRunDetails(experiment: Experiment, result: RunResult): string {
+function mixRunDetails(experiment: Experiment, result: RunResult, locale: Locale): string {
   const ingredients = experiment.parts
     .filter((part) => part.pct > 0)
     .map((part) => `${benchById[part.id]?.name ?? part.id} ${part.pct.toFixed(1)}%`)
@@ -333,7 +337,7 @@ function mixRunDetails(experiment: Experiment, result: RunResult): string {
     ...(events.length ? events : ["No reaction events happened or were partial in this run."]),
     `Effective pH: ${result.effectivePH.toFixed(1)}.`,
     result.setSeconds > 0
-      ? `Set time: ${fmtTime(result.setSeconds)}.`
+      ? `Set time: ${fmtTime(result.setSeconds, locale)}.`
       : "It doesn't set on its own.",
   ];
   if (result.tensileMPa !== 0) lines.push(`Strength: ${result.tensileMPa.toFixed(1)} MPa tensile strength.`);
@@ -349,20 +353,21 @@ export function mixCard(
   quest: MixQuest,
   experiment: Experiment,
   result: RunResult,
+  locale: Locale = DEFAULT_LOCALE,
 ): LearnCard {
   const lesson = QUEST_LESSONS[quest.id] ?? templateLesson(quest);
   const sections = [
     { heading: "What it is", body: lesson.whatItIs },
-    { heading: "What happened in your run", body: mixRunDetails(experiment, result) },
+    { heading: "What happened in your run", body: mixRunDetails(experiment, result, locale) },
     { heading: "What it does", body: lesson.whatItDoes },
     { heading: "Why it matters", body: lesson.whyItMatters },
   ];
-  return createCard(
+  return translateTree(locale, createCard(
     quest.title,
     sections,
     lesson.usedFor,
     lesson.askPrompt,
-  );
+  ));
 }
 
 function nucleusCaveat(quest: AtomQuest): string {
@@ -375,13 +380,14 @@ function nucleusRunDetails(
   quest: AtomQuest,
   z: number,
   n: number,
+  locale: Locale,
 ): string {
   if (!Number.isInteger(z) || !Number.isFinite(z) || z <= 0 ||
       !Number.isInteger(n) || !Number.isFinite(n) || n < 0) {
     return `The nucleus model needs a whole-number proton count above zero and a nonnegative whole-number neutron count. ${nucleusCaveat(quest)}`;
   }
   try {
-    const report = analyzeNucleus(z, n);
+    const report = analyzeNucleus(z, n, locale);
     const lines = [
       `${report.name} (${report.symbol}), Z=${z}, N=${n}, A=${report.a}: ${report.verdict}`,
       `Estimated half-life: ${report.halfLife}.`,
@@ -407,20 +413,21 @@ export function atomCard(
   quest: AtomQuest,
   z: number,
   n: number,
+  locale: Locale = DEFAULT_LOCALE,
 ): LearnCard {
   const lesson = QUEST_LESSONS[quest.id] ?? templateLesson(quest);
   const sections = [
     { heading: "What it is", body: lesson.whatItIs },
-    { heading: "What happened in your run", body: nucleusRunDetails(quest, z, n) },
+    { heading: "What happened in your run", body: nucleusRunDetails(quest, z, n, locale) },
     { heading: "What it does", body: lesson.whatItDoes },
     { heading: "Why it matters", body: lesson.whyItMatters },
   ];
-  return createCard(
+  return translateTree(locale, createCard(
     quest.title,
     sections,
     lesson.usedFor,
     lesson.askPrompt,
-  );
+  ));
 }
 
 function templateLesson(quest: MixQuest | AtomQuest): Lesson {

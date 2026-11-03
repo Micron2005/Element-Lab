@@ -1,4 +1,5 @@
 // Semi-empirical (liquid-drop) mass formula, coefficients in MeV (Krane).
+import { DEFAULT_LOCALE, translateTree, type Locale } from "./i18n";
 const aV = 15.75, aS = 17.8, aC = 0.711, aA = 23.7, aP = 11.18;
 const MAGIC = [2, 8, 20, 28, 50, 82, 126, 184];
 
@@ -70,18 +71,20 @@ export interface NucleusReport {
   halfLifeSeconds: number;
 }
 
-function fmtSeconds(s: number) {
+function fmtSeconds(s: number, locale: Locale = DEFAULT_LOCALE) {
   if (!isFinite(s)) return "Stable (no decay predicted)";
   if (s < 1e-21) return "< 10^-21 s (falls apart instantly)";
   if (s < 1e-6) return `~${s.toExponential(0)} s`;
   if (s < 1) return `~${(s * 1000).toPrecision(2)} ms`;
   if (s < 3600) return `~${s.toPrecision(2)} s`;
-  if (s < 86400 * 365) return `~${(s / 3600).toPrecision(2)} hours`;
+  if (s < 86400 * 365) return `~${(s / 3600).toPrecision(2)} ${locale === "es" ? "horas" : "hours"}`;
   const y = s / (86400 * 365.25);
-  return y > 1e9 ? `~${y.toExponential(1)} years` : `~${y.toPrecision(2)} years`;
+  return y > 1e9
+    ? `~${y.toExponential(1)} ${locale === "es" ? "años" : "years"}`
+    : `~${y.toPrecision(2)} ${locale === "es" ? "años" : "years"}`;
 }
 
-export function analyzeNucleus(z: number, n: number): NucleusReport {
+export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LOCALE): NucleusReport {
   const a = z + n;
   const B = bindingEnergy(z, n);
   const el = elementName(z);
@@ -101,6 +104,16 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
   if (qAlpha > 0 && a > 100) modes.push(`Alpha decay (Q ≈ ${qAlpha.toFixed(1)} MeV)`);
   if (qBetaMinus > 0) modes.push("Beta-minus (neutron → proton)");
   if (qBetaPlus > 0) modes.push("Beta-plus / electron capture (proton → neutron)");
+  const localizedModes = locale === "es"
+    ? modes.map((mode) => mode
+      .replace(/^Alpha decay \(Q ≈ (.+) MeV\)$/, "Decaimiento alfa (Q ≈ $1 MeV)")
+      .replace("Beta-minus (neutron → proton)", "Beta menos (neutrón → protón)")
+      .replace("Beta-plus / electron capture (proton → neutron)", "Beta más / captura electrónica (protón → neutrón)")
+      .replace("Spontaneous fission", "Fisión espontánea")
+      .replace("Splits in two instantly (fission)", "Se divide al instante en dos (fisión)")
+      .replace("Neutron drips off", "Se desprende un neutrón")
+      .replace("Proton drips off", "Se desprende un protón"))
+    : modes;
 
   let halfS = Infinity;
   if (!bound || fissility >= 1) halfS = 1e-22;
@@ -131,7 +144,7 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
   else verdict = "Exists for a blink: gone before it can form chemistry.";
   if (nearIsland) verdict += " This is near the predicted 'island of stability' (Z≈114-126, N≈184), where extra shell stability could make it last much longer than this model says.";
 
-  return {
+  return translateTree(locale, {
     z,
     n,
     a,
@@ -150,9 +163,9 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
     magicZ: MAGIC.includes(z),
     magicN: MAGIC.includes(n),
     bound,
-    modes,
+    modes: localizedModes,
     verdict,
-    halfLife: fmtSeconds(halfS),
+    halfLife: fmtSeconds(halfS, locale),
     halfLifeSeconds: halfS,
-  };
+  });
 }

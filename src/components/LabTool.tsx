@@ -12,6 +12,8 @@ import { decodeShare, readShareHash } from "@/lib/share";
 import { shareUrl } from "@/lib/share";
 import { formulaReport } from "@/lib/labReport";
 import LabReportButton from "./LabReportButton";
+import { useT } from "./LocaleProvider";
+import { trText } from "@/lib/i18n";
 
 type SavedFormula = { name: string; parts: Part[] };
 const STORAGE_CURRENT = "elementlab.current";
@@ -40,6 +42,7 @@ function safeParts(value: unknown): Part[] | null {
 }
 
 export default function LabTool() {
+  const { locale } = useT();
   const [parts, setParts] = useState<Part[]>(PRESETS[0].parts);
   const [ready, setReady] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("");
@@ -52,7 +55,7 @@ export default function LabTool() {
   const [shareUndo, setShareUndo] = useState<{ parts: Part[]; selectedPreset: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const [loadInputs, setLoadInputs] = useState({ massKg: 70, strands: 1, dynamicFactor: 2, safetyFactor: 3 });
-  const result = useMemo(() => analyze(parts), [parts]);
+  const result = useMemo(() => analyze(parts, locale), [parts, locale]);
   const total = parts.reduce((sum, part) => sum + part.pct, 0);
 
   useEffect(() => {
@@ -205,7 +208,7 @@ export default function LabTool() {
                 const preset = PRESETS[Number(event.target.value)];
                 setSelectedPreset(event.target.value);
                 if (preset) setParts(preset.parts.map((part) => ({ ...part })));
-              }}><option value="">Custom formula</option>{PRESETS.map((preset, index) => <option value={index} key={preset.name}>{preset.name}</option>)}</select></div>
+              }}><option value="">Custom formula</option>{PRESETS.map((preset, index) => <option value={index} key={preset.name}>{trText(locale, preset.name)}</option>)}</select></div>
               <button className="button button-secondary button-small" type="button" onClick={() => setParts((current) => current.map((part) => ({ ...part, pct: total ? part.pct * 100 / total : 0 })))}>Normalize 100%</button>
               <label className="button button-secondary button-small" htmlFor="import-formula">Import .json</label>
             </div>
@@ -215,11 +218,11 @@ export default function LabTool() {
               const ingredient = INGREDIENTS.find((item) => item.id === part.id) as Ingredient;
               return (
                 <div className="ingredient-row" key={`${part.id}-${index}`}>
-                  <div className="ingredient-head"><span className="ingredient-name">{ingredient.name}</span><span className="badge badge-neutral">{roleNames[ingredient.role]}</span></div>
+                  <div className="ingredient-head"><span className="ingredient-name">{trText(locale, ingredient.name)}</span><span className="badge badge-neutral">{roleNames[ingredient.role]}</span></div>
                   <div className="ingredient-control">
-                    <label className="field-label" htmlFor={`amount-${index}`}><input id={`amount-${index}`} className="input" aria-label={`${ingredient.name} percentage`} type="number" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} /></label>
-                    <input aria-label={`${ingredient.name} slider`} type="range" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} />
-                    <button className="icon-button" type="button" aria-label={`Remove ${ingredient.name}`} onClick={() => setParts((current) => current.filter((_, i) => i !== index))}>×</button>
+                    <label className="field-label" htmlFor={`amount-${index}`}><input id={`amount-${index}`} className="input" aria-label={`${trText(locale, ingredient.name)} percentage`} type="number" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} /></label>
+                    <input aria-label={`${trText(locale, ingredient.name)} slider`} type="range" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} />
+                    <button className="icon-button" type="button" aria-label={`Remove ${trText(locale, ingredient.name)}`} onClick={() => setParts((current) => current.filter((_, i) => i !== index))}>×</button>
                   </div>
                   <details><summary>How it bonds / notes</summary><p><strong>Bonding:</strong> {ingredient.bonding}</p><p><strong>Notes:</strong> {ingredient.notes}</p></details>
                 </div>
@@ -229,7 +232,7 @@ export default function LabTool() {
             <div className="button-row" style={{ marginTop: 13 }}>
               <select className="select" aria-label="Add ingredient" value={addId} onChange={(event) => setAddId(event.target.value)} style={{ flex: 1, minWidth: 180 }}>
                 <option value="">Add ingredient…</option>
-                {roles.map((role) => <optgroup label={roleNames[role]} key={role}>{INGREDIENTS.filter((item) => item.role === role && !parts.some((part) => part.id === item.id)).map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</optgroup>)}
+                {roles.map((role) => <optgroup label={roleNames[role]} key={role}>{INGREDIENTS.filter((item) => item.role === role && !parts.some((part) => part.id === item.id)).map((item) => <option value={item.id} key={item.id}>{trText(locale, item.name)}</option>)}</optgroup>)}
               </select>
               <button className="button button-primary" type="button" onClick={addIngredient} disabled={!addId}>Add ingredient</button>
               <ShareButton
@@ -247,7 +250,7 @@ export default function LabTool() {
                     `${window.location.pathname}${window.location.search}`,
                     { v: 1, kind: "formula", parts: parts.map((part) => ({ ...part })) },
                   );
-                  return formulaReport(parts, result, { ...extra, shareUrl: url });
+                  return formulaReport(parts, result, { ...extra, shareUrl: url }, locale);
                 }}
               />
             </div>

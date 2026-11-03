@@ -3,6 +3,7 @@ import { DEFAULT_CONDITIONS, effectivePH } from "./conditions";
 import { benchPresets } from "./presets";
 import { REACTIONS } from "./reactions";
 import { simulate } from "./simulate";
+import { tr } from "../i18n";
 import type { Experiment, Part } from "./types";
 
 function experiment(
@@ -41,6 +42,18 @@ describe("bench simulation", () => {
       ]),
     );
     expect(beaker.warnings.some((warning) => warning.text.includes("Gels on contact into lumps"))).toBe(true);
+  });
+
+  it("localizes the alginate mixing warning to Spanish", () => {
+    const beaker = simulate(
+      experiment([
+        { id: "cacl2", pct: 5 },
+        { id: "alginate", pct: 5 },
+        { id: "water", pct: 90 },
+      ]),
+      "es",
+    );
+    expect(beaker.warnings[0]?.text).toBe(tr("es", "ui.gelsOnContactWarning"));
   });
 
   it("activates transglutaminase at its optimum and blocks it when denatured", () => {

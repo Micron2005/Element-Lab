@@ -74,6 +74,15 @@ describe("learning cards", () => {
     expect(card.askPrompt).not.toContain("Water's bonds");
   });
 
+  it("localizes the water learning card to Spanish", () => {
+    const water = KNOWN_MOLECULES.find((molecule) => molecule.id === "water");
+    if (!water) throw new Error("Water molecule is missing.");
+    const card = moleculeCard(water, "es");
+    expect(card.title).toBe("Agua (H₂O)");
+    expect(card.sections[0]?.heading).toBe("Qué es");
+    expect(card.sections[1]?.body).toContain("pares solitarios");
+  });
+
   it("uses the fizz event and product label from the simulated mix run", () => {
     const quest = QUESTS.find((item) => item.id === "mix-fizz");
     if (!quest || quest.chapter !== "mixing") throw new Error("Mix fizz quest is missing.");

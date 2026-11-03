@@ -3,6 +3,7 @@ import { CUSTOM_PREFIX } from "./custom";
 import { benchById } from "./library";
 import { fluidFromMix } from "./shootTest";
 import type { BenchIngredient, Experiment, RunResult } from "./types";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
 
 export type TestTone = "good" | "warn" | "bad";
 
@@ -44,9 +45,9 @@ function activeEvents(result: RunResult): Set<string> {
   return new Set(result.events.filter((event) => event.activity > 0).map((event) => event.id));
 }
 
-function displayNumber(value: number, digits = 3): string {
+function displayNumber(value: number, digits = 3, locale: Locale = DEFAULT_LOCALE): string {
   if (!Number.isFinite(value)) return "—";
-  return Number(value.toPrecision(digits)).toLocaleString("en-US");
+  return Number(value.toPrecision(digits)).toLocaleString(locale === "es" ? "es" : "en-US");
 }
 
 function unsafeReport<V extends string>(confidence: number): TestReport<V> {
@@ -122,10 +123,11 @@ function emptyStretch(
   };
 }
 
-export function stretchTest(
+function stretchTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: StretchSetup,
+  locale: Locale,
 ): StretchReport {
   if (result.product === "dangerous") {
     return emptyStretch(
@@ -192,17 +194,17 @@ export function stretchTest(
     ? "Pulled slowly, the slime flows and thins out before it breaks."
     : snaps
       ? "Pulled fast, the slime snaps like a solid."
-      : `Breaks at ${displayNumber(breakN)} N after stretching ${displayNumber(elongationPct, 3)}%.`;
+      : `Breaks at ${displayNumber(breakN, 3, locale)} N after stretching ${displayNumber(elongationPct, 3, locale)}%.`;
   return {
     verdict,
     tone: flows || snaps ? "warn" : "good",
     headline,
     notes,
     metrics: [
-      { label: "Breaking force", value: `${displayNumber(breakN)} N` },
-      { label: "Holds", value: `${displayNumber(holdsKg)} kg` },
-      { label: "Length at break", value: `${displayNumber(breakLengthMm)} mm` },
-      { label: "Energy to break", value: `${displayNumber(energyJ)} J` },
+      { label: "Breaking force", value: `${displayNumber(breakN, 3, locale)} N` },
+      { label: "Holds", value: `${displayNumber(holdsKg, 3, locale)} kg` },
+      { label: "Length at break", value: `${displayNumber(breakLengthMm, 3, locale)} mm` },
+      { label: "Energy to break", value: `${displayNumber(energyJ, 3, locale)} J` },
     ],
     confidence: result.confidence,
     curve,
@@ -312,11 +314,13 @@ function heatTone(verdict: HeatVerdict): TestTone {
   return "bad";
 }
 
-function displayTime(seconds: number): string {
-  return seconds > 7 * 24 * 60 * 60 ? "more than a week" : fmtTime(seconds);
+function displayTime(seconds: number, locale: Locale): string {
+  return seconds > 7 * 24 * 60 * 60
+    ? locale === "es" ? "más de una semana" : "more than a week"
+    : fmtTime(seconds, locale);
 }
 
-export function heatTest(
+function heatTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: HeatSetup,
@@ -627,10 +631,11 @@ const LIQUID_LABELS: Record<DissolveLiquid, string> = {
   alkaline: "Alkaline water",
 };
 
-export function dissolveTest(
+function dissolveTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: DissolveSetup,
+  locale: Locale,
 ): DissolveReport {
   const parts = presentIngredients(experiment);
   const liquidLabel = LIQUID_LABELS[setup.liquid];
@@ -776,13 +781,13 @@ export function dissolveTest(
     timeSeconds === null
       ? "—"
       : verdict === "swells"
-        ? `Swells over ~${displayTime(timeSeconds)}`
-        : displayTime(timeSeconds);
+        ? `Swells over ~${displayTime(timeSeconds, locale)}`
+        : displayTime(timeSeconds, locale);
   const headline =
     verdict === "dissolves"
-      ? `Dissolves in about ${displayTime(timeSeconds ?? 0)}.`
+      ? `Dissolves in about ${displayTime(timeSeconds ?? 0, locale)}.`
       : verdict === "swells"
-        ? `Swells over about ${displayTime(timeSeconds ?? 0)}.`
+        ? `Swells over about ${displayTime(timeSeconds ?? 0, locale)}.`
         : "No visible change in this liquid.";
   return {
     verdict,
@@ -831,10 +836,11 @@ export const STICK_SURFACE_LABELS: Record<StickSurface, string> = {
   skin: "Skin",
 };
 
-export function stickTest(
+function stickTestCore(
   _experiment: Experiment,
   result: RunResult,
   setup: StickSetup,
+  locale: Locale,
 ): StickReport {
   if (result.product === "dangerous") {
     return {
@@ -912,12 +918,12 @@ export function stickTest(
     headline: liquidNoStick
       ? "It runs off; there's nothing tacky to hold."
       : verdict === "sticks"
-        ? `Holds about ${displayNumber(holdsKg)} kg on ${STICK_SURFACE_LABELS[setup.surface]}.`
-        : `It holds only about ${displayNumber(holdsKg)} kg on ${STICK_SURFACE_LABELS[setup.surface]}.`,
+        ? `Holds about ${displayNumber(holdsKg, 3, locale)} kg on ${STICK_SURFACE_LABELS[setup.surface]}.`
+        : `It holds only about ${displayNumber(holdsKg, 3, locale)} kg on ${STICK_SURFACE_LABELS[setup.surface]}.`,
     notes,
     metrics: [
-      { label: "Holds", value: `${displayNumber(holdsKg)} kg` },
-      { label: "Bond strength", value: `${displayNumber(bondMPa)} MPa` },
+      { label: "Holds", value: `${displayNumber(holdsKg, 3, locale)} kg` },
+      { label: "Bond strength", value: `${displayNumber(bondMPa, 3, locale)} MPa` },
       { label: "Set", value: `${Math.round(cureFrac * 100)}%` },
       {
         label: "How it fails",
@@ -961,10 +967,11 @@ export interface DropReport extends TestReport<DropVerdict> {
   massKg: number;
 }
 
-export function dropTest(
+function dropTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: DropSetup,
+  locale: Locale,
 ): DropReport {
   if (result.product === "dangerous") {
     return {
@@ -1014,7 +1021,7 @@ export function dropTest(
     verdict = "survives";
     headline =
       bounceM > 0.01
-        ? `Survives and bounces back up about ${displayNumber(bounceM)} m.`
+        ? `Survives and bounces back up about ${displayNumber(bounceM, 3, locale)} m.`
         : "Survives the drop.";
   }
   const tone: TestTone =
@@ -1029,13 +1036,13 @@ export function dropTest(
     headline,
     notes: ["Ignores air drag, so long drops are overestimated."],
     metrics: [
-      { label: "Impact speed", value: `${displayNumber(impactSpeedMs)} m/s` },
-      { label: "Impact energy", value: `${displayNumber(energyJ)} J` },
+      { label: "Impact speed", value: `${displayNumber(impactSpeedMs, 3, locale)} m/s` },
+      { label: "Impact energy", value: `${displayNumber(energyJ, 3, locale)} J` },
       {
         label: "Bounce height",
-        value: verdict === "survives" ? `${displayNumber(bounceM)} m` : "—",
+        value: verdict === "survives" ? `${displayNumber(bounceM, 3, locale)} m` : "—",
       },
-      { label: "Weight", value: `${displayNumber(massKg * 1000)} g` },
+      { label: "Weight", value: `${displayNumber(massKg * 1000, 3, locale)} g` },
     ],
     confidence: result.confidence,
     bounceM: verdict === "survives" ? bounceM : null,
@@ -1043,4 +1050,49 @@ export function dropTest(
     energyJ,
     massKg,
   };
+}
+
+export function stretchTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: StretchSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): StretchReport {
+  return translateTree(locale, stretchTestCore(experiment, result, setup, locale));
+}
+
+export function heatTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: HeatSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): HeatReport {
+  return translateTree(locale, heatTestCore(experiment, result, setup));
+}
+
+export function dissolveTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: DissolveSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): DissolveReport {
+  return translateTree(locale, dissolveTestCore(experiment, result, setup, locale));
+}
+
+export function stickTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: StickSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): StickReport {
+  return translateTree(locale, stickTestCore(experiment, result, setup, locale));
+}
+
+export function dropTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: DropSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): DropReport {
+  return translateTree(locale, dropTestCore(experiment, result, setup, locale));
 }

@@ -9,6 +9,7 @@ import {
 } from "./shootTest";
 import { simulate } from "./simulate";
 import type { Conditions, Experiment, Part, RunResult } from "./types";
+import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
 
 export interface TwoPartSetup {
   ratioA: number;
@@ -135,10 +136,11 @@ export function tipOutcome(result: RunResult): string {
   return result.productLabel;
 }
 
-export function checkCartridge(
+function checkCartridgeCore(
   label: "A" | "B",
   parts: Part[],
   conditions: Conditions,
+  locale: Locale,
 ): CartridgeCheck {
   const positiveParts = parts.filter(
     (part) => Number.isFinite(part.pct) && part.pct > 0,
@@ -188,7 +190,7 @@ export function checkCartridge(
   ) {
     return check(
       "sets-in-cartridge",
-      `Cartridge ${label} sets in about ${fmtTime(result.setSeconds)} on its own and would clog. Move the setting agent to the other cartridge.`,
+      `Cartridge ${label} sets in about ${fmtTime(result.setSeconds, locale)} on its own and would clog. Move the setting agent to the other cartridge.`,
     );
   }
 
@@ -196,6 +198,15 @@ export function checkCartridge(
     null,
     `Stays liquid (${viscosityText(viscosityPas)} Pa·s).`,
   );
+}
+
+export function checkCartridge(
+  label: "A" | "B",
+  parts: Part[],
+  conditions: Conditions,
+  locale: Locale = DEFAULT_LOCALE,
+): CartridgeCheck {
+  return translateTree(locale, checkCartridgeCore(label, parts, conditions, locale));
 }
 
 export function clogsAtTip(
@@ -208,14 +219,15 @@ export function clogsAtTip(
   return setSeconds <= residenceSeconds;
 }
 
-export function twoPartShoot(
+function twoPartShootCore(
   a: Experiment,
   bParts: Part[],
   ratio: TwoPartSetup,
   setup: ShotSetup,
+  locale: Locale,
 ): TwoPartReport {
-  const aCheck = checkCartridge("A", a.parts, a.conditions);
-  const bCheck = checkCartridge("B", bParts, a.conditions);
+  const aCheck = checkCartridge("A", a.parts, a.conditions, locale);
+  const bCheck = checkCartridge("B", bParts, a.conditions, locale);
   if (aCheck.issue || bCheck.issue) {
     return {
       a: aCheck,
@@ -232,7 +244,7 @@ export function twoPartShoot(
   const result = simulate(experiment);
   const combined = { experiment, result };
   const clogsNozzle = clogsAtTip(result.setSeconds, setup);
-  const predictedShot = shootTest(experiment, result, setup);
+  const predictedShot = shootTest(experiment, result, setup, locale);
   const shot = clogsNozzle ? null : predictedShot;
   const volumeMl = predictedShot.jet?.volumeMl;
   const [shareA, shareB] = ratioShares(ratio);
@@ -252,13 +264,13 @@ export function twoPartShoot(
       clogsNozzle,
       shot,
       shotsPerCartridge,
-      headline: `Sets inside the nozzle (in ${fmtTime(result.setSeconds)}) and clogs the tip.`,
+      headline: `Sets inside the nozzle (in ${fmtTime(result.setSeconds, locale)}) and clogs the tip.`,
     };
   }
 
   const combinationHeadline =
     result.setSeconds > 0
-      ? `A and B combine at the tip and set in ${fmtTime(result.setSeconds)}.`
+      ? `A and B combine at the tip and set in ${fmtTime(result.setSeconds, locale)}.`
       : "A and B combine at the tip; the combined mix doesn't set on its own.";
   return {
     a: aCheck,
@@ -269,6 +281,16 @@ export function twoPartShoot(
     shotsPerCartridge,
     headline: `${combinationHeadline} ${predictedShot.headline}`,
   };
+}
+
+export function twoPartShoot(
+  a: Experiment,
+  bParts: Part[],
+  ratio: TwoPartSetup,
+  setup: ShotSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): TwoPartReport {
+  return translateTree(locale, twoPartShootCore(a, bParts, ratio, setup, locale));
 }
 
 export function parseStoredCartridgeB(raw: unknown): Part[] {
