@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { reportFileName, type LabReportDoc, type ReportExtra } from "@/lib/labReport";
+import { useT } from "./LocaleProvider";
 
 export default function LabReportButton({
   build,
@@ -10,6 +11,7 @@ export default function LabReportButton({
   build: (extra: ReportExtra) => LabReportDoc | null;
   disabledReason?: string;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [student, setStudent] = useState("");
   const [nameReady, setNameReady] = useState(false);
@@ -46,7 +48,7 @@ export default function LabReportButton({
         ...(student.trim() ? { student: student.trim() } : {}),
         ...(question.trim() ? { question: question.trim() } : {}),
       });
-      if (!doc) throw new Error("The report is not ready.");
+      if (!doc) throw new Error(t("report.notReady"));
       const { renderLabReportBlob } = await import("@/lib/labReportPdf");
       const blob = await renderLabReportBlob(doc);
       const url = URL.createObjectURL(blob);
@@ -55,9 +57,9 @@ export default function LabReportButton({
       anchor.download = reportFileName(doc);
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      setStatus("Report downloaded");
+      setStatus(t("report.downloaded"));
     } catch {
-      setStatus("Couldn't make the PDF. Try again.");
+      setStatus(t("report.failed"));
     }
   }
 
@@ -68,16 +70,16 @@ export default function LabReportButton({
         type="button"
         disabled={Boolean(disabledReason)}
         title={disabledReason}
-        aria-label={disabledReason ?? "Lab report (PDF)"}
+        aria-label={disabledReason ?? t("ui.labReportPdf")}
         style={{ minHeight: 44 }}
         onClick={() => setOpen((value) => !value)}
       >
-        {disabledReason ?? "Lab report (PDF)"}
+        {disabledReason ?? t("ui.labReportPdf")}
       </button>
       {open && !disabledReason && (
         <div className="lab-report-form" style={{ display: "grid", gap: 10, padding: 12, border: "1px solid #334447", borderRadius: 8 }}>
           <label className="lab-report-field" style={{ display: "grid", gap: 5 }}>
-            <span>Your name (optional)</span>
+            <span>{t("report.nameOptional")}</span>
             <input
               className="input"
               type="text"
@@ -85,10 +87,10 @@ export default function LabReportButton({
               style={{ fontSize: 16 }}
               onChange={(event) => setStudent(event.target.value)}
             />
-            <span className="small muted">Saved on this device only.</span>
+            <span className="small muted">{t("report.savedLocal")}</span>
           </label>
           <label className="lab-report-field" style={{ display: "grid", gap: 5 }}>
-            <span>Question you were testing (optional)</span>
+            <span>{t("report.questionOptional")}</span>
             <input
               className="input"
               type="text"
@@ -98,7 +100,7 @@ export default function LabReportButton({
             />
           </label>
           <button className="button button-primary" type="button" style={{ minHeight: 44 }} onClick={() => void download()}>
-            Download PDF
+            {t("report.downloadPdf")}
           </button>
           {status && <span role="status" aria-live="polite">{status}</span>}
         </div>

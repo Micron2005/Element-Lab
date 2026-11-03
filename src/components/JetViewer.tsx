@@ -5,6 +5,7 @@ import type { jet } from "@/lib/physics";
 import type { ShotSetup } from "@/lib/bench/shootTest";
 import { PlaybackControls, prepareCanvas, useCanvasWidth, usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
+import { useT } from "./LocaleProvider";
 import "./viewer.css";
 
 type JetResult = ReturnType<typeof jet>;
@@ -195,6 +196,7 @@ export default function JetViewer({
   setSeconds: number;
   twoPart?: { ratioA: number; ratioB: number };
 }) {
+  const { t } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(4, true, reducedMotion);
   const { ref, width } = useCanvasWidth();
@@ -224,15 +226,15 @@ export default function JetViewer({
   return (
     <div className="viewer">
       <div className="viewer-stage">
-        <canvas ref={ref} role="img" aria-label="Nozzle shot trajectory with sag and breakup" />
+        <canvas ref={ref} role="img" aria-label={t("viewer.nozzleTrajectory")} />
         <div className="viewer-hud">
           <div>
-            <strong>Shot path</strong>
+            <strong>{t("viewer.shotPath")}</strong>
             Gravity bends the strand downward
-            {twoPart && <span className="viewer-two-part-label">A + B mix at tip</span>}
+            {twoPart && <span className="viewer-two-part-label">{t("viewer.twoPartMix")}</span>}
           </div>
           <div className="viewer-clock">
-            <strong>Real time</strong>
+            <strong>{t("viewer.realTime")}</strong>
             {realTime.toFixed(2)} s / {result.flightS.toFixed(2)} s
           </div>
         </div>

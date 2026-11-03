@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { decayChain, neutronHit, nucleusRef, type NuclearStep, type NucleusRef } from "../lib/nuclearScene";
 import { PlaybackControls, prepareCanvas, useCanvasWidth, usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
+import { useT } from "./LocaleProvider";
 import "./viewer.css";
 
 const STEP_SECONDS = 3.2;
@@ -474,6 +475,7 @@ export default function NucleusViewer({
   n: number;
   steps?: NuclearStep[];
 }) {
+  const { t: translate } = useT();
   const [mode, setMode] = useState<Mode>("decay");
   const defaultSteps = useMemo(
     () => (mode === "decay" ? decayChain(z, n) : [neutronHit(z, n)]),
@@ -513,25 +515,25 @@ export default function NucleusViewer({
   return (
     <div className="viewer">
       {!hasSuppliedSteps && (
-        <div className="viewer-modes" role="group" aria-label="What to watch">
+        <div className="viewer-modes" role="group" aria-label={translate("viewer.whatToWatch")}>
           <button
             type="button"
             className={`button ${mode === "decay" ? "button-primary" : "button-secondary"}`}
             onClick={() => choose("decay")}
           >
-            Watch it decay
+            {translate("viewer.watchDecay")}
           </button>
           <button
             type="button"
             className={`button ${mode === "neutron" ? "button-primary" : "button-secondary"}`}
             onClick={() => choose("neutron")}
           >
-            Fire a neutron at it
+            {translate("viewer.fireNeutron")}
           </button>
         </div>
       )}
       <div className="viewer-stage">
-        <canvas ref={ref} role="img" aria-label={step ? step.caption : "Nucleus animation"} />
+        <canvas ref={ref} role="img" aria-label={step ? step.caption : translate("viewer.nucleusAnimation")} />
         {step && (
           <div className="viewer-hud">
             <div>
@@ -541,7 +543,7 @@ export default function NucleusViewer({
               {KIND_LABEL[step.kind]}
             </div>
             <div className="viewer-clock">
-              <strong>Energy</strong>
+              <strong>{translate("viewer.energy")}</strong>
               {step.kind === "stable" ? "—" : `${step.energyMeV.toFixed(1)} MeV`}
             </div>
           </div>

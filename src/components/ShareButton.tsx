@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { shareUrl, type SharePayload } from "@/lib/share";
+import { useT } from "./LocaleProvider";
 
 export default function ShareButton({
   build,
@@ -12,6 +13,7 @@ export default function ShareButton({
   label: string;
   disabledReason?: string;
 }) {
+  const { t } = useT();
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +43,7 @@ export default function ShareButton({
 
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: "Science Lab experiment", url });
+        await navigator.share({ title: t("share.experimentTitle"), url });
         return;
       } catch (error) {
         if (
@@ -77,13 +79,13 @@ export default function ShareButton({
       >
         {disabledReason ?? label}
       </button>
-      {copied && <span className="share-status" aria-live="polite">Link copied</span>}
+      {copied && <span className="share-status" aria-live="polite">{t("share.linkCopied")}</span>}
       {link && (
         <input
           ref={inputRef}
           className="input share-link-input"
           type="text"
-          aria-label="Share link"
+          aria-label={t("share.linkLabel")}
           readOnly
           value={link}
         />

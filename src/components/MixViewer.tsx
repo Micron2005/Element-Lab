@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { realTimeAt, type MixScene, type ScenePhase } from "../lib/bench/scene";
 import { PlaybackControls, prepareCanvas, seededRandom, useCanvasWidth, usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
+import { useT } from "./LocaleProvider";
 import "./viewer.css";
 
 const DURATION_SECONDS = 16;
@@ -448,6 +449,7 @@ function formatSeconds(seconds: number) {
 }
 
 export default function MixViewer({ scene, resultLabel }: { scene: MixScene; resultLabel: string }) {
+  const { t: translate } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(DURATION_SECONDS, scene.finalShape !== "empty", reducedMotion);
   const { ref, width } = useCanvasWidth();
@@ -471,14 +473,14 @@ export default function MixViewer({ scene, resultLabel }: { scene: MixScene; res
   return (
     <div className="viewer">
       <div className="viewer-stage">
-        <canvas ref={ref} role="img" aria-label={`Animation of the experiment: ${phase?.label ?? ""}`} />
+        <canvas ref={ref} role="img" aria-label={translate("viewer.experimentAnimation", { phase: phase?.label ?? "" })} />
         <div className="viewer-hud">
           <div>
-            <strong>{phase?.id === "final" ? "Result" : phase?.id ?? ""}</strong>
+            <strong>{phase?.id === "final" ? translate("viewer.result") : phase?.id ?? ""}</strong>
             {phase?.label}
           </div>
           <div className="viewer-clock">
-            <strong>Lab time</strong>
+            <strong>{translate("viewer.labTime")}</strong>
             {formatSeconds(realTimeAt(scene, t))}
           </div>
         </div>

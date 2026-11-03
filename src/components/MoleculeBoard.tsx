@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { trText } from "@/lib/i18n";
 import { ATOMS, type AtomSymbol } from "@/lib/play/atoms";
 import {
   EMPTY_GRAPH,
@@ -15,6 +16,7 @@ import {
   type MolAtom,
   type MolGraph,
 } from "@/lib/play/molecule";
+import { useT } from "./LocaleProvider";
 
 const W = 360;
 const H = 300;
@@ -182,6 +184,7 @@ export default function MoleculeBoard({
   onGraphChange?: (graph: MolGraph) => void;
   onEdit?: () => void;
 }) {
+  const { locale, t } = useT();
   const [graph, setGraph] = useState<MolGraph>(EMPTY_GRAPH);
   const [history, setHistory] = useState<MolGraph[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -295,7 +298,7 @@ export default function MoleculeBoard({
 
   return (
     <div className="mol-board">
-      <div className="mol-palette" role="group" aria-label="Atoms">
+      <div className="mol-palette" role="group" aria-label={t("mol.atoms")}>
         {palette.map((el) => (
           <button
             key={el}
@@ -305,8 +308,8 @@ export default function MoleculeBoard({
           >
             <span className="mol-palette-dot" style={{ background: ATOMS[el].color, color: ATOMS[el].textColor }}>{el}</span>
             <span className="mol-palette-text">
-              <strong>{ATOMS[el].name}</strong>
-              <span>{ATOMS[el].valence} bond{ATOMS[el].valence === 1 ? "" : "s"}</span>
+              <strong>{trText(locale, ATOMS[el].name)}</strong>
+              <span>{t("mol.bondCount", { count: ATOMS[el].valence, suffix: ATOMS[el].valence === 1 ? "" : "s" })}</span>
             </span>
           </button>
         ))}
@@ -326,7 +329,7 @@ export default function MoleculeBoard({
             drag.current = null;
           }}
           role="application"
-          aria-label="Molecule board"
+          aria-label={t("mol.board")}
         >
           <MoleculeSvg
             graph={graph}
@@ -336,23 +339,22 @@ export default function MoleculeBoard({
           />
           {!graph.atoms.length && (
             <text className="mol-empty" x={W / 2} y={H / 2} textAnchor="middle">
-              Tap an atom above to add it
+              {t("mol.tapAtom")}
             </text>
           )}
         </svg>
         <p className="mol-readout" aria-live="polite">
           {graph.atoms.length
-            ? `On the board: ${prettyFormula(formula(graph))}${openBonds ? ` · ${openBonds} open bond${openBonds === 1 ? "" : "s"} (dots)` : " · every atom is satisfied"}`
-            : "Board is empty"}
+            ? openBonds
+              ? t("mol.openBonds", { formula: prettyFormula(formula(graph)), count: openBonds, suffix: openBonds === 1 ? "" : "s" })
+              : t("mol.satisfied", { formula: prettyFormula(formula(graph)) })
+            : t("mol.empty")}
           {notice && <span className="mol-notice">{notice}</span>}
         </p>
       </div>
-      <p className="mol-help">
-        Tap an atom to select it, then tap another to bond them. Tap again for a double or triple bond. With an atom
-        selected, new atoms snap onto it. Drag to move.
-      </p>
+      <p className="mol-help">{t("mol.help")}</p>
       <div className="mol-tools">
-        <button type="button" className="button button-secondary" onClick={undo} disabled={!history.length}>Undo</button>
+        <button type="button" className="button button-secondary" onClick={undo} disabled={!history.length}>{t("mol.undo")}</button>
         <button
           type="button"
           className="button button-secondary"
@@ -363,7 +365,7 @@ export default function MoleculeBoard({
             setSelected(null);
           }}
         >
-          Remove atom
+          {t("mol.removeAtom")}
         </button>
         <button
           type="button"
@@ -374,10 +376,10 @@ export default function MoleculeBoard({
             setSelected(null);
           }}
         >
-          Clear
+          {t("mol.clear")}
         </button>
         <button type="button" className="button button-primary mol-check" onClick={() => onCheck(graph)} disabled={!graph.atoms.length}>
-          Check molecule
+          {t("mol.check")}
         </button>
       </div>
     </div>

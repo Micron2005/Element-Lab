@@ -8,6 +8,10 @@ import { savePrefs } from "@/lib/prefs";
 import { useT } from "./LocaleProvider";
 import { usePrefs } from "./usePrefs";
 
+function setLocaleCookie(next: Locale) {
+  document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
 function Switch({
   id,
   label,
@@ -67,7 +71,7 @@ export default function DisplaySettings() {
   }
 
   function changeLocale(next: Locale) {
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
+    setLocaleCookie(next);
     router.refresh();
   }
 
@@ -91,13 +95,23 @@ export default function DisplaySettings() {
           hidden={!open}
         >
           <h2 id="display-settings-title">{t("display.title")}</h2>
-          <label className="display-setting display-language">
-            <span>{t("display.language")}</span>
-            <select className="select" value={locale} onChange={(event) => changeLocale(event.target.value as Locale)}>
-              <option value="en">{t("language.en")}</option>
-              <option value="es">{t("language.es")}</option>
-            </select>
-          </label>
+          <fieldset className="display-setting display-language">
+            <legend>{t("display.language")}</legend>
+            <div className="display-language-options" role="radiogroup" aria-label={t("display.language")}>
+              {(["en", "es"] as const).map((option) => (
+                <label className="display-language-option" key={option}>
+                  <input
+                    type="radio"
+                    name="display-language"
+                    value={option}
+                    checked={locale === option}
+                    onChange={() => changeLocale(option)}
+                  />
+                  <span>{t(option === "en" ? "language.en" : "language.es")}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <Switch
             id="display-beginner-label"
             label={t("display.beginner")}

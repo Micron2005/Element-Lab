@@ -16,6 +16,7 @@ import type {
 import { wrapCaption } from "@/lib/bench/svgText";
 import { usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
+import { useT } from "./LocaleProvider";
 
 export type TestViewerData =
   | { type: "stretch"; setup: StretchSetup; report: StretchReport }
@@ -391,6 +392,7 @@ function DropScene({
 }
 
 export default function TestViewer({ data }: { data: TestViewerData }) {
+  const { t } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(2.5, true, reducedMotion);
 
@@ -405,7 +407,7 @@ export default function TestViewer({ data }: { data: TestViewerData }) {
         className="bench-test-visual"
         viewBox="0 0 320 180"
         role="img"
-        aria-label={`${data.type} test animation`}
+        aria-label={t("viewer.testAnimation", { type: t(`bench.test.${data.type}`) })}
       >
         <title>{data.type} test model visual</title>
         {data.type === "stretch" && <StretchScene progress={playback.t} data={data} />}
@@ -418,7 +420,7 @@ export default function TestViewer({ data }: { data: TestViewerData }) {
         <button type="button" className="button button-secondary" onClick={replay}>
           Replay
         </button>
-        <span aria-live="polite">{reducedMotion ? "End state shown" : playback.playing ? "Playing" : "Animation complete"}</span>
+        <span aria-live="polite">{reducedMotion ? t("viewer.endState") : playback.playing ? t("viewer.playing") : t("viewer.animationComplete")}</span>
       </div>
     </div>
   );

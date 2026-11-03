@@ -68,9 +68,13 @@ function resultTone(dominant: string): "good" | "warn" | "bad" {
   return "bad";
 }
 
-function displayHalfLife(value: string | undefined, fallback: string): string {
-  if (value === "stable") return "Stable (measured)";
-  if (value !== undefined) return `${value} (measured)`;
+function displayHalfLife(
+  value: string | undefined,
+  fallback: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  if (value === "stable") return t("fusion.stableMeasured");
+  if (value !== undefined) return t("fusion.measuredHalfLife", { value });
   return fallback;
 }
 
@@ -93,7 +97,7 @@ export default function FusionPanel({
   onTarget: (z: number, n: number) => void;
   onExplore: (z: number, n: number) => void;
 }) {
-  const { locale } = useT();
+  const { locale, t } = useT();
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   const projectile = projectileFromId(projectileId);
   const report = useMemo(
@@ -123,7 +127,7 @@ export default function FusionPanel({
     ? measuredHalfLife(singleResidue.z, singleResidue.n)
     : undefined;
   const singleResidueHalfLife = singleResidue
-    ? displayHalfLife(singleResidueMeasuredHalfLife, report.residueReport?.halfLife ?? "")
+    ? displayHalfLife(singleResidueMeasuredHalfLife, report.residueReport?.halfLife ?? "", t)
     : "";
   const reactionKey = `${z}-${n}-${projectileId}-${beamLabMeV.toPrecision(8)}-${report.reaction}`;
   const beamSliderValue =
@@ -148,15 +152,15 @@ export default function FusionPanel({
 
   return (
     <Panel
-      title="Fusion: smash two nuclei together"
-      subtitle="Your nucleus above is the target. Pick what to fire at it."
+      title={t("fusion.title")}
+      subtitle={t("fusion.subtitle")}
     >
       <div className="fusion-content">
         <section className="fusion-recipes" aria-labelledby="fusion-recipes-title">
           <h3 id="fusion-recipes-title" className="section-label">
-            Real experiments
+            {t("fusion.realExperiments")}
           </h3>
-          <div className="fusion-recipe-list" role="group" aria-label="Real experiments">
+          <div className="fusion-recipe-list" role="group" aria-label={t("fusion.realExperiments")}>
             {FUSION_RECIPES.map((recipe) => (
               <button
                 key={recipe.id}
@@ -179,7 +183,7 @@ export default function FusionPanel({
         <div className="fusion-controls">
           <div>
             <label className="field-label" htmlFor="fusion-projectile">
-              Projectile
+              {t("fusion.projectile")}
             </label>
             <select
               className="select fusion-control"
@@ -199,7 +203,7 @@ export default function FusionPanel({
           </div>
           <div>
             <label className="field-label" htmlFor="fusion-beam-number">
-              Beam energy (lab, MeV)
+              {t("fusion.beamEnergy")}
             </label>
             <input
               className="input fusion-control"
@@ -214,7 +218,7 @@ export default function FusionPanel({
           </div>
           <div className="fusion-slider-field">
             <label className="field-label" htmlFor="fusion-beam-slider">
-              Beam energy scale: 0.001–2000 MeV
+              {t("fusion.beamScale")}
             </label>
             <input
               className="fusion-range"
@@ -235,7 +239,7 @@ export default function FusionPanel({
             type="button"
             onClick={setJustOverBarrier}
           >
-            Just over the barrier
+            {t("fusion.justOverBarrier")}
           </button>
         </div>
 
@@ -248,28 +252,28 @@ export default function FusionPanel({
               <p className="metric-value">{report.barrierMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Collision energy (CM)</span>
+              <span className="metric-label">{t("fusion.collisionEnergy")}</span>
               <p className="metric-value">{report.ecmMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Q value</span>
+              <span className="metric-label">{t("fusion.qValue")}</span>
               <p className="metric-value">{report.qMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Excitation</span>
+              <span className="metric-label">{t("fusion.excitation")}</span>
               <p className="metric-value">{report.excitationMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Particles off</span>
+              <span className="metric-label">{t("fusion.particlesOff")}</span>
               <p className="metric-value">{particleSummary(report.emitted)}</p>
             </div>
             <div className="metric-card">
               <span className="metric-label">
                 {report.residue.length === 0
-                  ? "Energy released"
+                  ? t("fusion.energyReleased")
                   : report.energyReleasedMeV < 0
-                    ? "Energy cost"
-                    : "Energy released"}
+                    ? t("fusion.energyCost")
+                    : t("fusion.energyReleased")}
               </span>
               <p className="metric-value">
                 {report.residue.length === 0
@@ -278,12 +282,12 @@ export default function FusionPanel({
               </p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Chance per hit</span>
+              <span className="metric-label">{t("fusion.chancePerHit")}</span>
               <p className="metric-value">{fmtOneIn(report.chancePerCollision, locale)}</p>
             </div>
             {report.light ? (
               <div className="metric-card">
-                <span className="metric-label">Plasma temperature</span>
+                <span className="metric-label">{t("fusion.plasmaTemperature")}</span>
                 <p className="metric-value">{report.plasmaMillionC?.toFixed(2)} million °C</p>
               </div>
             ) : (
@@ -293,7 +297,7 @@ export default function FusionPanel({
                   <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0, locale)}</p>
                 </div>
                 <div className="metric-card">
-                  <span className="metric-label">Atoms/day</span>
+                  <span className="metric-label">{t("fusion.atomsPerDay")}</span>
                   <p className="metric-value">{formatAtomsPerDay(report.atomsPerDay ?? 0, locale)}</p>
                 </div>
               </>
@@ -301,17 +305,17 @@ export default function FusionPanel({
           </div>
 
           <div className="fusion-residue">
-            <p className="section-label">{report.residue.length === 1 ? "Residue" : "Products"}</p>
+            <p className="section-label">{report.residue.length === 1 ? t("fusion.residue") : t("fusion.products")}</p>
             {report.residue.length === 1 && report.residueReport ? (
               <>
                 <div className="fusion-residue-heading">
                   <strong>{report.residue[0].name}</strong>
                   <span className={`badge ${report.residueReport.known ? "badge-good" : "badge-warn"}`}>
-                    {report.residueReport.known ? "Known" : "Hypothetical"}
+                    {report.residueReport.known ? t("fusion.known") : t("fusion.hypothetical")}
                   </span>
                 </div>
                 <p className="fusion-half-life">
-                  Half-life: {singleResidueHalfLife}
+                  {t("fusion.halfLife", { value: singleResidueHalfLife })}
                 </p>
                 {singleResidueMeasuredHalfLife === undefined ? (
                   <p className={`fusion-verdict ${report.residueReport.bound ? "good" : "bad"}`}>
@@ -320,9 +324,9 @@ export default function FusionPanel({
                 ) : (
                   <>
                     {singleResidueMeasuredHalfLife !== "stable" && (
-                      <p className="fusion-verdict">Radioactive (measured half-life)</p>
+                    <p className="fusion-verdict">{t("fusion.radioactiveMeasured")}</p>
                     )}
-                    <span className="badge badge-neutral">Measured</span>
+                    <span className="badge badge-neutral">{t("fusion.measured")}</span>
                   </>
                 )}
                 <button
@@ -330,7 +334,7 @@ export default function FusionPanel({
                   type="button"
                   onClick={() => onExplore(report.residue[0].z, report.residue[0].n)}
                 >
-                  Explore {residueName}
+                  {t("fusion.explore", { name: residueName })}
                 </button>
               </>
             ) : report.residue.length > 1 ? (
@@ -344,11 +348,11 @@ export default function FusionPanel({
                       <span className="fusion-product-heading">
                         <strong>{item.name}</strong>
                         <span className={`badge ${element.known ? "badge-good" : "badge-warn"}`}>
-                          {element.known ? "Known" : "Hypothetical"}
+                          {element.known ? t("fusion.known") : t("fusion.hypothetical")}
                         </span>
                       </span>
                       <span className="fusion-half-life">
-                        Half-life: {displayHalfLife(measured, analysis.halfLife)}
+                        {t("fusion.halfLife", { value: displayHalfLife(measured, analysis.halfLife, t) })}
                       </span>
                       {measured === undefined ? (
                         <span className={`fusion-verdict ${analysis.bound ? "good" : "bad"}`}>
@@ -357,9 +361,9 @@ export default function FusionPanel({
                       ) : (
                         <>
                           {measured !== "stable" && (
-                            <span className="fusion-verdict">Radioactive (measured half-life)</span>
+                            <span className="fusion-verdict">{t("fusion.radioactiveMeasured")}</span>
                           )}
-                          <span className="badge badge-neutral">Measured</span>
+                          <span className="badge badge-neutral">{t("fusion.measured")}</span>
                         </>
                       )}
                     </span>
@@ -367,7 +371,7 @@ export default function FusionPanel({
                 })}
               </div>
             ) : (
-              <p className="muted small">No residue forms on this path.</p>
+              <p className="muted small">{t("fusion.noResidue")}</p>
             )}
           </div>
 

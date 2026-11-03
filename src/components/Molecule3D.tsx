@@ -5,8 +5,9 @@ import { angleAt, embed3D } from "@/lib/play/geometry3d";
 import type { Atom3D } from "@/lib/play/geometry3d";
 import type { AtomSymbol } from "@/lib/play/atoms";
 import type { MolBond, MolGraph } from "@/lib/play/molecule";
+import { useT } from "./LocaleProvider";
 import { useReducedMotion } from "./useReducedMotion";
-import { Term } from "./Term";
+import { trText } from "@/lib/i18n";
 
 const SCALE = 100;
 const INITIAL_YAW = -0.48;
@@ -82,6 +83,7 @@ function centerAngle(graph: MolGraph) {
 }
 
 export default function Molecule3D({ graph, label }: { graph: MolGraph; label: string }) {
+  const { locale, t } = useT();
   const embedded = useMemo(() => embed3D(graph), [graph]);
   const idPrefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const reducedMotion = useReducedMotion();
@@ -188,7 +190,7 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
         viewBox={`${minX} ${minY} ${viewWidth} ${viewHeight}`}
         role="img"
         tabIndex={0}
-        aria-label={`${label} Drag or use arrow keys to rotate`}
+        aria-label={t("ui.moleculeRotate", { label: trText(locale, label) })}
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
@@ -268,7 +270,7 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
         </button>
       </div>
       {measuredAngle !== null && (
-        <p className="molecule3d-angle">Measured <Term id="bond-angle">bond angle</Term> in the model: {measuredAngle.toFixed(1)}°</p>
+        <p className="molecule3d-angle">{t("ui.measuredBondAngle", { term: t("ui.bondAngle"), angle: measuredAngle.toFixed(1) })}</p>
       )}
     </div>
   );
