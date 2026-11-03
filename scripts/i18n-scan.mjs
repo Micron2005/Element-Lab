@@ -163,7 +163,14 @@ function dataPropertyAllowlist(sourceFiles) {
       if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))) {
         const propertyName = node.name.text;
         const value = stringValue(node.initializer);
-        if (value !== undefined && ["name", "formula", "symbol", "pubchemName"].includes(propertyName)) values.add(value);
+        const parent = node.parent;
+        const hasChemicalIdentifier = ts.isObjectLiteralExpression(parent) && parent.properties.some((property) =>
+          ts.isPropertyAssignment(property) &&
+          (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+          ["formula", "symbol"].includes(property.name.text),
+        );
+        if (value !== undefined && ["formula", "symbol", "pubchemName"].includes(propertyName)) values.add(value);
+        if (value !== undefined && propertyName === "name" && hasChemicalIdentifier) values.add(value);
       }
       ts.forEachChild(node, visit);
     }
@@ -197,7 +204,8 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
   const translatedValueNodes = new WeakSet();
 
   function markTree(node) {
-    translatedValueNodes.add(node);
+    const text = stringValue(node);
+    if (text !== undefined && englishValues.has(text)) translatedValueNodes.add(node);
     ts.forEachChild(node, markTree);
   }
 
