@@ -4,17 +4,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export const PLAYBACK_SPEEDS = [0.5, 1, 2, 4] as const;
 
-export function usePlayback(durationSeconds: number, autoplay: boolean) {
-  const [t, setT] = useState(0);
-  const [playing, setPlaying] = useState(autoplay);
+export function usePlayback(durationSeconds: number, autoplay: boolean, reducedMotion = false) {
+  const initialTime = reducedMotion && autoplay ? 1 : 0;
+  const [t, setT] = useState(initialTime);
+  const [playing, setPlaying] = useState(autoplay && !reducedMotion);
   const [speed, setSpeed] = useState(1);
-  const tRef = useRef(0);
+  const tRef = useRef(initialTime);
 
   const seek = useCallback((value: number) => {
     const next = Math.min(1, Math.max(0, value));
     tRef.current = next;
     setT(next);
   }, []);
+
+  useEffect(() => {
+    if (!reducedMotion || !autoplay) return;
+    const frame = requestAnimationFrame(() => {
+      seek(1);
+      setPlaying(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [autoplay, reducedMotion, seek]);
 
   useEffect(() => {
     if (!playing) return;

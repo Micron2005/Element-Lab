@@ -1,0 +1,40 @@
+.glossary-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.glossary-group h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+
+.glossary-group dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.glossary-entry {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 100px;
+}
+
+.glossary-entry dt {
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.glossary-entry dd {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.glossary-entry .glossary-example {
+  margin-top: 4px;
+}
+
+html[data-contrast="1"] .glossary-group {
+  border-color: var(--line);
+}

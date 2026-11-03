@@ -38,6 +38,7 @@ import type {
 } from "@/lib/bench/types";
 import "./bench.css";
 import QuestBanner from "./QuestBanner";
+import { Term } from "./Term";
 
 type IngredientFilter =
   | "All"
@@ -753,7 +754,7 @@ export default function BenchTool() {
   }
 
   return (
-    <main className="bench-page">
+    <div className="bench-page">
       <Suspense fallback={null}>
         <QuestBanner mode="mix" experiment={lastRunExperiment} result={result} />
       </Suspense>
@@ -1047,7 +1048,7 @@ export default function BenchTool() {
             onChange={(value) => setCondition("tempC", value)}
           />
           <div className="bench-field">
-            <span className="bench-field-label">pH (from your ingredients)</span>
+            <span className="bench-field-label"><Term id="ph">pH</Term> (from your ingredients)</span>
             <output className="bench-ph-value">{livePH.toFixed(1)}</output>
             <span className="bench-ph-hint">
               Comes from what you add. Add an acid (vinegar, citric acid) to lower it, or a base
@@ -1228,7 +1229,7 @@ export default function BenchTool() {
             Results appear after you run an experiment. Your input changes are not simulated until Run.
           </div>
         ) : (
-          <div className="bench-results">
+          <div className="bench-results" aria-live="polite">
             <div className={`bench-product bench-product-${result.product}`}>
               <div>
                 <span className="bench-product-label">Estimated product</span>
@@ -1237,7 +1238,7 @@ export default function BenchTool() {
               </div>
               <span className="bench-confidence">
                 {result.confidence >= 0.8 ? "High" : result.confidence >= 0.5 ? "Medium" : "Low"}{" "}
-                confidence · {Math.round(result.confidence * 100)}%
+                <Term id="confidence">confidence</Term> · {Math.round(result.confidence * 100)}%
               </span>
             </div>
             {scene && (
@@ -1291,7 +1292,7 @@ export default function BenchTool() {
                       </span>
                       <div>
                         <div className="bench-event-title">
-                          <strong>{event.name}</strong>
+                          <strong><TermLabel label={event.name} /></strong>
                           <span>{event.status} · activity {event.activity.toFixed(2)}</span>
                         </div>
                         <p>{event.mechanism}</p>
@@ -1616,7 +1617,7 @@ export default function BenchTool() {
                   {comparison.conditions.map((condition) => (
                     <tr key={`condition-${condition.label}`}>
                       <th scope="row">
-                        {condition.label}
+                        <TermLabel label={condition.label} />
                         {condition.changed && <ChangedTag />}
                       </th>
                       {condition.values.map((value, index) => <td key={index}>{value}</td>)}
@@ -1626,7 +1627,7 @@ export default function BenchTool() {
                   {comparison.measures.map((measure) => (
                     <tr key={`measure-${measure.label}`}>
                       <th scope="row">
-                        {measure.label}
+                        <TermLabel label={measure.label} />
                         {measure.values.some((value) => value !== measure.values[0]) && <ChangedTag />}
                       </th>
                       {measure.values.map((value, index) => (
@@ -1691,14 +1692,14 @@ export default function BenchTool() {
         Rule-based estimates from known chemistry. Unknown combinations are flagged, not guessed.
         Don&apos;t try risky mixes for real.
       </p>
-    </main>
+    </div>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bench-metric">
-      <span>{label}</span>
+      <span><TermLabel label={label} /></span>
       <strong>{value}</strong>
     </div>
   );
@@ -1707,10 +1708,61 @@ function Metric({ label, value }: { label: string; value: string }) {
 function SafetyMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bench-safety">
-      <span>{label}</span>
+      <span><TermLabel label={label} /></span>
       <strong>{value}</strong>
     </div>
   );
+}
+
+const TERM_LABELS: Record<string, import("@/lib/glossary").TermId> = {
+  mpa: "mpa",
+  pka: "pka",
+  "tensile strength": "tensile-strength",
+  stretch: "stretch",
+  tack: "tack",
+  stickiness: "tack",
+  toughness: "toughness",
+  "set time": "set-time",
+  viscosity: "viscosity",
+  density: "density",
+  "surface tension": "surface-tension",
+  ph: "ph",
+  acid: "acid",
+  base: "base",
+  buffer: "buffer",
+  polymer: "polymer",
+  polymers: "polymer",
+  proteins: "protein",
+  crosslink: "crosslink",
+  plasticizer: "plasticizer",
+  solvent: "solvent",
+  solvents: "solvent",
+  filler: "filler",
+  enzyme: "enzyme",
+  enzymes: "enzyme",
+  protein: "protein",
+  hydrogel: "hydrogel",
+  toxicity: "toxicity",
+  confidence: "confidence",
+  "half-life": "half-life",
+  fission: "fission",
+  fusion: "fusion",
+  "binding energy": "binding-energy",
+  "mass number": "mass-number",
+  fissility: "fissility",
+};
+
+function TermLabel({ label }: { label: string }) {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === "acids/bases") {
+    return <><Term id="acid">Acids</Term> / <Term id="base">Bases</Term></>;
+  }
+  if (normalized.startsWith("toxicity")) {
+    const start = label.toLowerCase().indexOf("toxicity");
+    return <>{label.slice(0, start)}<Term id="toxicity">Toxicity</Term>{label.slice(start + "toxicity".length)}</>;
+  }
+  const id = TERM_LABELS[normalized];
+  return id ? <Term id={id}>{label}</Term> : label;
 }
 
 function ComparisonSection({ heading, colSpan }: { heading: string; colSpan: number }) {

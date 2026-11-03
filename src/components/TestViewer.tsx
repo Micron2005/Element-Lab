@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { fmtTime } from "@/lib/formula";
 import type {
   DissolveReport,
@@ -16,6 +15,7 @@ import type {
 } from "@/lib/bench/materialTests";
 import { wrapCaption } from "@/lib/bench/svgText";
 import { usePlayback } from "./usePlayback";
+import { useReducedMotion } from "./useReducedMotion";
 
 export type TestViewerData =
   | { type: "stretch"; setup: StretchSetup; report: StretchReport }
@@ -391,19 +391,8 @@ function DropScene({
 }
 
 export default function TestViewer({ data }: { data: TestViewerData }) {
-  const playback = usePlayback(2.5, true);
-  const seek = playback.seek;
-  const [reducedMotion, setReducedMotion] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const applyPreference = () => {
-      setReducedMotion(query.matches);
-      if (query.matches) seek(1);
-    };
-    applyPreference();
-    query.addEventListener("change", applyPreference);
-    return () => query.removeEventListener("change", applyPreference);
-  }, [seek]);
+  const reducedMotion = useReducedMotion();
+  const playback = usePlayback(2.5, true, reducedMotion);
 
   const replay = () => {
     if (reducedMotion) playback.seek(1);

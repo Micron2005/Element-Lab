@@ -28,6 +28,7 @@ import {
   usePlayProgress,
 } from "./usePlayProgress";
 import { dailyFor, dailyKey, streak } from "@/lib/play/daily";
+import { Term } from "./Term";
 import { KNOWN_MOLECULES } from "@/lib/play/molecule";
 import { compileTemplate, describeTargets, type MixTargets, type QuestTemplate } from "@/lib/play/templates";
 import {
@@ -69,7 +70,7 @@ function subscribeToToday() {
 
 export function StarRow({ stars }: { stars: number }) {
   return (
-    <span className="play-stars" aria-label={`${stars} of 3 stars`}>
+    <span className="play-stars" role="img" aria-label={`${stars} of 3 stars`}>
       {[0, 1, 2].map((index) => (
         <span key={index} className={index < stars ? "on" : ""} aria-hidden="true">★</span>
       ))}
@@ -88,7 +89,8 @@ function MoleculeCard({ molecule }: { molecule: KnownMolecule }) {
         <h3>
           {molecule.name} <span className="play-formula">{prettyFormula(molecule.formula)}</span>
         </h3>
-        <p><strong>Shape:</strong> {molecule.shape}{molecule.angle ? ` · ${molecule.angle}` : ""}</p>
+        <p><strong><Term id="molecule">Molecule</Term> shape:</strong> {molecule.shape}</p>
+        <p><strong><Term id="bond-angle">Bond angle</Term>:</strong> {molecule.angle ?? "Not listed"}</p>
         <p><strong>Used for:</strong> {molecule.uses}</p>
         <p>{molecule.fact}</p>
         {molecule.caution && <p className="play-caution">Caution: {molecule.caution}</p>}

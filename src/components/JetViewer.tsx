@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import type { jet } from "@/lib/physics";
 import type { ShotSetup } from "@/lib/bench/shootTest";
 import { PlaybackControls, prepareCanvas, useCanvasWidth, usePlayback } from "./usePlayback";
+import { useReducedMotion } from "./useReducedMotion";
 import "./viewer.css";
 
 type JetResult = ReturnType<typeof jet>;
@@ -194,7 +195,8 @@ export default function JetViewer({
   setSeconds: number;
   twoPart?: { ratioA: number; ratioB: number };
 }) {
-  const playback = usePlayback(4, true);
+  const reducedMotion = useReducedMotion();
+  const playback = usePlayback(4, true, reducedMotion);
   const { ref, width } = useCanvasWidth();
 
   useEffect(() => {
