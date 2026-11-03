@@ -8,7 +8,10 @@ import QuestBanner from "./QuestBanner";
 import { analyzeNucleus, bindingEnergy, stableZ } from "@/lib/nuclear";
 import ShareButton from "./ShareButton";
 import ShareNotice from "./ShareNotice";
-import { decodeShare, readShareHash } from "@/lib/share";
+import LabReportButton from "./LabReportButton";
+import { nucleusReport } from "@/lib/labReport";
+import { PROJECTILES, fuse } from "@/lib/nuclearFusion";
+import { decodeShare, readShareHash, shareUrl } from "@/lib/share";
 
 function tickStep(range: number, intervals: number) {
   const roughStep = range / intervals;
@@ -140,6 +143,23 @@ export default function ElementsTool() {
                     fusion: { projectileId, beamLabMeV },
                   })}
                   label="Share nucleus"
+                />
+                <LabReportButton
+                  build={(extra) => {
+                    const projectile = PROJECTILES.find((item) => item.id === projectileId) ?? PROJECTILES[0];
+                    const fusion = fuse(projectile, { z, n }, beamLabMeV);
+                    const url = shareUrl(
+                      window.location.origin,
+                      `${window.location.pathname}${window.location.search}`,
+                      { v: 1, kind: "nucleus", z, n, fusion: { projectileId, beamLabMeV } },
+                    );
+                    return nucleusReport(
+                      z,
+                      n,
+                      { report: fusion, projectileLabel: projectile.label, beamLabMeV },
+                      { ...extra, shareUrl: url },
+                    );
+                  }}
                 />
               </div>
             </div>

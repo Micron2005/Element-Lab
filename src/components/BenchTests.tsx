@@ -20,6 +20,7 @@ import {
 } from "@/lib/bench/materialTests";
 import type { Experiment, RunResult } from "@/lib/bench/types";
 import type { BenchTestId } from "@/lib/share";
+import type { TestSummary } from "@/lib/labReport";
 import ShootTest from "./ShootTest";
 import RangeNumberField from "./RangeNumberField";
 import TestViewer, { type TestViewerData } from "./TestViewer";
@@ -123,11 +124,13 @@ export default function BenchTests({
   result,
   runId,
   shareTestId = null,
+  onTestSummary,
 }: {
   experiment: Experiment;
   result: RunResult;
   runId: number;
   shareTestId?: BenchTestId | null;
+  onTestSummary?: (summary: TestSummary | null) => void;
 }) {
   const [selected, setSelected] = useState<BenchTestId>(() =>
     shareTestId && VALID_TESTS.has(shareTestId) ? shareTestId : "shoot",
@@ -183,12 +186,83 @@ export default function BenchTests({
     () => dropTest(experiment, result, dropSetup),
     [experiment, result, dropSetup],
   );
+  const selectedSummary = useMemo<TestSummary | null>(() => {
+    if (selected === "shoot") return null;
+    if (selected === "stretch") {
+      return {
+        name: "Stretch",
+        setup: [
+          ["Strand diameter", `${stretchSetup.diameterMm} mm`],
+          ["Starting length", `${stretchSetup.lengthMm} mm`],
+          ["Pull speed", `${stretchSetup.pullMmPerMin} mm/min`],
+        ],
+        headline: stretch.headline,
+        metrics: stretch.metrics,
+        notes: stretch.notes,
+      };
+    }
+    if (selected === "heat") {
+      return {
+        name: "Heat",
+        setup: [
+          ["Maximum temperature", `${heatSetup.maxTempC} °C`],
+          ["Time at temperature", `${heatSetup.minutes} min`],
+          ["Atmosphere", heatSetup.atmosphere],
+        ],
+        headline: heat.headline,
+        metrics: heat.metrics,
+        notes: heat.notes,
+      };
+    }
+    if (selected === "dissolve") {
+      return {
+        name: "Dissolve",
+        setup: [
+          ["Liquid", dissolveSetup.liquid],
+          ["Liquid temperature", `${dissolveSetup.tempC} °C`],
+          ["Sample thickness", `${dissolveSetup.thicknessMm} mm`],
+          ["Stirred", dissolveSetup.stirred ? "Yes" : "No"],
+        ],
+        headline: dissolve.headline,
+        metrics: dissolve.metrics,
+        notes: dissolve.notes,
+      };
+    }
+    if (selected === "stick") {
+      return {
+        name: "Stick",
+        setup: [
+          ["Surface", STICK_SURFACE_LABELS[stickSetup.surface]],
+          ["Contact area", `${stickSetup.areaCm2} cm²`],
+          ["Press time", `${stickSetup.pressMinutes} min`],
+        ],
+        headline: stick.headline,
+        metrics: stick.metrics,
+        notes: stick.notes,
+      };
+    }
+    return {
+      name: "Drop",
+      setup: [
+        ["Drop height", `${dropSetup.heightM} m`],
+        ["Sample diameter", `${dropSetup.diameterMm} mm`],
+        ["Floor", dropSetup.floor],
+      ],
+      headline: drop.headline,
+      metrics: drop.metrics,
+      notes: drop.notes,
+    };
+  }, [selected, stretchSetup, stretch, heatSetup, heat, dissolveSetup, dissolve, stickSetup, stick, dropSetup, drop]);
+
+  useEffect(() => {
+    if (selected !== "shoot") onTestSummary?.(selectedSummary);
+  }, [onTestSummary, selected, selectedSummary]);
 
   let card: ReactNode;
   if (selected === "shoot") {
     card = (
       <div className="bench-test-shoot-wrap">
-        <ShootTest key={runId} experiment={experiment} result={result} />
+        <ShootTest key={runId} experiment={experiment} result={result} onTestSummary={onTestSummary} />
         <p className="bench-test-footnote">Rough model estimate, not a lab measurement.</p>
       </div>
     );
