@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { realTimeAt, type MixScene, type ScenePhase } from "../lib/bench/scene";
 import { PlaybackControls, prepareCanvas, seededRandom, useCanvasWidth, usePlayback } from "./usePlayback";
+import { useReducedMotion } from "./useReducedMotion";
 import "./viewer.css";
 
 const DURATION_SECONDS = 16;
@@ -447,7 +448,8 @@ function formatSeconds(seconds: number) {
 }
 
 export default function MixViewer({ scene, resultLabel }: { scene: MixScene; resultLabel: string }) {
-  const playback = usePlayback(DURATION_SECONDS, scene.finalShape !== "empty");
+  const reducedMotion = useReducedMotion();
+  const playback = usePlayback(DURATION_SECONDS, scene.finalShape !== "empty", reducedMotion);
   const { ref, width } = useCanvasWidth();
   const model = useMemo(() => buildModel(scene), [scene]);
   const { t } = playback;

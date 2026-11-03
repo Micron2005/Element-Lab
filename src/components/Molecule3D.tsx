@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { angleAt, embed3D } from "@/lib/play/geometry3d";
 import type { Atom3D } from "@/lib/play/geometry3d";
 import type { AtomSymbol } from "@/lib/play/atoms";
 import type { MolBond, MolGraph } from "@/lib/play/molecule";
+import { useReducedMotion } from "./useReducedMotion";
+import { Term } from "./Term";
 
 const SCALE = 100;
 const INITIAL_YAW = -0.48;
@@ -39,16 +41,6 @@ const ATOM_COLORS: Record<AtomSymbol, { light: string; middle: string; dark: str
   S: { light: "#fff4a8", middle: "#facc15", dark: "#82630b", text: "#241f08" },
   P: { light: "#ffd0a3", middle: "#f97316", dark: "#7c3210", text: "#28130a" },
 };
-
-function subscribeToReducedMotion(onChange: () => void) {
-  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
-}
-
-function reducedMotionSnapshot() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 function rotate(atom: Atom3D, yaw: number, pitch: number) {
   const yawCos = Math.cos(yaw);
@@ -92,7 +84,7 @@ function centerAngle(graph: MolGraph) {
 export default function Molecule3D({ graph, label }: { graph: MolGraph; label: string }) {
   const embedded = useMemo(() => embed3D(graph), [graph]);
   const idPrefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const reducedMotion = useSyncExternalStore(subscribeToReducedMotion, reducedMotionSnapshot, () => false);
+  const reducedMotion = useReducedMotion();
   const [spinOverride, setSpinOverride] = useState<boolean | null>(null);
   const spinning = spinOverride ?? !reducedMotion;
   const [yaw, setYaw] = useState(INITIAL_YAW);
@@ -276,7 +268,7 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
         </button>
       </div>
       {measuredAngle !== null && (
-        <p className="molecule3d-angle">Measured angle in the model: {measuredAngle.toFixed(1)}°</p>
+        <p className="molecule3d-angle">Measured <Term id="bond-angle">bond angle</Term> in the model: {measuredAngle.toFixed(1)}°</p>
       )}
     </div>
   );

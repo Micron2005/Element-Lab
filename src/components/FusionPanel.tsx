@@ -15,6 +15,7 @@ import {
 import { analyzeNucleus, elementName } from "@/lib/nuclear";
 import NucleusViewer from "./NucleusViewer";
 import { Panel } from "./shared";
+import { Term } from "./Term";
 
 const MIN_BEAM_MEV = 0.001;
 const MAX_BEAM_MEV = 2000;
@@ -241,7 +242,7 @@ export default function FusionPanel({
           <p className="fusion-reaction">{report.reaction}</p>
           <div className="fusion-metrics">
             <div className="metric-card">
-              <span className="metric-label">Barrier (CM)</span>
+              <span className="metric-label"><Term id="coulomb-barrier">Coulomb barrier</Term> (CM)</span>
               <p className="metric-value">{report.barrierMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
@@ -286,7 +287,7 @@ export default function FusionPanel({
             ) : (
               <>
                 <div className="metric-card">
-                  <span className="metric-label">Cross-section</span>
+                  <span className="metric-label"><Term id="cross-section">Cross-section</Term></span>
                   <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0)}</p>
                 </div>
                 <div className="metric-card">

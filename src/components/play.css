@@ -1,7 +1,7 @@
 .play-page { display: grid; gap: 16px; }
 .play-score { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
 .play-score strong { color: var(--text); }
-.play-stars { display: inline-flex; gap: 2px; font-size: 16px; line-height: 1; color: #3b4a4c; }
+.play-stars { display: inline-flex; gap: 2px; font-size: 16px; line-height: 1; color: #8a9998; }
 .play-stars .on { color: #f5c542; text-shadow: 0 0 8px rgb(245 197 66 / 35%); }
 .play-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .play-tabs button { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: #0d1416; color: #c9d6d4; font-size: 14px; font-weight: 600; }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { decayChain, neutronHit, nucleusRef, type NuclearStep, type NucleusRef } from "../lib/nuclearScene";
 import { PlaybackControls, prepareCanvas, useCanvasWidth, usePlayback } from "./usePlayback";
+import { useReducedMotion } from "./useReducedMotion";
 import "./viewer.css";
 
 const STEP_SECONDS = 3.2;
@@ -481,7 +482,8 @@ export default function NucleusViewer({
   const steps = suppliedSteps ?? defaultSteps;
   const hasSuppliedSteps = suppliedSteps !== undefined;
   const stepSeconds = !hasSuppliedSteps && mode === "neutron" ? STEP_SECONDS * 1.5 : STEP_SECONDS;
-  const playback = usePlayback(steps.length * stepSeconds, hasSuppliedSteps);
+  const reducedMotion = useReducedMotion();
+  const playback = usePlayback(steps.length * stepSeconds, hasSuppliedSteps, reducedMotion);
   const { ref, width } = useCanvasWidth();
   const { t } = playback;
   const index = Math.max(0, Math.min(steps.length - 1, Math.floor(t * steps.length)));
