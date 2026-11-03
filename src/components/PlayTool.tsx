@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { PageIntro } from "./shared";
-import MoleculeBoard, { MoleculeDrawing } from "./MoleculeBoard";
+import MoleculeBoard from "./MoleculeBoard";
+import Molecule3D from "./Molecule3D";
 import { ATOMS, type AtomSymbol } from "@/lib/play/atoms";
 import { checkMolecule, prettyFormula, type KnownMolecule, type MolCheck, type MolGraph } from "@/lib/play/molecule";
 import { moleculeCard } from "@/lib/play/learn";
@@ -79,9 +80,10 @@ export function StarRow({ stars }: { stars: number }) {
 function MoleculeCard({ molecule }: { molecule: KnownMolecule }) {
   return (
     <div className="play-molecule-card">
-      <div className="play-molecule-shape">
-        <MoleculeDrawing graph={molecule.graph} label={`${molecule.name} structure`} />
-      </div>
+      <Molecule3D
+        graph={molecule.graph}
+        label={`${molecule.name}, ${molecule.shape}${molecule.angle ? `, ${molecule.angle}` : ""}`}
+      />
       <div className="play-molecule-info">
         <h3>
           {molecule.name} <span className="play-formula">{prettyFormula(molecule.formula)}</span>
@@ -154,6 +156,9 @@ function MoleculeQuestPlay({
 
 function FreeBuild() {
   const [check, setCheck] = useState<MolCheck | null>(null);
+  const [graph, setGraph] = useState<MolGraph>({ atoms: [], bonds: [] });
+  const [show3d, setShow3d] = useState(false);
+  const currentCheck = graph.atoms.length >= 2 ? checkMolecule(graph) : null;
   return (
     <section className="play-quest">
       <h2>Free build</h2>
@@ -161,7 +166,32 @@ function FreeBuild() {
         Build anything from these atoms. The game checks that every atom has the right number of bonds and names
         the molecule if it knows it.
       </p>
-      <MoleculeBoard palette={ALL_ATOMS} onCheck={(graph) => setCheck(checkMolecule(graph))} onEdit={() => setCheck(null)} />
+      <MoleculeBoard
+        palette={ALL_ATOMS}
+        onGraphChange={setGraph}
+        onCheck={(nextGraph) => setCheck(checkMolecule(nextGraph))}
+        onEdit={() => setCheck(null)}
+      />
+      <div className="play-3d-toggle">
+        <button
+          type="button"
+          className="button button-secondary"
+          aria-expanded={show3d}
+          onClick={() => setShow3d((open) => !open)}
+        >
+          {show3d ? "Hide 3D view" : "3D view"}
+        </button>
+      </div>
+      {show3d && (
+        graph.atoms.length < 2 || !currentCheck?.connected ? (
+          <p className="play-3d-hint">Connect all atoms to see it in 3D</p>
+        ) : (
+          <Molecule3D
+            graph={graph}
+            label={`${currentCheck.match?.name ?? prettyFormula(currentCheck.formula)} molecule`}
+          />
+        )
+      )}
       {check?.match && (
         <div className="play-success" role="status">
           <MoleculeCard molecule={check.match} />
