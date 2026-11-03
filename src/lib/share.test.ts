@@ -80,12 +80,66 @@ describe("share payloads", () => {
     expect(decode(payload)).toEqual({ payload, dropped: [] });
   });
 
+  it("round-trips a sanitized quest pack", () => {
+    const pack = {
+      title: "Chemistry starters",
+      author: "A teacher",
+      quests: [
+        { type: "molecule" as const, moleculeId: "methanol", title: "Build methanol" },
+        { type: "mix" as const, title: "A safe gel", targets: { maxHazard: 1 as const, maxCostPerKg: 2 } },
+      ],
+    };
+    const payload = { v: 1 as const, kind: "pack" as const, pack };
+    expect(decode(payload)).toEqual({ payload, dropped: [] });
+  });
+
+  it("drops unknown pack IDs and quests with no targets", () => {
+    const result = decode({
+      v: 1,
+      kind: "pack",
+      pack: {
+        title: "Class pack",
+        quests: [
+          { type: "molecule", moleculeId: "not-a-molecule" },
+          {
+            type: "mix",
+            title: "Junk",
+            targets: { product: ["not-a-product"], mustInclude: ["not-an-ingredient"], mustHappen: ["not-an-event"] },
+          },
+          {
+            type: "mix",
+            title: "Clamped",
+            targets: { minStrengthMPa: 9999, mustInclude: ["water", "not-an-ingredient"] },
+          },
+        ],
+      },
+    });
+    expect(result?.payload).toEqual({
+      v: 1,
+      kind: "pack",
+      pack: {
+        title: "Class pack",
+        quests: [{ type: "mix", title: "Clamped", targets: { minStrengthMPa: 5000, mustInclude: ["water"] } }],
+      },
+    });
+    expect(result?.dropped).toEqual(expect.arrayContaining(["not-a-molecule", "not-an-ingredient", "not-an-event"]));
+  });
+
   it("rejects garbage, invalid JSON, unsupported versions, and oversized values", () => {
     expect(decodeShare("%%%")).toBeNull();
     expect(decodeShare(rawBase64Url("{broken"))).toBeNull();
     expect(decodeShare(rawBase64Url(JSON.stringify({ v: 2, kind: "bench" })))).toBeNull();
     expect(decodeShare(rawBase64Url(JSON.stringify({ v: 1, kind: "unknown" })))).toBeNull();
     expect(decodeShare("a".repeat(12_001))).toBeNull();
+    expect(decodeShare(encodeShare({
+      v: 1,
+      kind: "pack",
+      pack: {
+        title: "Large",
+        quests: [{ type: "nucleus", title: "Valid", targets: { bound: true } }],
+        extra: "x".repeat(12_000),
+      },
+    } as SharePayload))).toBeNull();
   });
 
   it("drops and reports unknown ingredient IDs", () => {

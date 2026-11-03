@@ -4,6 +4,8 @@ import { DEFAULT_CONDITIONS } from "./bench/conditions";
 import { parseStoredCustom } from "./bench/custom";
 import { PROJECTILES } from "./nuclearFusion";
 import type { Part as FormulaPart } from "./formula";
+import { sanitizePackContents } from "./play/packs";
+import type { QuestTemplate } from "./play/templates";
 import type {
   BenchIngredient,
   Conditions,
@@ -34,7 +36,8 @@ export type SharePayload =
       n: number;
       fusion?: { projectileId: string; beamLabMeV: number };
     }
-  | { v: 1; kind: "formula"; parts: FormulaPart[] };
+  | { v: 1; kind: "formula"; parts: FormulaPart[] }
+  | { v: 1; kind: "pack"; pack: { title: string; author?: string; quests: QuestTemplate[] } };
 
 const BENCH_TEST_IDS = new Set<BenchTestId>([
   "shoot",
@@ -255,6 +258,14 @@ export function decodeShare(
     if (parsed.kind === "bench") return sanitizeBench(parsed);
     if (parsed.kind === "nucleus") return sanitizeNucleus(parsed);
     if (parsed.kind === "formula") return sanitizeFormula(parsed);
+    if (parsed.kind === "pack") {
+      const sanitized = sanitizePackContents(parsed.pack);
+      if (!sanitized) return null;
+      return {
+        payload: { v: 1, kind: "pack", pack: sanitized.pack },
+        dropped: sanitized.dropped,
+      };
+    }
     return null;
   } catch {
     return null;

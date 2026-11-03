@@ -48,6 +48,11 @@ describe("play progress", () => {
     expect(loadProgress()).toEqual({ stars: {} });
   });
 
+  it("keeps generated pack stars out of the built-in total", () => {
+    const stars = recordStars("pack:p12345678:0", 3);
+    expect(totalStars(stars)).toBe(0);
+  });
+
   it("is safe during server rendering without a window", () => {
     vi.stubGlobal("window", undefined);
     expect(loadProgress()).toEqual({ stars: {} });

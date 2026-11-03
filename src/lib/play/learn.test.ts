@@ -9,6 +9,8 @@ import {
   mixCard,
   moleculeCard,
 } from "./learn";
+import { benchPresets } from "../bench/presets";
+import { compileTemplate } from "./templates";
 
 describe("learning cards", () => {
   it("has complete, nonempty lessons for every known molecule and mixing or atom quest", () => {
@@ -86,6 +88,31 @@ describe("learning cards", () => {
     expect(happened.startsWith("Ingredients in this run:")).toBe(true);
     expect(happened).toContain(result.productLabel);
     expect(happened).toContain(`${event!.name} (${event!.status}): ${event!.mechanism}`);
+  });
+
+  it("builds generic learning cards for generated mix and nucleus goals", () => {
+    const mixTemplate = {
+      type: "mix" as const,
+      title: "A fiber quest",
+      targets: { minStrengthMPa: 5, mustInclude: ["alginate"] },
+    };
+    const mixQuest = compileTemplate("daily:mix", mixTemplate);
+    const preset = benchPresets.find(({ id }) => id === "alginate-fiber")!;
+    const result = simulate(preset.experiment);
+    if (mixQuest.chapter !== "mixing") throw new Error("Expected a mix quest.");
+    const materialCard = mixCard(mixQuest, preset.experiment, result);
+    expect(materialCard.sections.find((section) => section.heading === "What it does")?.body).toContain("Strength at least 5 MPa");
+    expect(materialCard.sections.find((section) => section.heading === "What happened in your run")?.body).toContain(result.productLabel);
+
+    const atomQuest = compileTemplate("daily:nucleus", {
+      type: "nucleus",
+      title: "A superheavy nucleus",
+      targets: { minZ: 114, bound: true },
+    });
+    if (atomQuest.chapter !== "atoms") throw new Error("Expected an atom quest.");
+    const nucleusCard = atomCard(atomQuest, 114, 184);
+    expect(nucleusCard.sections.find((section) => section.heading === "What it does")?.body).toContain("Proton count Z at least 114");
+    expect(nucleusCard.sections.find((section) => section.heading === "What happened in your run")?.body).toContain("Z=114");
   });
 
   it("includes the fission event details and flags hypothetical elements as predictions", () => {

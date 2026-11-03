@@ -11,6 +11,10 @@ import { benchById } from "../bench/library";
 import { benchPresets } from "../bench/presets";
 import { DEFAULT_CONDITIONS } from "../bench/conditions";
 import type { Experiment, RunResult } from "../bench/types";
+import type { QuestTemplate } from "./templates";
+import { dailyFor } from "./daily";
+import { loadPacks } from "./packs";
+import { compileTemplate } from "./templates";
 
 export type Chapter = "molecules" | "mixing" | "atoms";
 export type Stars = 0 | 1 | 2 | 3;
@@ -29,6 +33,7 @@ export interface QuestBase {
   hint: string;
   learn: string;
   starGoals: [string, string, string];
+  template?: QuestTemplate;
 }
 
 export interface MoleculeQuest extends QuestBase {
@@ -727,7 +732,15 @@ export const CHAPTERS: { id: Chapter; title: string; blurb: string }[] = [
 ];
 
 export function questById(id: string): Quest | undefined {
-  return QUESTS.find((quest) => quest.id === id);
+  const builtIn = QUESTS.find((quest) => quest.id === id);
+  if (builtIn) return builtIn;
+  const daily = /^daily:(\d{4}-\d{2}-\d{2})$/.exec(id);
+  if (daily) return compileTemplate(id, dailyFor(daily[1]).template);
+  const packQuest = /^pack:([^:]+):(\d+)$/.exec(id);
+  if (!packQuest) return undefined;
+  const pack = loadPacks().find(({ id: packId }) => packId === packQuest[1]);
+  const template = pack?.quests[Number(packQuest[2])];
+  return template ? compileTemplate(id, template) : undefined;
 }
 
 export function questsIn(chapter: Chapter): Quest[] {

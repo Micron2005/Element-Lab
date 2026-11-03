@@ -67,6 +67,7 @@ export interface NucleusReport {
   modes: string[];
   verdict: string;
   halfLife: string;
+  halfLifeSeconds: number;
 }
 
 function fmtSeconds(s: number) {
@@ -152,5 +153,6 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
     modes,
     verdict,
     halfLife: fmtSeconds(halfS),
+    halfLifeSeconds: halfS,
   };
 }

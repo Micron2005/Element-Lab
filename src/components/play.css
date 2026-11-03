@@ -87,6 +87,65 @@
 .mol-tools .button { min-height: 44px; font-size: 14px; }
 .mol-tools .button:disabled { opacity: .45; }
 .mol-check { grid-column: 1 / -1; }
+
+.daily-card, .pack-section { display: grid; min-width: 0; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg, #121b1d, #0d1315); }
+.daily-card { border-color: #315654; }
+.daily-card-heading, .pack-section-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
+.daily-card-heading .eyebrow, .pack-section-heading .eyebrow { margin: 0 0 4px; }
+.daily-card h2, .pack-section h2 { margin: 0; font-size: 20px; }
+.daily-card h3 { margin: 0; font-size: 18px; }
+.daily-card .play-story { margin-top: -4px; }
+.daily-goals { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: #c2d0ce; font-size: 14px; line-height: 1.5; }
+.daily-card-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.daily-card-footer p { margin: 0; color: var(--muted); font-size: 14px; }
+.daily-card-footer .button { min-height: 44px; margin-left: auto; }
+.pack-teacher-note { margin: 0; color: #c2d0ce; font-size: 14px; line-height: 1.5; }
+.pack-list, .pack-editor-list { display: grid; min-width: 0; gap: 10px; }
+.pack-editor-toggle { min-height: 44px; justify-self: start; }
+.pack-maker:not([hidden]) { display: grid; min-width: 0; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pack-maker[hidden] { display: none; }
+.pack-maker h3 { margin: 0; font-size: 18px; }
+.pack-maker .eyebrow { margin: 0 0 4px; }
+.saved-pack { min-width: 0; overflow: hidden; border: 1px solid #304144; border-radius: 12px; background: #0a1214; }
+.saved-pack > summary { display: flex; min-height: 56px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; cursor: pointer; list-style: none; }
+.saved-pack > summary::-webkit-details-marker { display: none; }
+.saved-pack > summary > span:first-child { display: grid; min-width: 0; gap: 3px; }
+.saved-pack > summary strong, .saved-pack-summary { overflow-wrap: anywhere; }
+.saved-pack-summary { color: var(--muted); font-size: 13px; }
+.saved-pack-content { display: grid; min-width: 0; gap: 10px; padding: 0 14px 14px; }
+.pack-author { margin: 0; color: var(--muted); font-size: 13px; }
+.pack-quest-list { display: grid; min-width: 0; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.pack-quest-item { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid #223335; border-radius: 10px; }
+.pack-quest-item > div { display: grid; min-width: 0; gap: 4px; }
+.pack-quest-item > div > span:not(.play-stars) { color: var(--muted); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.pack-quest-item .button { min-height: 44px; }
+.saved-pack-actions, .pack-editor-actions { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
+.saved-pack-actions .button, .pack-editor-actions .button { min-height: 44px; }
+.pack-field { display: grid; min-width: 0; gap: 5px; color: #d9e8e5; font-size: 13px; font-weight: 600; }
+.pack-field .input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; font-size: 16px; }
+.pack-field textarea.input { min-height: 68px; resize: vertical; }
+.pack-editor-row, .pack-targets, .pack-numeric-targets { display: grid; min-width: 0; gap: 10px; }
+.pack-editor-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pack-targets { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.pack-numeric-targets { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+.pack-quest-editor, .pack-products { display: grid; min-width: 0; gap: 10px; margin: 0; padding: 12px; border: 1px solid #304144; border-radius: 10px; }
+.pack-quest-editor > legend, .pack-products > legend { padding: 0 6px; color: var(--accent); font-weight: 700; }
+.pack-products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pack-check { display: flex; min-width: 0; min-height: 44px; align-items: center; gap: 8px; color: #c2d0ce; font-size: 14px; }
+.pack-check input { flex: 0 0 auto; width: 20px; height: 20px; }
+.pack-bound-check { align-self: end; }
+.pack-field .pack-multiselect { min-height: 128px; padding: 6px; }
+.pack-field .pack-multiselect option { min-height: 30px; padding: 4px; }
+.pack-editor-footer { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.pack-editor-footer span { min-width: 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.pack-editor-footer .button { min-height: 44px; }
+.pack-validation, .pack-status { margin: 0; color: #ffd166; font-size: 14px; }
+.pack-section input, .pack-section select, .pack-section textarea { max-width: 100%; font-size: 16px; }
+.pack-section .share-actions { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pack-section .share-link-input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.pack-section .share-status { min-height: 44px; display: inline-flex; align-items: center; }
+.play-page .share-banner-close { min-width: 44px; min-height: 44px; }
+
 @media (max-width: 560px) {
   .play-quest, .quest-banner { padding: 14px; }
   .play-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
@@ -94,4 +153,12 @@
   .play-molecule-card { grid-template-columns: 1fr; }
   .play-molecule-shape { min-height: 110px; }
   .play-learn-card .play-learn-ask { width: 100%; }
+  .daily-card, .pack-section { padding: 14px; }
+  .daily-card-footer .button { width: 100%; margin-left: 0; }
+  .pack-editor-row, .pack-targets, .pack-numeric-targets { grid-template-columns: minmax(0, 1fr); }
+  .pack-products { grid-template-columns: minmax(0, 1fr); }
+  .pack-quest-item { grid-template-columns: minmax(0, 1fr); }
+  .pack-quest-item .button { width: 100%; }
+  .pack-editor-actions > .button, .pack-editor-actions > .share-actions { width: 100%; }
+  .pack-check input { width: 44px; height: 44px; }
 }

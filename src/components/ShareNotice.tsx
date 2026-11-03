@@ -3,11 +3,13 @@
 export default function ShareNotice({
   invalid = false,
   dropped = [],
+  message,
   onUndo,
   onDismiss,
 }: {
   invalid?: boolean;
   dropped?: string[];
+  message?: string;
   onUndo?: () => void;
   onDismiss: () => void;
 }) {
@@ -18,9 +20,9 @@ export default function ShareNotice({
     >
       <div className="share-banner-copy">
         <p>
-          {invalid
+          {message ?? (invalid
             ? "This share link is broken or from a newer version."
-            : "Opened a shared experiment."}
+            : "Opened a shared experiment.")}
         </p>
         {!invalid && onUndo && <p>Your previous mix was replaced.</p>}
         {!invalid && dropped.length > 0 && (
