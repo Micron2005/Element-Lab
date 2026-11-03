@@ -1,4 +1,6 @@
 import { ATOMS, type AtomSymbol } from "./atoms";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
+import { MOLECULE_TEXT_ES } from "../i18n/data/es/molecule";
 
 export type BondOrder = 1 | 2 | 3;
 
@@ -156,7 +158,7 @@ export function moleculeSignature(g: MolGraph): string {
 }
 
 export interface KnownMolecule {
-  id: string;
+  id: MoleculeId;
   name: string;
   formula: string;
   shape: string;
@@ -166,6 +168,32 @@ export interface KnownMolecule {
   caution?: string;
   graph: MolGraph;
 }
+
+export type MoleculeId =
+  | "hydrogen"
+  | "oxygen"
+  | "nitrogen"
+  | "water"
+  | "carbon-dioxide"
+  | "methane"
+  | "ammonia"
+  | "hydrogen-chloride"
+  | "hydrogen-peroxide"
+  | "hydrogen-cyanide"
+  | "ethane"
+  | "ethylene"
+  | "acetylene"
+  | "methanol"
+  | "ethanol"
+  | "dimethyl-ether"
+  | "formaldehyde"
+  | "formic-acid"
+  | "acetic-acid"
+  | "hydrogen-sulfide"
+  | "phosphine"
+  | "hydrogen-fluoride"
+  | "carbon-tetrachloride"
+  | "chloroform";
 
 type AtomPoint = readonly [AtomSymbol, number, number];
 type BondSpec = readonly [number, number, BondOrder];
@@ -182,7 +210,7 @@ function graphFor(atoms: AtomPoint[], bonds: BondSpec[]): MolGraph {
 }
 
 function known(
-  id: string,
+  id: MoleculeId,
   name: string,
   shape: string,
   uses: string,
@@ -221,6 +249,13 @@ export const KNOWN_MOLECULES: KnownMolecule[] = [
   known("carbon-tetrachloride", "Carbon tetrachloride", "tetrahedral", "Carbon tetrachloride was used as a solvent, but most uses were phased out.", "Four C–Cl bonds point toward the corners of a tetrahedron.", [["C", 0, 0], ["Cl", -50, -50], ["Cl", 50, -50], ["Cl", -50, 50], ["Cl", 50, 50]], [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]], { angle: "109.5°", caution: "Carbon tetrachloride is toxic and harms the ozone layer." }),
   known("chloroform", "Chloroform", "tetrahedral", "Chloroform was once used as an anesthetic and is now mainly a laboratory solvent.", "Chloroform has one H and three Cl atoms bonded to a central carbon.", [["C", 0, 0], ["H", 50, 50], ["Cl", -50, -50], ["Cl", 50, -50], ["Cl", -50, 50]], [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]], { angle: "109.5°", caution: "Chloroform is toxic and should not be inhaled or swallowed." }),
 ];
+
+export function localizeMolecule(
+  molecule: KnownMolecule,
+  locale: Locale = DEFAULT_LOCALE,
+): KnownMolecule {
+  return locale === "es" ? { ...molecule, ...MOLECULE_TEXT_ES[molecule.id] } : molecule;
+}
 
 const knownBySignature = new Map(
   KNOWN_MOLECULES.map((molecule) => [moleculeSignature(molecule.graph), molecule]),

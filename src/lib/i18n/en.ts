@@ -664,6 +664,20 @@ export const en = {
   "viewer.energy": "Energy",
   "viewer.fusion": "Fusion",
   "viewer.nucleus": "Nucleus",
+  "play.spin": "Spin",
+  "play.resetView": "Reset view",
+  "play.thatAtom": "That atom",
+  "play.atomFull": "{name} already has all the bonds it can make.",
+  "play.singleBond": "Single bond",
+  "play.doubleBond": "Double bond",
+  "play.tripleBond": "Triple bond",
+  "play.bondRemoved": "Bond removed",
+  "play.bondedToSelected": "{name} bonded to the selected {selected}.",
+  "play.atomPlacedAlone": "{name} is full, so the new atom was placed on its own.",
+  "play.target.buildMolecule": "Build {name} ({formula}).",
+  "play.template.buildMolecule": "Build {name}",
+  "play.template.checkMolecule": "Check the bonds and valence for {name}.",
+  "play.template.moleculeStory": "Build a molecule using the atoms in the molecule lab.",
 } as const;
 
 export type MessageKey = keyof typeof en;

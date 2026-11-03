@@ -210,7 +210,7 @@ export default function MoleculeBoard({
 
   function atomName(id: string) {
     const atom = graph.atoms.find((item) => item.id === id);
-    return atom ? ATOMS[atom.el].name : "That atom";
+    return atom ? trText(locale, ATOMS[atom.el].name) : t("play.thatAtom");
   }
 
   function tapAtom(id: string) {
@@ -230,11 +230,13 @@ export default function MoleculeBoard({
     const next = cycleBond(graph, a, b);
     if (next === graph) {
       const full = freeValence(graph, a) <= 0 ? a : b;
-      setNotice(`${atomName(full)} already has all the bonds it can make.`);
+      setNotice(t("play.atomFull", { name: atomName(full) }));
       return;
     }
     const bond = bondBetween(next, a, b);
-    setNotice(bond ? (bond.order === 1 ? "Single bond" : bond.order === 2 ? "Double bond" : "Triple bond") : "Bond removed");
+    setNotice(bond
+      ? (bond.order === 1 ? t("play.singleBond") : bond.order === 2 ? t("play.doubleBond") : t("play.tripleBond"))
+      : t("play.bondRemoved"));
     commit(next);
   }
 
@@ -246,9 +248,12 @@ export default function MoleculeBoard({
     const added = next.atoms[next.atoms.length - 1];
     if (canAttach && added) {
       next = cycleBond(next, anchor.id, added.id);
-      setNotice(`${ATOMS[el].name} bonded to the selected ${ATOMS[anchor.el].name.toLowerCase()}.`);
+      setNotice(t("play.bondedToSelected", {
+        name: trText(locale, ATOMS[el].name),
+        selected: trText(locale, ATOMS[anchor.el].name).toLowerCase(),
+      }));
     } else if (anchor) {
-      setNotice(`${ATOMS[anchor.el].name} is full, so the new atom was placed on its own.`);
+      setNotice(t("play.atomPlacedAlone", { name: trText(locale, ATOMS[anchor.el].name) }));
     } else {
       setNotice("");
     }

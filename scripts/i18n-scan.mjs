@@ -5,6 +5,8 @@ import * as ts from "typescript";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, "..");
+// These data tables are checked by src/lib/i18n/overlays.test.ts.
+const OVERLAY_COVERED_DATA_TABLES = new Set(["src/lib/play/molecule.ts"]);
 
 const COMMON_ENGLISH = new Set(`
 a about above after again against all also an and another any are around as ask at away back be because
@@ -188,6 +190,7 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
     !relativePath.endsWith(".test.ts") &&
     !relativePath.endsWith(".test.tsx") &&
     !relativePath.startsWith("src/lib/i18n/") &&
+    !OVERLAY_COVERED_DATA_TABLES.has(relativePath) &&
     !relativePath.startsWith("src/app/api/") &&
     relativePath !== "src/lib/assistantPrompt.ts",
   );

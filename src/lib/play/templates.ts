@@ -3,7 +3,7 @@ import { benchById } from "../bench/library";
 import { DEFAULT_CONDITIONS } from "../bench/conditions";
 import type { Experiment, Hazard, Product, RunResult } from "../bench/types";
 import { REACTIONS } from "../bench/reactions";
-import { KNOWN_MOLECULES } from "./molecule";
+import { KNOWN_MOLECULES, localizeMolecule } from "./molecule";
 import type { AtomQuest, Grade, MoleculeQuest, MixQuest, Quest, Stars } from "./quests";
 import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
 
@@ -56,7 +56,12 @@ export function isNotSolid(product: Product): boolean {
 function targetLines(t: QuestTemplate, locale: Locale = DEFAULT_LOCALE): string[] {
   if (t.type === "molecule") {
     const molecule = KNOWN_MOLECULES.find(({ id }) => id === t.moleculeId);
-    return molecule ? [`Build ${molecule.name} (${molecule.formula}).`] : [];
+    return molecule
+      ? [tr(locale, "play.target.buildMolecule", {
+          name: localizeMolecule(molecule, locale).name,
+          formula: molecule.formula,
+        })]
+      : [];
   }
   if (t.type === "nucleus") {
     const targets = t.targets;
@@ -162,14 +167,15 @@ export function compileTemplate(id: string, t: QuestTemplate, locale: Locale = D
   if (t.type === "molecule") {
     const molecule = KNOWN_MOLECULES.find(({ id: moleculeId }) => moleculeId === t.moleculeId);
     if (!molecule) throw new Error(`Unknown molecule template: ${t.moleculeId}`);
+    const localizedMolecule = localizeMolecule(molecule, locale);
     const quest: MoleculeQuest = {
       id,
       chapter: "molecules",
-      title: t.title?.trim() || `Build ${molecule.name}`,
-      story: t.story?.trim() || `Build a molecule using the atoms in the molecule lab.`,
+      title: t.title?.trim() || tr(locale, "play.template.buildMolecule", { name: localizedMolecule.name }),
+      story: t.story?.trim() || tr(locale, "play.template.moleculeStory"),
       goal,
-      hint: t.hint?.trim() || `Check the bonds and valence for ${molecule.name}.`,
-      learn: molecule.fact,
+      hint: t.hint?.trim() || tr(locale, "play.template.checkMolecule", { name: localizedMolecule.name }),
+      learn: localizedMolecule.fact,
       starGoals: ["Build the correct, complete molecule.", "Use no more than one hint.", "Build it without hints."],
       template: t,
       moleculeId: molecule.id,

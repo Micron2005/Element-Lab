@@ -260,13 +260,13 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
       </svg>
       <div className="molecule3d-controls">
         <button type="button" className="button button-secondary" aria-pressed={spinning} onClick={() => setSpinOverride(!spinning)}>
-          Spin
+          {t("play.spin")}
         </button>
         <button type="button" className="button button-secondary" onClick={() => {
           setYaw(INITIAL_YAW);
           setPitch(INITIAL_PITCH);
         }}>
-          Reset view
+          {t("play.resetView")}
         </button>
       </div>
       {measuredAngle !== null && (

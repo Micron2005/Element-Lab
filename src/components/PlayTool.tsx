@@ -29,7 +29,7 @@ import {
 } from "./usePlayProgress";
 import { dailyFor, dailyKey, streak } from "@/lib/play/daily";
 import { Term } from "./Term";
-import { KNOWN_MOLECULES } from "@/lib/play/molecule";
+import { KNOWN_MOLECULES, localizeMolecule } from "@/lib/play/molecule";
 import { compileTemplate, describeTargets, type MixTargets, type QuestTemplate } from "@/lib/play/templates";
 import {
   deletePack,
@@ -82,7 +82,7 @@ export function StarRow({ stars }: { stars: number }) {
 
 function MoleculeCard({ molecule }: { molecule: KnownMolecule }) {
   const { locale, t } = useT();
-  const localized = translateTree(locale, molecule);
+  const localized = localizeMolecule(molecule, locale);
   return (
     <div className="play-molecule-card">
       <Molecule3D
@@ -300,6 +300,7 @@ function PackQuestEditor({
   onChange: (next: QuestTemplate) => void;
   onRemove: () => void;
 }) {
+  const { locale } = useT();
   const targets = quest.type === "mix" ? quest.targets : null;
   const updateText = (key: "title" | "story" | "hint", value: string) =>
     onChange({ ...quest, [key]: value } as QuestTemplate);
@@ -352,7 +353,7 @@ function PackQuestEditor({
         <label className="pack-field">
           <span>Molecule</span>
           <select className="input" value={quest.moleculeId} onChange={(event) => onChange({ ...quest, moleculeId: event.target.value })}>
-            {KNOWN_MOLECULES.map((molecule) => <option key={molecule.id} value={molecule.id}>{molecule.name}</option>)}
+            {KNOWN_MOLECULES.map((molecule) => <option key={molecule.id} value={molecule.id}>{localizeMolecule(molecule, locale).name}</option>)}
           </select>
         </label>
       )}
