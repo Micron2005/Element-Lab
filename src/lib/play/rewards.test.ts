@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BADGES, GEAR, RANKS, completedWeeklySets, earnedBadges, isoWeekKey, rankFor, unlockedGear, weeklyFor, xpFor, type RewardState } from "./rewards";
+import { BADGES, GEAR, RANKS, completedWeeklySets, earnedBadges, hasPlayedPack, isoWeekKey, rankFor, rewardChange, unlockedGear, weeklyFor, xpFor, type RewardState } from "./rewards";
 import { dailyFor } from "./daily";
 import type { Stars } from "./quests";
 
@@ -46,6 +46,31 @@ describe("derived rewards", () => {
     expect(first).toHaveLength(3);
     expect(new Set(first.map(({ template }) => JSON.stringify(template))).size).toBe(3);
     expect(first.map(({ template }) => JSON.stringify(template))).not.toContain(JSON.stringify(dailyFor("2025-04-07").template));
+  });
+
+  it("returns three distinct week-only picks for 104 consecutive weeks", () => {
+    for (let week = 1; week <= 52; week += 1) {
+      for (const year of [2025, 2026]) {
+        const key = `${year}-W${String(week).padStart(2, "0")}`;
+        const picks = weeklyFor(key, "2025-04-07");
+        expect(picks).toHaveLength(3);
+        expect(new Set(picks.map(({ template }) => JSON.stringify(template))).size).toBe(3);
+        expect(picks).toEqual(weeklyFor(key));
+      }
+    }
+  });
+
+  it("detects rank-ups and newly earned badges from before/after state", () => {
+    const badge = rewardChange(empty, { ...empty, progress: { stars: { "molecule-water": 1 } } });
+    expect(badge.rankUp).toBe(false);
+    expect(badge.newBadge?.id).toBe("first-molecule");
+    const rank = rewardChange(empty, { ...empty, progress: { stars: { a: 3, b: 2 } } });
+    expect(rank.rankUp).toBe(true);
+  });
+
+  it("recognizes the pack quest id prefix used by PlayTool", () => {
+    expect(hasPlayedPack({ stars: { "pack:abc123:0": 1 } })).toBe(true);
+    expect(hasPlayedPack({ stars: { "molecule-water": 3 } })).toBe(false);
   });
 
   it("unlocks only rank-eligible coats, goggles, and board backgrounds", () => {

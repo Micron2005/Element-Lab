@@ -9,7 +9,7 @@ import { StarRow } from "./PlayTool";
 import LearnCard from "./LearnCard";
 import { awardDaily, awardStars, awardWeekly, useDailyProgress, usePlayProgress, useQuestParam, useWeeklyProgress } from "./usePlayProgress";
 import { dailyKey } from "@/lib/play/daily";
-import { earnedBadges, isoWeekKey, rankFor, weeklyFor, xpFor, type RewardState } from "@/lib/play/rewards";
+import { hasPlayedPack, isoWeekKey, rewardChange, weeklyFor, type RewardState } from "@/lib/play/rewards";
 import { compileTemplate } from "@/lib/play/templates";
 import { useT } from "./LocaleProvider";
 import "./play.css";
@@ -77,7 +77,7 @@ export default function QuestBanner(props: Props) {
         daily: dailyProgress,
         weekly: weeklyProgress,
         today: dailyKey(),
-        playedPack: Object.entries(progress.stars).some(([id, stars]) => id.startsWith("pack:") && stars > 0),
+        playedPack: hasPlayedPack(progress),
       };
       let after = before;
       if (dayKey) awardDaily(dayKey, grade.stars);
@@ -89,13 +89,11 @@ export default function QuestBanner(props: Props) {
         after = { ...before, progress: { stars: { ...before.progress.stars, [quest.id]: grade.stars } } };
       }
       if (dayKey) after = { ...before, daily: { done: { ...before.daily.done, [dayKey]: grade.stars } } };
-      const rankUp = rankFor(xpFor(after.progress, after.daily, after.weekly)).current.id !== rankFor(xpFor(before.progress, before.daily, before.weekly)).current.id;
-      const oldBadges = new Set(earnedBadges(before).map(({ id }) => id));
-      const newBadge = earnedBadges(after).find(({ id }) => !oldBadges.has(id));
-      if (rankUp || newBadge) {
-        const toast = rankUp
+      const change = rewardChange(before, after);
+      if (change.rankUp || change.newBadge) {
+        const toast = change.rankUp
           ? t("play.reward.rankUp")
-          : t("play.reward.badgeEarned", { badge: t(newBadge!.titleKey) });
+          : t("play.reward.badgeEarned", { badge: t(change.newBadge!.titleKey) });
         window.setTimeout(() => setRewardToast(toast), 0);
       }
     }

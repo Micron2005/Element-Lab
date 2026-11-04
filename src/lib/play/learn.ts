@@ -7,7 +7,12 @@ import { localizeMolecule, prettyFormula, type KnownMolecule, type MoleculeId } 
 import { localizeQuest, type AtomQuest, type MixQuest } from "./quests";
 import { describeTargets } from "./templates";
 import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
-import { MOLECULE_LESSONS_ES, QUEST_LESSONS_ES } from "../i18n/data/es/learn";
+import { LESSON_DEPTH_EN } from "../i18n/data/en/learn";
+import {
+  LESSON_DEPTH_ES,
+  MOLECULE_LESSONS_ES,
+  QUEST_LESSONS_ES,
+} from "../i18n/data/es/learn";
 
 export interface LearnSection {
   heading: string;
@@ -291,6 +296,8 @@ export const QUEST_LESSONS = {
 
 export type QuestLessonId = keyof typeof QUEST_LESSONS;
 
+export const LESSON_DEPTH: Record<MoleculeLessonId | QuestLessonId, LessonDepth> = LESSON_DEPTH_EN;
+
 const PRODUCT_LABEL_KEYS: Record<Product, MessageKey> = {
   nothing: "play.ui.product.nothing",
   solution: "play.ui.product.solution",
@@ -324,22 +331,24 @@ const STEP_LABEL_KEYS: Partial<Record<NuclearStepKind, MessageKey>> = {
 function localizedMoleculeLesson(id: MoleculeLessonId, locale: Locale): MoleculeLesson {
   const lesson = MOLECULE_LESSONS[id];
   const localized = locale === "es" ? { ...lesson, ...MOLECULE_LESSONS_ES[id] } : lesson;
-  return { ...localized, ...lessonDepth(localized, locale, "molecule") };
+  return { ...localized, ...lessonDepth(id, locale, "molecule") };
 }
 
 function localizedQuestLesson(id: string, locale: Locale): Lesson | undefined {
   const lesson = (QUEST_LESSONS as Record<string, Lesson>)[id];
   if (!lesson) return undefined;
   const localized = locale === "es" ? { ...lesson, ...QUEST_LESSONS_ES[id as QuestLessonId] } : lesson;
-  return { ...localized, ...lessonDepth(localized, locale, id.startsWith("atom-") ? "nuclear" : "mix") };
+  return { ...localized, ...lessonDepth(id, locale, id.startsWith("atom-") ? "nuclear" : "mix") };
 }
 
-export function lessonDepth(lesson: Pick<Lesson, "whatItIs" | "whatItDoes" | "whyItMatters"> & Partial<Pick<MoleculeLesson, "whyShape">>, locale: Locale, domain: "molecule" | "mix" | "nuclear"): LessonDepth {
-  const simple = lesson.whatItIs.trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(" ");
-  const deeper = domain === "molecule"
-    ? `${lesson.whyShape ?? lesson.whatItDoes} ${tr(locale, "play.depth.molecule")}`
-    : `${lesson.whatItDoes} ${tr(locale, domain === "mix" ? "play.depth.mix" : "play.depth.nuclear")}`;
-  return { simple, deeper };
+export function lessonDepth(id: string, locale: Locale, domain: "molecule" | "mix" | "nuclear" = "mix"): LessonDepth {
+  const depth = locale === "es"
+    ? LESSON_DEPTH_ES[id as keyof typeof LESSON_DEPTH_ES]
+    : LESSON_DEPTH[id as keyof typeof LESSON_DEPTH];
+  if (depth) return depth;
+  return locale === "es"
+    ? LESSON_DEPTH_ES[domain === "nuclear" ? "atom-alpha" : domain === "molecule" ? "water" : "mix-fizz"]
+    : LESSON_DEPTH[domain === "nuclear" ? "atom-alpha" : domain === "molecule" ? "water" : "mix-fizz"];
 }
 
 function formatNumber(value: number, locale: Locale, places: number): string {
@@ -410,7 +419,7 @@ export function moleculeCard(
     lesson.usedFor,
     tr(locale, "play.learn.molecule.ask", { name: spokenName }),
     locale,
-    lessonDepth(lesson, locale, "molecule"),
+    lessonDepth(molecule.id, locale, "molecule"),
   );
 }
 
@@ -480,7 +489,7 @@ export function mixCard(
     lesson.usedFor,
     lesson.askPrompt,
     locale,
-    lessonDepth(lesson, locale, "mix"),
+    lessonDepth(quest.id, locale, "mix"),
   );
 }
 
@@ -561,7 +570,7 @@ export function atomCard(
     lesson.usedFor,
     lesson.askPrompt,
     locale,
-    lessonDepth(lesson, locale, "nuclear"),
+    lessonDepth(quest.id, locale, "nuclear"),
   );
 }
 

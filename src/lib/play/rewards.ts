@@ -1,5 +1,5 @@
 import type { DailyProgress } from "./daily";
-import { DAILY_POOL, dailyFor } from "./daily";
+import { DAILY_POOL } from "./daily";
 import type { PlayProgress } from "./progress";
 import type { Stars } from "./quests";
 import type { MessageKey } from "../i18n";
@@ -44,6 +44,18 @@ export interface RewardState {
   weekly: WeeklyProgress;
   today: string;
   playedPack: boolean;
+}
+
+export function rewardChange(before: RewardState, after: RewardState): { rankUp: boolean; newBadge?: Badge } {
+  const rankUp = rankFor(xpFor(after.progress, after.daily, after.weekly)).current.id
+    !== rankFor(xpFor(before.progress, before.daily, before.weekly)).current.id;
+  const previous = new Set(earnedBadges(before).map(({ id }) => id));
+  const newBadge = earnedBadges(after).find(({ id }) => !previous.has(id));
+  return { rankUp, ...(newBadge ? { newBadge } : {}) };
+}
+
+export function hasPlayedPack(progress: PlayProgress): boolean {
+  return Object.entries(progress.stars).some(([id, stars]) => id.startsWith("pack:") && stars > 0);
 }
 
 export interface Badge {
@@ -113,22 +125,9 @@ function hash(value: string): number {
 }
 
 export function weeklyFor(week: string, todayKey = ""): { id: string; template: (typeof DAILY_POOL)[number] }[] {
+  void todayKey;
   const indices = DAILY_POOL.map((_item, index) => index).sort((a, b) => hash(`${week}:${a}`) - hash(`${week}:${b}`));
-  const matched = /^(\d{4})-W(\d{2})$/.exec(week);
-  const excluded = new Set<string>();
-  if (matched) {
-    const jan4 = new Date(Date.UTC(Number(matched[1]), 0, 4));
-    const monday = new Date(jan4);
-    monday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (Number(matched[2]) - 1) * 7);
-    for (let day = 0; day < 7; day += 1) {
-      const date = new Date(monday);
-      date.setUTCDate(monday.getUTCDate() + day);
-      excluded.add(JSON.stringify(dailyFor(date.toISOString().slice(0, 10)).template));
-    }
-  } else if (todayKey) {
-    excluded.add(JSON.stringify(dailyFor(todayKey).template));
-  }
-  const selected = indices.filter((index) => !excluded.has(JSON.stringify(DAILY_POOL[index]))).slice(0, 3);
+  const selected = indices.slice(0, 3);
   return selected.map((index, position) => ({ id: `weekly:${week}:${position}`, template: DAILY_POOL[index] }));
 }
 

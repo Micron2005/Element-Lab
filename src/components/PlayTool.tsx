@@ -35,7 +35,7 @@ import {
   useWeeklyProgress,
 } from "./usePlayProgress";
 import { dailyFor, dailyKey, streak } from "@/lib/play/daily";
-import { earnedBadges, isoWeekKey, rankFor, weeklyFor, xpFor, type RewardState } from "@/lib/play/rewards";
+import { hasPlayedPack, isoWeekKey, rewardChange, weeklyFor, xpFor, type RewardState } from "@/lib/play/rewards";
 import { Term } from "./Term";
 import { BetaOnly, useBeta } from "./BetaProvider";
 import GradeLevelPicker from "./GradeLevelPicker";
@@ -617,7 +617,7 @@ export default function PlayTool() {
     daily: dailyProgress,
     weekly: weeklyProgress,
     today: todayKey,
-    playedPack: Object.entries(progress.stars).some(([id, stars]) => id.startsWith("pack:") && stars > 0),
+    playedPack: hasPlayedPack(progress),
   };
   const weeklyDone = weeklyChallenges.filter(({ id }) => (weeklyProgress.done[id] ?? 0) > 0).length;
   const currentXp = xpFor(progress, dailyProgress, weeklyProgress);
@@ -643,12 +643,11 @@ export default function PlayTool() {
       awardStars(questId, stars);
       after = { ...before, progress: { stars: { ...before.progress.stars, [questId]: Math.max(before.progress.stars[questId] ?? 0, stars) as Stars } } };
     }
-    const earnedBefore = new Set(earnedBadges(before).map(({ id }) => id));
-    const newBadge = earnedBadges(after).find(({ id }) => !earnedBefore.has(id));
-    if (rankFor(xpFor(after.progress, after.daily, after.weekly)).current.id !== rankFor(xpFor(before.progress, before.daily, before.weekly)).current.id) {
+    const change = rewardChange(before, after);
+    if (change.rankUp) {
       setRewardToast(t("play.reward.rankUp"));
-    } else if (newBadge) {
-      setRewardToast(t("play.reward.badgeEarned", { badge: t(newBadge.titleKey) }));
+    } else if (change.newBadge) {
+      setRewardToast(t("play.reward.badgeEarned", { badge: t(change.newBadge.titleKey) }));
     }
   }
 

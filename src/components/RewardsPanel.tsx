@@ -58,7 +58,7 @@ function CertificateActions({ xp, locale, state }: { xp: number; locale: Locale;
   }
   return (
     <section className="certificate-actions">
-      <h3>{t("play.reward.printCertificate")}</h3>
+      <h2>{t("play.reward.printCertificate")}</h2>
       <label>{t("play.reward.studentName")}<input className="input" maxLength={80} value={studentName} onChange={(event) => setStudentName(event.target.value)} /></label>
       {ranks.map((rank) => (
         <button className="button button-secondary" type="button" key={rank.id} onClick={() => void print(t("play.reward.rankCertificate", { rank: t(rank.titleKey) }))}>
@@ -130,7 +130,7 @@ export default function RewardsPanel({ xp, state }: { xp: number; state: RewardS
         </div>
       )}
       <div className="reward-gear">
-        <h3>{t("play.reward.labGear")}</h3>
+        <h2>{t("play.reward.labGear")}</h2>
         <Scientist coat={gear.coat} goggles={gear.goggles} label={t("play.reward.scientistAvatar")} />
         <label>{t("play.reward.coat")}
           <select value={gear.coat} onChange={(event) => saveGear({ ...gear, coat: event.target.value as typeof gear.coat })}>
