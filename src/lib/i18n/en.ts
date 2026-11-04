@@ -3,6 +3,7 @@ import { benchEn } from "./messages/bench";
 import { benchComponentsEn } from "./messages/benchComponents";
 import { elementsEn } from "./messages/elements";
 import { labEn } from "./messages/lab";
+import { betaEn } from "./messages/beta";
 
 export const en = {
   "meta.description": "A virtual science lab for curious minds: chemistry, materials, physics and more.",
@@ -773,6 +774,7 @@ export const en = {
   ...benchComponentsEn,
   ...elementsEn,
   ...labEn,
+  ...betaEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

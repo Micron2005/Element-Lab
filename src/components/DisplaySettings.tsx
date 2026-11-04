@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LOCALE_COOKIE, type Locale } from "@/lib/i18n";
+import { BETA_FEATURES } from "@/lib/beta";
 import { savePrefs } from "@/lib/prefs";
+import { useBeta } from "./BetaProvider";
 import { useT } from "./LocaleProvider";
 import { usePrefs } from "./usePrefs";
 
@@ -43,6 +45,7 @@ function Switch({
 export default function DisplaySettings() {
   const prefs = usePrefs();
   const { locale, t } = useT();
+  const { beta, isOn, setFeature } = useBeta();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -138,6 +141,35 @@ export default function DisplaySettings() {
             </button>
             <small>{t("display.motionHint")}</small>
           </div>
+          {beta && (
+            <div className="beta-tester-section">
+              <h3>{t("beta.settings.title")}</h3>
+              {BETA_FEATURES.map((feature) => {
+                const labelId = `beta-feature-${feature.id}`;
+                const descriptionId = `${labelId}-description`;
+                return (
+                  <div className="beta-feature-setting" key={feature.id}>
+                    <span id={labelId}>{t(feature.titleKey)}</span>
+                    <button
+                      type="button"
+                      className="display-switch"
+                      role="switch"
+                      aria-labelledby={labelId}
+                      aria-describedby={descriptionId}
+                      aria-checked={isOn(feature.id)}
+                      onClick={() => setFeature(feature.id, !isOn(feature.id))}
+                    >
+                      <span aria-hidden="true" />
+                    </button>
+                    <small id={descriptionId}>{t(feature.descKey)}</small>
+                  </div>
+                );
+              })}
+              <a className="beta-leave-link" href="/beta?leave=1">
+                {t("beta.settings.leave")}
+              </a>
+            </div>
+          )}
           <Link className="display-glossary-link" href="/glossary" onClick={() => setOpen(false)}>
             {t("display.glossary")}
           </Link>
