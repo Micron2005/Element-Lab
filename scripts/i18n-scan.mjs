@@ -59,12 +59,13 @@ function normalizeText(value) {
 }
 
 function words(value) {
-  return [...value.matchAll(/[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’‑-]*/g)].map((match) => match[0].toLowerCase());
+  return [...value.matchAll(/[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’‑-]*/g)].map((match) => match[0]);
 }
 
 function isCodeLike(value) {
   return /^#[0-9a-f]{3,8}$/i.test(value) ||
     /^\d+px Arial$/.test(value) ||
+    /^\d+px solid #[0-9a-f]{6}$/i.test(value) ||
     (/^(?:[a-z][a-z0-9_.:/-]*|[A-Z][A-Za-z0-9_.:/-]*)$/.test(value) && !/\s/.test(value));
 }
 
@@ -228,14 +229,12 @@ function dataPropertyAllowlist(sourceFiles) {
         relativePath === "src/lib/nuclear.ts" &&
         ts.isVariableDeclaration(node) &&
         ts.isIdentifier(node.name) &&
-        ["NAMES", "SYMBOLS"].includes(node.name.text) &&
+        node.name.text === "SYMBOLS" &&
         node.initializer
       ) {
         function collectElementNames(current) {
           const value = stringValue(current);
-          if (value && (node.name.text === "SYMBOLS" || value.includes("Hydrogen"))) {
-            for (const name of value.split(/\s+/)) values.add(name);
-          }
+          if (value) values.add(value);
           ts.forEachChild(current, collectElementNames);
         }
         collectElementNames(node.initializer);
@@ -273,13 +272,11 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
   );
   const sourceFiles = new Map(relativeFiles.map((relativePath) => [relativePath, parseFile(root, relativePath)]));
   const { keys: messageKeys, values: englishValues } = dictionary(root, "src/lib/i18n/en.ts");
-  const { values: spanishValues } = dictionary(root, "src/lib/i18n/es.ts");
   const chemicalValues = dataPropertyAllowlist(sourceFiles);
-  const staticWords = new Set([...STATIC_ALLOWLIST].flatMap(words));
-  const allowedWords = new Set([
-    ...staticWords,
-    ...[...spanishValues].flatMap(words),
-    ...[...chemicalValues].flatMap(words),
+  const exactValues = new Set([...STATIC_ALLOWLIST, ...chemicalValues]);
+  const exactTokens = new Set([
+    ...[...STATIC_ALLOWLIST].filter((value) => !/\s/.test(value)),
+    ...[...chemicalValues].filter((value) => !/\s/.test(value)),
   ]);
   const handledNodes = new WeakSet();
   const translatedValueNodes = new WeakSet();
@@ -302,6 +299,7 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
             (key && messageKeys.has(key)) ||
             (prefix && [...messageKeys].some((messageKey) => messageKey.startsWith(prefix)))
           ) handledNodes.add(node.arguments[0]);
+          if (name === "t" && key && englishValues.has(key)) handledNodes.add(node.arguments[0]);
         }
         if (name === "trText" && node.arguments.length > 1) {
           const text = stringValue(node.arguments[1]);
@@ -313,7 +311,6 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
     visit(source);
   }
 
-  const allowlist = new Set(allowedWords);
   const findings = [];
   for (const item of collectStringNodes(root, sourceFiles)) {
     const { node, relativePath, kind } = item;
@@ -321,15 +318,21 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
     if (!source) continue;
     if (insideOverlayCoveredTable(node, relativePath)) continue;
     if (inCodeAttribute(node) || inImportOrPropertyKey(node)) continue;
-    if (messageKeys.has(item.text) || isCodeLike(item.text) || STATIC_ALLOWLIST.has(item.text)) continue;
-    if (item.text.split(/\s+/).every((token) => staticWords.has(token.toLowerCase()))) continue;
-    if (item.text.includes("Science Lab") && item.text.includes("%s")) continue;
+    if (messageKeys.has(item.text) || isCodeLike(item.text) || exactValues.has(item.text)) continue;
+    if (
+      relativePath === "src/lib/prefs.ts" &&
+      ancestor(node, (current) =>
+        ts.isVariableDeclaration(current) &&
+        ts.isIdentifier(current.name) &&
+        current.name.text === "PREFS_SCRIPT",
+      )
+    ) continue;
     const tokenList = words(item.text);
     if (!tokenList.length) continue;
     if (kind === "literal" && tokenList.length < 2) continue;
-    const nonAllowed = tokenList.filter((token) => !allowedWords.has(token));
-    const common = nonAllowed.some((token) => COMMON_ENGLISH.has(token));
-    const englishLike = common || nonAllowed.some((token) => /^[a-z]{4,}$/.test(token));
+    const nonAllowed = tokenList.filter((token) => !exactTokens.has(token));
+    const common = nonAllowed.some((token) => COMMON_ENGLISH.has(token.toLowerCase()));
+    const englishLike = common || nonAllowed.some((token) => /^[a-z]{4,}$/i.test(token));
     if (!englishLike) continue;
     if (handledNodes.has(node) || translatedValueNodes.has(node)) continue;
     const position = ts.getLineAndCharacterOfPosition(source, node.getStart(source));
@@ -345,7 +348,7 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
   ])).values()].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   return {
     findings: unique,
-    allowlistSize: allowlist.size,
+    allowlistSize: exactValues.size,
     files: relativeFiles,
   };
 }

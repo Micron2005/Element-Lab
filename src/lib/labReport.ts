@@ -205,7 +205,7 @@ export function nucleusReport(
   locale: Locale = DEFAULT_LOCALE,
 ): LabReportDoc {
   extra = { ...extra, locale };
-  const nucleus = analyzeNucleus(z, n);
+  const nucleus = analyzeNucleus(z, n, locale);
   const hypothetical = z > 118 || !nucleus.known;
   const sections: ReportSection[] = [
     {

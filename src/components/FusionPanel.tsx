@@ -12,7 +12,7 @@ import {
   type FusionRecipe,
   type Projectile,
 } from "@/lib/nuclearFusion";
-import { analyzeNucleus, elementName } from "@/lib/nuclear";
+import { analyzeNucleus, elementName, localizeElementName } from "@/lib/nuclear";
 import NucleusViewer from "./NucleusViewer";
 import { Panel } from "./shared";
 import { Term } from "./Term";
@@ -26,9 +26,9 @@ function projectileFromId(id: string): Projectile {
   return PROJECTILES.find((item) => item.id === id) ?? PROJECTILES[0];
 }
 
-function projectileName(projectile: Projectile): string {
+function projectileName(projectile: Projectile, locale: "en" | "es"): string {
   const element = elementName(projectile.z);
-  return `${element.name}-${projectile.z + projectile.n} (${element.symbol}-${projectile.z + projectile.n})`;
+  return `${localizeElementName(projectile.z, locale)}-${projectile.z + projectile.n} (${element.symbol}-${projectile.z + projectile.n})`;
 }
 
 function recipeBeam(recipe: FusionRecipe, projectile: Projectile): number {
@@ -199,7 +199,7 @@ export default function FusionPanel({
             >
               {PROJECTILES.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {projectileName(item)}
+                  {projectileName(item, locale)}
                 </option>
               ))}
             </select>
@@ -349,7 +349,7 @@ export default function FusionPanel({
                   return (
                     <span className="fusion-product" key={`${item.z}-${item.n}-${index}`}>
                       <span className="fusion-product-heading">
-                        <strong>{item.name}</strong>
+                      <strong>{`${localizeElementName(item.z, locale)}-${item.z + item.n}`}</strong>
                         <span className={`badge ${element.known ? "badge-good" : "badge-warn"}`}>
                           {element.known ? t("fusion.known") : t("fusion.hypothetical")}
                         </span>

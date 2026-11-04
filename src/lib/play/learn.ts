@@ -1,7 +1,7 @@
 import { fmtTime } from "../formula";
 import { benchById } from "../bench/library";
 import type { Experiment, Product, RunResult } from "../bench/types";
-import { analyzeNucleus } from "../nuclear";
+import { analyzeNucleus, localizeElementName } from "../nuclear";
 import { decayChain, neutronHit, type NuclearStepKind } from "../nuclearScene";
 import { localizeMolecule, prettyFormula, type KnownMolecule, type MoleculeId } from "./molecule";
 import { localizeQuest, type AtomQuest, type MixQuest } from "./quests";
@@ -533,7 +533,7 @@ export function atomCard(
     { heading: tr(locale, "play.learn.heading.whyItMatters"), body: lesson.whyItMatters },
   ];
   return createCard(
-    localizedQuest.title,
+    `${localizedQuest.title} — ${localizeElementName(quest.reference.z, locale)}`,
     sections,
     lesson.usedFor,
     lesson.askPrompt,

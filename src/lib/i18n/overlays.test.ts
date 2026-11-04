@@ -15,6 +15,9 @@ import { BENCH_LIBRARY_TEXT_ES } from "./data/es/benchLibrary";
 import { BENCH_PRESET_TEXT_ES } from "./data/es/benchPresets";
 import { REACTION_TEXT_ES } from "./data/es/benchReactions";
 import { INGREDIENT_TEXT_ES } from "./data/es/ingredients";
+import { ELEMENT_NAMES_ES } from "./data/es/elements";
+import { ELEMENT_NAMES_EN } from "./data/en/elements";
+import { localizeElementName } from "../nuclear";
 
 const placeholders = (value: string) => [...value.matchAll(/\{([A-Za-z0-9_]+)\}/g)]
   .map((match) => match[1])
@@ -127,6 +130,21 @@ describe("Spanish data overlays", () => {
       expect(placeholders(translated)).toEqual(placeholders(ATOMS[symbol as keyof typeof ATOMS].name));
       expect(localizeAtom(ATOMS[symbol as keyof typeof ATOMS], "es").name).toBe(translated);
     }
+  });
+
+  it("covers all 118 Spanish element names and localizes hypothetical labels", () => {
+    expect(Object.keys(ELEMENT_NAMES_ES).map(Number).sort((a, b) => a - b))
+      .toEqual(Array.from({ length: 118 }, (_, index) => index + 1));
+    expect(ELEMENT_NAMES_EN).toHaveLength(118);
+    for (const [atomicNumber, translated] of Object.entries(ELEMENT_NAMES_ES)) {
+      const english = ELEMENT_NAMES_EN[Number(atomicNumber) - 1];
+      expect(translated.trim(), atomicNumber).toBeTruthy();
+      if (translated === english) {
+        expect(atomicNumber, "only Zinc is identical in English and Spanish").toBe("30");
+      }
+      expect(localizeElementName(Number(atomicNumber), "es")).toBe(translated);
+    }
+    expect(localizeElementName(120, "es")).toBe("Unbinilio");
   });
 
   it("covers every molecule id and keeps overlaid text complete", () => {

@@ -1,5 +1,7 @@
 // Semi-empirical (liquid-drop) mass formula, coefficients in MeV (Krane).
 import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
+import { ELEMENT_NAMES_EN } from "./i18n/data/en/elements";
+import { ELEMENT_NAMES_ES } from "./i18n/data/es/elements";
 const aV = 15.75, aS = 17.8, aC = 0.711, aA = 23.7, aP = 11.18;
 const MAGIC = [2, 8, 20, 28, 50, 82, 126, 184];
 
@@ -7,9 +9,7 @@ export const SYMBOLS = (
   "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og"
 ).split(" ");
 
-export const NAMES = (
-  "Hydrogen Helium Lithium Beryllium Boron Carbon Nitrogen Oxygen Fluorine Neon Sodium Magnesium Aluminium Silicon Phosphorus Sulfur Chlorine Argon Potassium Calcium Scandium Titanium Vanadium Chromium Manganese Iron Cobalt Nickel Copper Zinc Gallium Germanium Arsenic Selenium Bromine Krypton Rubidium Strontium Yttrium Zirconium Niobium Molybdenum Technetium Ruthenium Rhodium Palladium Silver Cadmium Indium Tin Antimony Tellurium Iodine Xenon Caesium Barium Lanthanum Cerium Praseodymium Neodymium Promethium Samarium Europium Gadolinium Terbium Dysprosium Holmium Erbium Thulium Ytterbium Lutetium Hafnium Tantalum Tungsten Rhenium Osmium Iridium Platinum Gold Mercury Thallium Lead Bismuth Polonium Astatine Radon Francium Radium Actinium Thorium Protactinium Uranium Neptunium Plutonium Americium Curium Berkelium Californium Einsteinium Fermium Mendelevium Nobelium Lawrencium Rutherfordium Dubnium Seaborgium Bohrium Hassium Meitnerium Darmstadtium Roentgenium Copernicium Nihonium Flerovium Moscovium Livermorium Tennessine Oganesson"
-).split(" ");
+export const NAMES = ELEMENT_NAMES_EN;
 
 const ROOTS = ["nil", "un", "bi", "tri", "quad", "pent", "hex", "sept", "oct", "enn"];
 
@@ -24,6 +24,13 @@ export function elementName(z: number) {
     symbol: symbol[0].toUpperCase() + symbol.slice(1),
     known: false,
   };
+}
+
+export function localizeElementName(z: number, locale: Locale = DEFAULT_LOCALE): string {
+  const english = elementName(z).name;
+  if (locale !== "es") return english;
+  if (z >= 1 && z <= ELEMENT_NAMES_EN.length) return ELEMENT_NAMES_ES[z];
+  return english.replace(/ium$/i, "io");
 }
 
 export function bindingEnergy(z: number, n: number) {
@@ -166,7 +173,7 @@ export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LO
     z,
     n,
     a,
-    name: el.name,
+    name: localizeElementName(z, locale),
     symbol: el.symbol,
     known: el.known,
     bindingMeV: B,

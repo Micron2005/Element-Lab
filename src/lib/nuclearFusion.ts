@@ -378,7 +378,7 @@ function failureStep(
       kind: dominant,
       from: target,
       projectile,
-      ...fissionProducts(compound.z, compound.n),
+      ...fissionProducts(compound.z, compound.n, locale),
       halfLife: "",
       caption: mostHits(dominant, locale),
     };
@@ -431,9 +431,9 @@ function finishReport(
   const compoundZ = projectile.z + target.z;
   const compoundN = projectile.n + target.n;
   const compoundA = compoundZ + compoundN;
-  const compound = nucleusRef(compoundZ, compoundN);
-  const projectileRef = nucleusRef(projectile.z, projectile.n);
-  const targetRef = nucleusRef(target.z, target.n);
+  const compound = nucleusRef(compoundZ, compoundN, locale);
+  const projectileRef = nucleusRef(projectile.z, projectile.n, locale);
+  const targetRef = nucleusRef(target.z, target.n, locale);
   const ecmMeV = (beamLabMeV * a2) / (a1 + a2);
   const radius = 1.4 * (Math.cbrt(a1) + Math.cbrt(a2));
   const barrier = (1.44 * projectile.z * target.z) / radius;
@@ -494,7 +494,7 @@ function finishReport(
       addEmission(emitted, "gamma");
     }
 
-    let residuePieces = [nucleusRef(residueZ, residueN)];
+    let residuePieces = [nucleusRef(residueZ, residueN, locale)];
     if (residueZ >= 4 && residueN >= 4) {
       const alphaSeparation =
         bestBinding(residueZ, residueN) -
@@ -502,13 +502,13 @@ function finishReport(
         bestBinding(residueZ - 2, residueN - 2);
       if (alphaSeparation <= 0) {
         residuePieces = [
-          nucleusRef(2, 2),
-          nucleusRef(residueZ - 2, residueN - 2),
+          nucleusRef(2, 2, locale),
+          nucleusRef(residueZ - 2, residueN - 2, locale),
         ];
         addEmission(emitted, "alpha");
       }
     }
-    residue = [...(emittedAlpha ? [nucleusRef(2, 2)] : []), ...residuePieces];
+    residue = [...(emittedAlpha ? [nucleusRef(2, 2, locale)] : []), ...residuePieces];
     energyReleasedMeV =
       residue.reduce((sum, item) => sum + bestBinding(item.z, item.n), 0) -
       bestBinding(projectile.z, projectile.n) -
@@ -564,7 +564,7 @@ function finishReport(
       if (neutronCount === 0) survival *= survivalFactor(compoundFissility);
       if (remainingExcitation > 0.1) addEmission(emitted, "gamma");
       if (neutronCount > 0) addEmission(emitted, "n", neutronCount);
-      residue = [nucleusRef(currentZ, currentN)];
+      residue = [nucleusRef(currentZ, currentN, locale)];
       energyReleasedMeV =
         bestBinding(currentZ, currentN) -
         bestBinding(projectile.z, projectile.n) -

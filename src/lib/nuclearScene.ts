@@ -1,4 +1,4 @@
-import { analyzeNucleus, bindingEnergy, elementName } from "./nuclear";
+import { analyzeNucleus, bindingEnergy, elementName, localizeElementName } from "./nuclear";
 import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
 
 export type NuclearStepKind = "stable" | "neutron-drip" | "proton-drip" | "fission" | "alpha" | "beta-minus" | "beta-plus" | "neutron-capture" | "bounce" | "quasi-fission" | "fusion-fission" | "fusion" | "evaporation";
@@ -12,17 +12,17 @@ function assertNucleus(z: number, n: number, locale: Locale = DEFAULT_LOCALE): v
   }
 }
 
-export function nucleusRef(z: number, n: number): NucleusRef {
+export function nucleusRef(z: number, n: number, locale: Locale = DEFAULT_LOCALE): NucleusRef {
   const element = elementName(z);
   return {
     z,
     n,
     symbol: element.symbol,
-    name: `${element.name}-${z + n}`,
+    name: `${localizeElementName(z, locale)}-${z + n}`,
   };
 }
 
-export function fissionProducts(z: number, n: number): {
+export function fissionProducts(z: number, n: number, locale: Locale = DEFAULT_LOCALE): {
   to: NucleusRef[];
   emitted: Emission[];
   energyMeV: number;
@@ -37,14 +37,14 @@ export function fissionProducts(z: number, n: number): {
     bindingEnergy(z2, n2) -
     bindingEnergy(z, n);
   return {
-    to: [nucleusRef(z1, n1), nucleusRef(z2, n2)],
+    to: [nucleusRef(z1, n1, locale), nucleusRef(z2, n2, locale)],
     emitted: [{ type: "n", count: neutronCount }],
     energyMeV,
   };
 }
 
 function stableStep(z: number, n: number, halfLife: string, locale: Locale): NuclearStep {
-  const nucleus = nucleusRef(z, n);
+  const nucleus = nucleusRef(z, n, locale);
   return {
     kind: "stable",
     from: nucleus,
@@ -58,13 +58,13 @@ function stableStep(z: number, n: number, halfLife: string, locale: Locale): Nuc
 
 function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
   const report = analyzeNucleus(z, n, locale);
-  const from = nucleusRef(z, n);
+  const from = nucleusRef(z, n, locale);
   const mode = report.modeIds[0];
   if (!mode) return stableStep(z, n, report.halfLife, locale);
 
   if (mode === "neutron-drip") {
     if (n === 0) return stableStep(z, n, report.halfLife, locale);
-    const to = nucleusRef(z, n - 1);
+    const to = nucleusRef(z, n - 1, locale);
     return {
       kind: "neutron-drip",
       from,
@@ -78,7 +78,7 @@ function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
 
   if (mode === "proton-drip") {
     if (z <= 1) return stableStep(z, n, report.halfLife, locale);
-    const to = nucleusRef(z - 1, n);
+    const to = nucleusRef(z - 1, n, locale);
     return {
       kind: "proton-drip",
       from,
@@ -91,7 +91,7 @@ function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
   }
 
   if (mode === "instant-fission" || mode === "spontaneous-fission") {
-    const fission = fissionProducts(z, n);
+    const fission = fissionProducts(z, n, locale);
     return {
       kind: "fission",
       from,
@@ -103,7 +103,7 @@ function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
 
   if (mode === "alpha") {
     if (z <= 2 || n <= 2) return stableStep(z, n, report.halfLife, locale);
-    const to = nucleusRef(z - 2, n - 2);
+    const to = nucleusRef(z - 2, n - 2, locale);
     return {
       kind: "alpha",
       from,
@@ -117,7 +117,7 @@ function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
 
   if (mode === "beta-minus") {
     if (n <= 0) return stableStep(z, n, report.halfLife, locale);
-    const to = nucleusRef(z + 1, n - 1);
+    const to = nucleusRef(z + 1, n - 1, locale);
     return {
       kind: "beta-minus",
       from,
@@ -134,7 +134,7 @@ function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
 
   if (mode === "beta-plus") {
     if (z <= 1) return stableStep(z, n, report.halfLife, locale);
-    const to = nucleusRef(z - 1, n + 1);
+    const to = nucleusRef(z - 1, n + 1, locale);
     return {
       kind: "beta-plus",
       from,
@@ -171,11 +171,11 @@ export function decayChain(z: number, n: number, maxSteps = 8, locale: Locale = 
 
 export function neutronHit(z: number, n: number, locale: Locale = DEFAULT_LOCALE): NuclearStep {
   assertNucleus(z, n, locale);
-  const from = nucleusRef(z, n);
+  const from = nucleusRef(z, n, locale);
   const compoundN = n + 1;
   const compound = analyzeNucleus(z, compoundN, locale);
   if (z >= 90 && compound.fissility > 0.7) {
-    const fission = fissionProducts(z, compoundN);
+    const fission = fissionProducts(z, compoundN, locale);
     return {
       kind: "fission",
       from,
@@ -185,7 +185,7 @@ export function neutronHit(z: number, n: number, locale: Locale = DEFAULT_LOCALE
       caption: tr(locale, "elements.scene.neutronFission", { from: from.name, products: fission.to.map((fragment) => fragment.name).join(" + ") }),
     };
   }
-  const to = nucleusRef(z, compoundN);
+  const to = nucleusRef(z, compoundN, locale);
   return {
     kind: "neutron-capture",
     from,
