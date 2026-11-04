@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { trText } from "@/lib/i18n";
-import { ATOMS, type AtomSymbol } from "@/lib/play/atoms";
+import { ATOMS, localizeAtom, type AtomSymbol } from "@/lib/play/atoms";
 import {
   EMPTY_GRAPH,
   addAtom,
@@ -208,9 +207,9 @@ export default function MoleculeBoard({
     return clampPoint(point.x, point.y);
   }
 
-  function atomName(id: string) {
+  function atomNameForId(id: string) {
     const atom = graph.atoms.find((item) => item.id === id);
-    return atom ? trText(locale, ATOMS[atom.el].name) : t("play.thatAtom");
+    return atom ? localizeAtom(ATOMS[atom.el], locale).name : t("play.thatAtom");
   }
 
   function tapAtom(id: string) {
@@ -230,7 +229,7 @@ export default function MoleculeBoard({
     const next = cycleBond(graph, a, b);
     if (next === graph) {
       const full = freeValence(graph, a) <= 0 ? a : b;
-      setNotice(t("play.atomFull", { name: atomName(full) }));
+      setNotice(t("play.atomFull", { name: atomNameForId(full) }));
       return;
     }
     const bond = bondBetween(next, a, b);
@@ -249,11 +248,11 @@ export default function MoleculeBoard({
     if (canAttach && added) {
       next = cycleBond(next, anchor.id, added.id);
       setNotice(t("play.bondedToSelected", {
-        name: trText(locale, ATOMS[el].name),
-        selected: trText(locale, ATOMS[anchor.el].name).toLowerCase(),
+        name: localizeAtom(ATOMS[el], locale).name,
+        selected: localizeAtom(ATOMS[anchor.el], locale).name.toLowerCase(),
       }));
     } else if (anchor) {
-      setNotice(t("play.atomPlacedAlone", { name: trText(locale, ATOMS[anchor.el].name) }));
+      setNotice(t("play.atomPlacedAlone", { name: localizeAtom(ATOMS[anchor.el], locale).name }));
     } else {
       setNotice("");
     }
@@ -313,8 +312,8 @@ export default function MoleculeBoard({
           >
             <span className="mol-palette-dot" style={{ background: ATOMS[el].color, color: ATOMS[el].textColor }}>{el}</span>
             <span className="mol-palette-text">
-              <strong>{trText(locale, ATOMS[el].name)}</strong>
-              <span>{t("mol.bondCount", { count: ATOMS[el].valence, suffix: ATOMS[el].valence === 1 ? "" : "s" })}</span>
+              <strong>{localizeAtom(ATOMS[el], locale).name}</strong>
+            <span>{t("mol.bondCount", { count: ATOMS[el].valence, suffix: ATOMS[el].valence === 1 ? "" : "s" })}</span>
             </span>
           </button>
         ))}

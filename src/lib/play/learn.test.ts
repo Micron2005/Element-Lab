@@ -54,7 +54,7 @@ describe("learning cards", () => {
         ...card.usedFor,
       ].join("\n");
       expect(explanatoryText).not.toMatch(appLanguage);
-      expect(card.askPrompt).toBe(QUEST_LESSONS[quest.id].askPrompt);
+      expect(card.askPrompt).toBe(QUEST_LESSONS[quest.id as keyof typeof QUEST_LESSONS].askPrompt);
     }
   });
 
@@ -81,6 +81,27 @@ describe("learning cards", () => {
     expect(card.title).toBe("Agua (H₂O)");
     expect(card.sections[0]?.heading).toBe("Qué es");
     expect(card.sections[1]?.body).toContain("pares solitarios");
+  });
+
+  it("localizes run-derived mix and atom learning copy", () => {
+    const mixQuest = QUESTS.find((item) => item.id === "mix-fizz");
+    const splitQuest = QUESTS.find((item) => item.id === "atom-split");
+    if (!mixQuest || mixQuest.chapter !== "mixing") throw new Error("Mix fizz quest is missing.");
+    if (!splitQuest || splitQuest.chapter !== "atoms") throw new Error("Atom-split quest is missing.");
+
+    const mixResult = simulate(mixQuest.reference, "es");
+    const mix = mixCard(mixQuest, mixQuest.reference, mixResult, "es");
+    const mixDetails = mix.sections.find((section) => section.heading === "Qué pasó en tu prueba")?.body ?? "";
+    expect(mixDetails).toContain("Ingredientes de esta prueba:");
+    expect(mixDetails).toContain("pH efectivo:");
+    expect(mixDetails).not.toContain("Ingredients in this run:");
+
+    const atom = atomCard(splitQuest, 92, 143, "es");
+    const atomDetails = atom.sections.find((section) => section.heading === "Qué pasó en tu prueba")?.body ?? "";
+    expect(atomDetails).toContain("Vida media estimada:");
+    expect(atomDetails).toContain("Impacto de neutrón:");
+    expect(atomDetails).not.toContain("Estimated half-life:");
+    expect(atomDetails).not.toContain("Neutron hit:");
   });
 
   it("uses the fizz event and product label from the simulated mix run", () => {

@@ -1,4 +1,19 @@
-import type { QuestBase } from "../../../play/quests";
+import type { Chapter, QuestBase } from "../../../play/quests";
+
+export const CHAPTER_TEXT_ES: Record<Chapter, { title: string; blurb: string }> = {
+  molecules: {
+    title: "Constructor de moléculas",
+    blurb: "Conecta átomos y descubre cómo los enlaces dan forma a moléculas conocidas.",
+  },
+  mixing: {
+    title: "Laboratorio de mezclas",
+    blurb: "Usa el modelo real del banco para probar ingredientes y condiciones.",
+  },
+  atoms: {
+    title: "Historias nucleares",
+    blurb: "Explora lo que predice un modelo simplificado del núcleo.",
+  },
+};
 
 export type BuiltinQuestId =
   | "molecule-hydrogen"

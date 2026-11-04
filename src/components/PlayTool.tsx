@@ -6,12 +6,13 @@ import { PageIntro } from "./shared";
 import MoleculeBoard from "./MoleculeBoard";
 import Molecule3D from "./Molecule3D";
 import { ATOMS, type AtomSymbol } from "@/lib/play/atoms";
-import { checkMolecule, prettyFormula, type KnownMolecule, type MolCheck, type MolGraph } from "@/lib/play/molecule";
+import { checkMolecule, localizeMolecule, prettyFormula, type KnownMolecule, type MolCheck, type MolGraph } from "@/lib/play/molecule";
 import { moleculeCard } from "@/lib/play/learn";
 import {
   CHAPTERS,
   QUESTS,
   gradeMolecule,
+  localizeChapter,
   localizeQuest,
   questById,
   questsIn,
@@ -30,7 +31,7 @@ import {
 } from "./usePlayProgress";
 import { dailyFor, dailyKey, streak } from "@/lib/play/daily";
 import { Term } from "./Term";
-import { KNOWN_MOLECULES, localizeMolecule } from "@/lib/play/molecule";
+import { KNOWN_MOLECULES } from "@/lib/play/molecule";
 import { compileTemplate, describeTargets, type MixTargets, type QuestTemplate } from "@/lib/play/templates";
 import {
   deletePack,
@@ -122,7 +123,7 @@ function MoleculeQuestPlay({
   function check(graph: MolGraph) {
     const next = gradeMolecule(quest, graph, hintsUsed, locale);
     setGrade(next);
-    setMatch(checkMolecule(graph).match);
+    setMatch(checkMolecule(graph, locale).match);
     if (next.stars > 0) onAward(next.stars);
   }
 
@@ -167,7 +168,7 @@ function FreeBuild() {
   const [check, setCheck] = useState<MolCheck | null>(null);
   const [graph, setGraph] = useState<MolGraph>({ atoms: [], bonds: [] });
   const [show3d, setShow3d] = useState(false);
-  const currentCheck = graph.atoms.length >= 2 ? checkMolecule(graph) : null;
+  const currentCheck = graph.atoms.length >= 2 ? checkMolecule(graph, locale) : null;
   return (
     <section className="play-quest">
       <h2>{t("play.ui.freeBuild")}</h2>
@@ -175,7 +176,7 @@ function FreeBuild() {
       <MoleculeBoard
         palette={ALL_ATOMS}
         onGraphChange={setGraph}
-        onCheck={(nextGraph) => setCheck(checkMolecule(nextGraph))}
+        onCheck={(nextGraph) => setCheck(checkMolecule(nextGraph, locale))}
         onEdit={() => setCheck(null)}
       />
       <div className="play-3d-toggle">
@@ -194,7 +195,7 @@ function FreeBuild() {
         ) : (
           <Molecule3D
             graph={graph}
-            label={`${currentCheck.match?.name ?? prettyFormula(currentCheck.formula)} ${t("play.ui.molecule")}`}
+            label={`${currentCheck.match ? localizeMolecule(currentCheck.match, locale).name : prettyFormula(currentCheck.formula)} ${t("play.ui.molecule")}`}
           />
         )
       )}
@@ -236,13 +237,13 @@ function QuestView({
   onAward: (stars: Stars) => void;
   onNext?: () => void;
 }) {
-  const { t } = useT();
+  const { locale, t } = useT();
   const chapter = CHAPTERS.find((item) => item.id === quest.chapter);
   const external = quest.chapter === "mixing" ? "/bench" : "/elements";
   return (
     <section className="play-quest">
       <button type="button" className="button button-secondary play-back" onClick={onBack}>{t("ui.allQuestsBack")}</button>
-      <p className="eyebrow">{chapter ? t(chapter.title) : ""}</p>
+      <p className="eyebrow">{chapter ? localizeChapter(chapter, locale).title : ""}</p>
       <h2>{quest.title}</h2>
       <p className="play-story">{quest.story}</p>
       <p className="play-goal"><strong>{t("ui.goalLabel")}</strong> {quest.goal}</p>
@@ -684,7 +685,7 @@ export default function PlayTool() {
             className={tab === chapter.id ? "is-active" : ""}
             onClick={() => openTab(chapter.id)}
           >
-            {t(chapter.title)}
+            {localizeChapter(chapter, locale).title}
           </button>
         ))}
         <button type="button" role="tab" aria-selected={tab === "free"} className={tab === "free" ? "is-active" : ""} onClick={() => openTab("free")}>
@@ -706,7 +707,7 @@ export default function PlayTool() {
 
       {tab !== "free" && !active && (
         <>
-          <p className="play-blurb">{CHAPTERS.find((chapter) => chapter.id === tab) ? t(CHAPTERS.find((chapter) => chapter.id === tab)!.blurb) : ""}</p>
+          <p className="play-blurb">{CHAPTERS.find((chapter) => chapter.id === tab) ? localizeChapter(CHAPTERS.find((chapter) => chapter.id === tab)!, locale).blurb : ""}</p>
           <ol className="play-quest-list">
             {questsIn(tab, locale).map((sourceQuest, index) => {
               const quest = sourceQuest;

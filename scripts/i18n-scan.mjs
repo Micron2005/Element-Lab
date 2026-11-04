@@ -5,10 +5,13 @@ import * as ts from "typescript";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, "..");
-// These source tables are covered by src/lib/i18n/overlays.test.ts.
-const OVERLAY_COVERED_DATA_TABLES = new Set([
-  "src/lib/play/molecule.ts",
-  "src/lib/play/quests.ts",
+// These source table initializers are covered by src/lib/i18n/overlays.test.ts.
+// Runtime code in these files remains in the scan.
+const OVERLAY_COVERED_DATA_TABLES = new Map([
+  ["src/lib/play/atoms.ts", new Set(["ATOMS"])],
+  ["src/lib/play/learn.ts", new Set(["MOLECULE_LESSONS", "QUEST_LESSONS"])],
+  ["src/lib/play/molecule.ts", new Set(["KNOWN_MOLECULES"])],
+  ["src/lib/play/quests.ts", new Set(["moleculeStarGoals", "moleculeQuests", "mixQuests", "atomQuests", "QUESTS", "CHAPTERS"])],
 ]);
 
 const COMMON_ENGLISH = new Set(`
@@ -56,7 +59,8 @@ function words(value) {
 }
 
 function isCodeLike(value) {
-  return /^(?:[a-z][a-z0-9_.:/-]*|[A-Z][A-Za-z0-9_.:/-]*)$/.test(value) && !/\s/.test(value);
+  return /^#[0-9a-f]{3,8}$/i.test(value) ||
+    (/^(?:[a-z][a-z0-9_.:/-]*|[A-Z][A-Za-z0-9_.:/-]*)$/.test(value) && !/\s/.test(value));
 }
 
 function readFiles(directory, suffix, root, output = []) {
@@ -130,6 +134,16 @@ function ancestor(node, predicate) {
     current = current.parent;
   }
   return undefined;
+}
+
+function insideOverlayCoveredTable(node, relativePath) {
+  const tableNames = OVERLAY_COVERED_DATA_TABLES.get(relativePath);
+  if (!tableNames) return false;
+  return Boolean(ancestor(node, (current) =>
+    ts.isVariableDeclaration(current) &&
+    ts.isIdentifier(current.name) &&
+    tableNames.has(current.name.text),
+  ));
 }
 
 function inCodeAttribute(node) {
@@ -210,7 +224,6 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
     !relativePath.endsWith(".test.ts") &&
     !relativePath.endsWith(".test.tsx") &&
     !relativePath.startsWith("src/lib/i18n/") &&
-    !OVERLAY_COVERED_DATA_TABLES.has(relativePath) &&
     !relativePath.startsWith("src/app/api/") &&
     relativePath !== "src/lib/assistantPrompt.ts",
   );
@@ -257,6 +270,7 @@ function scanI18n({ root = DEFAULT_ROOT } = {}) {
     const { node, relativePath, kind } = item;
     const source = sourceFiles.get(relativePath);
     if (!source) continue;
+    if (insideOverlayCoveredTable(node, relativePath)) continue;
     if (inCodeAttribute(node) || inImportOrPropertyKey(node)) continue;
     if (messageKeys.has(item.text) || isCodeLike(item.text) || STATIC_ALLOWLIST.has(item.text)) continue;
     if (item.text.split(/\s+/).every((token) => STATIC_ALLOWLIST.has(token))) continue;

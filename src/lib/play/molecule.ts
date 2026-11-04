@@ -1,5 +1,5 @@
 import { ATOMS, type AtomSymbol } from "./atoms";
-import { DEFAULT_LOCALE, type Locale } from "../i18n";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
 import { MOLECULE_TEXT_ES } from "../i18n/data/es/molecule";
 
 export type BondOrder = 1 | 2 | 3;
@@ -291,7 +291,7 @@ function graphIsConnected(g: MolGraph): boolean {
   return visited.size === g.atoms.length;
 }
 
-export function checkMolecule(g: MolGraph): MolCheck {
+export function checkMolecule(g: MolGraph, locale: Locale = DEFAULT_LOCALE): MolCheck {
   const openValences = g.atoms.flatMap((atom) => {
     const missing = freeValence(g, atom.id);
     return missing > 0 ? [{ atomId: atom.id, el: atom.el, missing }] : [];
@@ -303,9 +303,9 @@ export function checkMolecule(g: MolGraph): MolCheck {
     openValences.length === 0;
   const problems: string[] = [];
 
-  if (g.atoms.length < 2) problems.push("Add at least two atoms");
+  if (g.atoms.length < 2) problems.push(tr(locale, "play.molecule.problem.addTwo"));
   if (g.atoms.length >= 2 && !connected) {
-    problems.push("Some atoms aren't connected to the rest");
+    problems.push(tr(locale, "play.molecule.problem.disconnected"));
   }
   const grouped = new Map<string, { el: AtomSymbol; missing: number; count: number }>();
   for (const open of openValences) {
@@ -315,9 +315,14 @@ export function checkMolecule(g: MolGraph): MolCheck {
     else grouped.set(key, { el: open.el, missing: open.missing, count: 1 });
   }
   for (const { el, missing, count } of grouped.values()) {
-    const subject = count === 1 ? el : `${count} ${el} atoms`;
-    const verb = count === 1 ? "still wants" : "still want";
-    problems.push(`${subject} ${verb} ${missing} more bond${missing === 1 ? "" : "s"}`);
+    problems.push(tr(locale, count === 1
+      ? "play.molecule.problem.oneAtom"
+      : "play.molecule.problem.manyAtoms", {
+      atom: el,
+      count,
+      missing,
+      suffix: missing === 1 ? "" : "s",
+    }));
   }
 
   return {

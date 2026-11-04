@@ -17,7 +17,7 @@ import { dailyFor } from "./daily";
 import { loadPacks } from "./packs";
 import { compileTemplate } from "./templates";
 import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
-import { QUEST_TEXT_ES, type BuiltinQuestId } from "../i18n/data/es/quests";
+import { CHAPTER_TEXT_ES, QUEST_TEXT_ES, type BuiltinQuestId } from "../i18n/data/es/quests";
 
 export type Chapter = "molecules" | "mixing" | "atoms";
 export type Stars = 0 | 1 | 2 | 3;
@@ -221,7 +221,7 @@ export function gradeMolecule(
   const target = KNOWN_MOLECULES.find((molecule) => molecule.id === quest.moleculeId);
   if (!target) return { stars: 0, feedback: [tr(locale, "play.grade.moleculeMissing")] };
 
-  const checked = checkMolecule(g);
+  const checked = checkMolecule(g, locale);
   if (!checked.complete) {
     return {
       stars: 0,
@@ -264,7 +264,7 @@ export const MIX_THRESHOLDS = {
 
 function presetExperiment(id: string): Experiment {
   const preset = benchPresets.find((item) => item.id === id);
-  if (!preset) throw new Error(`Missing bench preset: ${id}`);
+  if (!preset) throw new Error(`missing-bench-preset:${id}`);
   return {
     parts: preset.experiment.parts.map((part) => ({ ...part })),
     conditions: { ...preset.experiment.conditions },
@@ -773,6 +773,10 @@ export const CHAPTERS: { id: Chapter; title: string; blurb: string }[] = [
   { id: "mixing", title: "Mixture lab", blurb: "Use the real bench model to test ingredients and conditions." },
   { id: "atoms", title: "Nuclear stories", blurb: "Explore what a simplified nucleus model predicts." },
 ];
+
+export function localizeChapter(chapter: typeof CHAPTERS[number], locale: Locale = DEFAULT_LOCALE) {
+  return locale === "es" ? { ...chapter, ...CHAPTER_TEXT_ES[chapter.id] } : chapter;
+}
 
 export function localizeQuest<T extends Quest>(quest: T, locale: Locale = DEFAULT_LOCALE): T {
   if (locale !== "es") return quest;

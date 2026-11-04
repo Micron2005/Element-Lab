@@ -107,5 +107,6 @@ describe("immutable molecule graphs", () => {
     expect(disconnected.problems).toContain("Some atoms aren't connected to the rest");
     expect(disconnected.problems).toContain("2 H atoms still want 1 more bond");
     expect(checkMolecule(EMPTY_GRAPH).problems).toContain("Add at least two atoms");
+    expect(checkMolecule(EMPTY_GRAPH, "es").problems).toContain("Agrega al menos dos átomos");
   });
 });

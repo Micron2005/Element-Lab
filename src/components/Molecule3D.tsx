@@ -7,7 +7,6 @@ import type { AtomSymbol } from "@/lib/play/atoms";
 import type { MolBond, MolGraph } from "@/lib/play/molecule";
 import { useT } from "./LocaleProvider";
 import { useReducedMotion } from "./useReducedMotion";
-import { trText } from "@/lib/i18n";
 
 const SCALE = 100;
 const INITIAL_YAW = -0.48;
@@ -143,8 +142,8 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
   const measuredAngle = useMemo(() => {
     const center = centerAngle(graph);
     if (!center) return null;
-    return angleAt(embedded, center.centerId, center.aId, center.bId);
-  }, [embedded, graph]);
+    return angleAt(embedded, center.centerId, center.aId, center.bId, locale);
+  }, [embedded, graph, locale]);
 
   function rotateFromKeyboard(event: KeyboardEvent<SVGSVGElement>) {
     const turn = 0.14;
@@ -190,7 +189,7 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
         viewBox={`${minX} ${minY} ${viewWidth} ${viewHeight}`}
         role="img"
         tabIndex={0}
-        aria-label={t("ui.moleculeRotate", { label: trText(locale, label) })}
+        aria-label={t("ui.moleculeRotate", { label })}
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
