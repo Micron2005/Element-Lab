@@ -1,7 +1,7 @@
 import { benchById } from "./library";
 import { jet } from "../physics";
 import type { Experiment, RunResult } from "./types";
-import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
 
 export const LAUNCH_HEIGHT_M = 1.5;
 
@@ -50,7 +50,7 @@ export interface ShotReport {
 
 export function formatBar(pressureBar: number, locale: Locale = DEFAULT_LOCALE): string {
   if (pressureBar >= 1e6) {
-    return `${(pressureBar / 1e6).toPrecision(3)} million`;
+    return `${(pressureBar / 1e6).toPrecision(3)} ${tr(locale, "bench.model.shoot.million")}`;
   }
   return Math.round(pressureBar).toLocaleString(locale === "es" ? "es" : "en-US");
 }
@@ -76,7 +76,11 @@ function knownParts(experiment: Experiment): KnownPart[] {
   }));
 }
 
-export function fluidFromMix(experiment: Experiment, result: RunResult): MixFluid {
+export function fluidFromMix(
+  experiment: Experiment,
+  result: RunResult,
+  locale: Locale = DEFAULT_LOCALE,
+): MixFluid {
   const parts = knownParts(experiment);
   const notes: string[] = [];
   const inverseDensity = parts.reduce((sum, part) => {
@@ -140,13 +144,13 @@ export function fluidFromMix(experiment: Experiment, result: RunResult): MixFlui
       );
     if (fillerFraction >= 0.6 || fillerMassFraction >= 0.6) {
       viscosityPas = null;
-      notes.push("Too much solid filler to flow.");
+      notes.push(tr(locale, "bench.model.shoot.tooMuchFiller"));
     } else {
       viscosityPas *= (1 - fillerFraction / 0.64) ** -1.6;
     }
     if (viscosityPas !== null && result.product === "slime") {
       viscosityPas *= 100;
-      notes.push("Borax-style crosslinks make this a thick putty.");
+      notes.push(tr(locale, "bench.model.shoot.boraxPutty"));
     }
     if (viscosityPas !== null) viscosityPas = Math.min(1e5, viscosityPas);
     if (
@@ -155,11 +159,11 @@ export function fluidFromMix(experiment: Experiment, result: RunResult): MixFlui
       (hasNonLiquidPolymerOrProtein || result.product === "slime")
     ) {
       notes.push(
-        "Real polymer mixes thin out when pushed through a nozzle, so this fixed-thickness estimate runs on the thick side.",
+        tr(locale, "bench.model.shoot.estimate"),
       );
     }
   } else {
-    notes.push("No liquid in the mix.");
+    notes.push(tr(locale, "bench.model.shoot.noLiquid"));
   }
 
   const surfaceTensionNm =
@@ -177,7 +181,7 @@ export function fluidFromMix(experiment: Experiment, result: RunResult): MixFlui
   const adjustedSurfaceTension = hasProtein
     ? Math.max(0.03, 0.75 * surfaceTensionNm)
     : surfaceTensionNm;
-  if (hasProtein) notes.push("Proteins lower surface tension.");
+  if (hasProtein) notes.push(tr(locale, "bench.model.shoot.proteinSurface"));
 
   const volatileFraction = parts.reduce(
     (sum, part) => sum + (part.ingredient.volatile ? part.weight : 0),
@@ -209,13 +213,13 @@ function shootTestCore(
   setup: ShotSetup,
   locale: Locale,
 ): ShotReport {
-  const fluid = fluidFromMix(experiment, result);
+  const fluid = fluidFromMix(experiment, result, locale);
   const parts = knownParts(experiment);
   if (result.product === "dangerous") {
     return report(
       fluid,
       "unsafe",
-      "Won't fire: this mix is hazardous.",
+      tr(locale, "bench.model.shoot.unsafe"),
       result.warnings.filter((warning) => warning.level === "bad").map((warning) => warning.text),
     );
   }
@@ -225,13 +229,13 @@ function shootTestCore(
     (part) => part.ingredient.category !== "solvent",
   );
   if (parts.length === 0 || (!hasLiquid && !hasSolids)) {
-    return report(fluid, "nothing-to-shoot", "Nothing to extrude from this mix.", fluid.notes);
+    return report(fluid, "nothing-to-shoot", tr(locale, "bench.model.shoot.nothing"), fluid.notes);
   }
   if (fluid.viscosityPas === null) {
     return report(
       fluid,
       "too-thick",
-      "Dry powder / too much filler: nothing to push through a nozzle.",
+      tr(locale, "bench.model.shoot.dry"),
       fluid.notes,
     );
   }
@@ -244,10 +248,10 @@ function shootTestCore(
     return report(
       fluid,
       "sets-in-cartridge",
-      `It sets in about ${result.setSeconds.toFixed(1)} s and would clog the cartridge.`,
+      tr(locale, "bench.model.shoot.setsCartridge", { seconds: result.setSeconds.toFixed(1) }),
       [
         ...fluid.notes,
-        "Try Forming = extrude into air or a bath so it sets after leaving the nozzle.",
+        tr(locale, "bench.model.shoot.formingHint"),
       ],
     );
   }
@@ -283,17 +287,17 @@ function shootTestCore(
     }
     const speedNote =
       low >= 0.1
-        ? `At this nozzle it can fire up to ${low.toFixed(1)} m/s.`
-        : "No useful speed works with this nozzle.";
+        ? tr(locale, "bench.model.shoot.maxSpeed", { speed: low.toFixed(1) })
+        : tr(locale, "bench.model.shoot.noSpeed");
     return {
       fluid,
       jet: j,
       verdict: "too-thick",
-      headline: `Won't fire: it would need about ${formatBar(j.pressureBar, locale)} bar; this test caps pumps at 1,000 bar.`,
+      headline: tr(locale, "bench.model.shoot.pressureCap", { pressure: formatBar(j.pressureBar, locale) }),
       notes: [
         ...notes,
         speedNote,
-        "Try a wider or shorter nozzle, or thin the mix with more solvent.",
+        tr(locale, "bench.model.shoot.nozzleHint"),
       ],
       holdsKg:
         result.tensileMPa > 0
@@ -322,22 +326,22 @@ function shootTestCore(
       )
     : j.flightS;
   if (fluid.setSeconds > 0 && fluid.setSeconds <= landingS) {
-    notes.push("It sets before landing.");
+    notes.push(tr(locale, "bench.model.shoot.setsBefore"));
   } else if (fluid.setSeconds === 0) {
-    notes.push("It doesn't set on its own; it lands as a liquid.");
+    notes.push(tr(locale, "bench.model.shoot.liquidLanding"));
   } else if (fallsShort) {
-    notes.push("It is still wet when it hits the ground.");
+    notes.push(tr(locale, "bench.model.shoot.wetGround"));
   } else {
-    notes.push("It is still wet when it reaches the target.");
+    notes.push(tr(locale, "bench.model.shoot.wetTarget"));
   }
   notes.push(
     j.pressureBar < 5
-      ? "Pressure is in hand-pump range (<5 bar)."
+      ? tr(locale, "bench.model.shoot.handPump")
       : j.pressureBar < 60
-        ? "Pressure is in CO₂-cartridge range (<60 bar)."
-        : "Pressure is beyond the simplified CO₂-cartridge range.",
+        ? tr(locale, "bench.model.shoot.cartridgeRange")
+        : tr(locale, "bench.model.shoot.cartridgeBeyond"),
   );
-  notes.push(`Minimum speed for less than 10% sag: ${j.minSpeed.toFixed(1)} m/s.`);
+  notes.push(tr(locale, "bench.model.shoot.minimumSpeed", { speed: j.minSpeed.toFixed(1) }));
 
   if (fallsShort) {
     const groundM = Math.min(
@@ -348,7 +352,9 @@ function shootTestCore(
       fluid,
       jet: j,
       verdict: "falls-short",
-      headline: `Falls short: it droops to the ground about ${groundM.toFixed(1)} m out, before the ${setup.distanceM} m target.`,
+      headline: tr(locale, "bench.model.shoot.fallsShort", {
+        ground: groundM.toFixed(1), target: setup.distanceM,
+      }),
       notes,
       holdsKg,
     };
@@ -358,7 +364,7 @@ function shootTestCore(
       fluid,
       jet: j,
       verdict: "breaks-up",
-      headline: `Sprays into droplets after about ${j.breakupM.toFixed(1)} m.`,
+      headline: tr(locale, "bench.model.shoot.breakup", { distance: j.breakupM.toFixed(1) }),
       notes,
       holdsKg,
     };
@@ -367,7 +373,7 @@ function shootTestCore(
     fluid,
     jet: j,
     verdict: "shoots",
-    headline: "The modeled strand reaches the target intact.",
+    headline: tr(locale, "bench.model.shoot.reachesTarget"),
     notes,
     holdsKg,
   };
@@ -379,5 +385,5 @@ export function shootTest(
   setup: ShotSetup,
   locale: Locale = DEFAULT_LOCALE,
 ): ShotReport {
-  return translateTree(locale, shootTestCore(experiment, result, setup, locale));
+  return shootTestCore(experiment, result, setup, locale);
 }

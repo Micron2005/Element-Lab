@@ -53,7 +53,19 @@ describe("bench simulation", () => {
       ]),
       "es",
     );
-    expect(beaker.warnings[0]?.text).toBe(tr("es", "ui.gelsOnContactWarning"));
+    expect(beaker.warnings[0]?.text).toBe(tr("es", "bench.model.warning.contactGel"));
+  });
+
+  it("localizes the run summary without changing reaction status identifiers", () => {
+    const result = simulate(
+      experiment(
+        [{ id: "alginate", pct: 10 }, { id: "water", pct: 90 }],
+        { forming: "extrude-bath", bathId: "cacl2" },
+      ),
+      "es",
+    );
+    expect(result.summary).toBe(tr("es", "bench.model.summary.fiber"));
+    expect(result.events.find((event) => event.id === "alginate-calcium")?.status).toBe("happened");
   });
 
   it("keeps reaction status identifiers stable when localizing a run", () => {

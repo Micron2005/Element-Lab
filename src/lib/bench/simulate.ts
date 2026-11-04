@@ -1,8 +1,10 @@
 import { effectivePH, solventBoilingPointC, waterBoilingPointC } from "./conditions";
 import { CUSTOM_PREFIX } from "./custom";
-import { benchById } from "./library";
-import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
+import { benchById, localizeBenchIngredient } from "./library";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
 import {
+  localizeReaction,
+  localizeReactionEvent,
   REACTIONS,
   statusForActivity,
   type EvaluatedReaction,
@@ -64,25 +66,26 @@ export function matchingSolventPct(experiment: Experiment, id: string, ph = 7): 
   );
 }
 
-function productLabel(product: Product): string {
-  const labels: Record<Product, string> = {
-    nothing: "No useful solid",
-    solution: "Solution or weak mixture",
-    gel: "Crosslinked gel",
-    slime: "Reversible slime",
-    fiber: "Fiber",
-    film: "Film",
-    adhesive: "Adhesive",
-    solid: "Cured solid",
-    clumps: "Clumps",
-    dangerous: "Dangerous reaction",
+function productLabel(product: Product, locale: Locale): string {
+  const keys: Record<Product, MessageKey> = {
+    nothing: "bench.model.product.nothing",
+    solution: "bench.model.product.solution",
+    gel: "bench.model.product.gel",
+    slime: "bench.model.product.slime",
+    fiber: "bench.model.product.fiber",
+    film: "bench.model.product.film",
+    adhesive: "bench.model.product.adhesive",
+    solid: "bench.model.product.solid",
+    clumps: "bench.model.product.clumps",
+    dangerous: "bench.model.product.dangerous",
   };
-  return labels[product];
+  return tr(locale, keys[product]);
 }
 
 function reactionName(
   id: string,
   context: ReactionContext,
+  locale: Locale,
 ): string {
   if (
     id === "filler-reinforcement" &&
@@ -96,30 +99,32 @@ function reactionName(
           (filler) => context.present.has(filler),
         ),
     );
-    if (matrix) return "Filler reinforcement and iron-acid gas release";
-    return "Iron and acid gas release";
+    if (matrix) return tr(locale, "bench.reaction.name.fillerIronAcid");
+    return tr(locale, "bench.reaction.name.ironAcid");
   }
   if (id === "alginate-fe-zn") {
-    if (context.present.has("fecl3")) return "Alginate–iron(III)";
-    return "Alginate–zinc";
+    if (context.present.has("fecl3")) return tr(locale, "bench.reaction.name.alginateIronThree");
+    return tr(locale, "bench.reaction.name.alginateZinc");
   }
   if (id === "phenol-oxidase") {
-    return context.present.has("tyrosinase")
-      ? "Tyrosinase/laccase protein oxidation"
-      : "Laccase protein oxidation";
+    return tr(locale, context.present.has("tyrosinase")
+      ? "bench.reaction.name.tyrosinaseOxidation"
+      : "bench.reaction.name.laccaseOxidation");
   }
-  return REACTIONS.find((reaction) => reaction.id === id)?.name ?? id;
+  const reaction = REACTIONS.find((candidate) => candidate.id === id);
+  return reaction ? localizeReaction(reaction, locale).name : id;
 }
 
-function reactionMechanism(id: string, context: ReactionContext): string {
+function reactionMechanism(id: string, context: ReactionContext, locale: Locale): string {
   if (
     id === "filler-reinforcement" &&
     context.present.has("iron-powder") &&
     acidIdsForPairs.some((acid) => context.present.has(acid))
   ) {
-    return "Iron reacts with acid to form iron(II) ions and hydrogen gas.";
+    return tr(locale, "bench.reaction.mechanism.ironAcid");
   }
-  return REACTIONS.find((reaction) => reaction.id === id)?.mechanism ?? id;
+  const reaction = REACTIONS.find((candidate) => candidate.id === id);
+  return reaction ? localizeReaction(reaction, locale).mechanism : id;
 }
 
 const GEL_SET_TIME_DEFAULTS: Record<string, number> = {
@@ -313,6 +318,7 @@ const acidIdsForPairs = ["acetic-acid", "formic-acid", "citric-acid"];
 function notModelledInteractions(
   experiment: Experiment,
   evaluated: EvaluatedReaction[],
+  locale: Locale,
 ): { notModelled: string[]; count: number } {
   const presentSet = new Set(
     experiment.parts.filter((part) => part.pct > 0).map((part) => part.id),
@@ -342,7 +348,10 @@ function notModelledInteractions(
     const key = [left, right].sort().join("|");
     if (left === right || knownPairs.has(key) || linePairs.has(key)) return;
     linePairs.add(key);
-    lines.push(`${benchById[left].name} + ${benchById[right].name}: not in the model`);
+    lines.push(tr(locale, "bench.model.notModeled.pair", {
+      left: localizeBenchIngredient(benchById[left], locale).name,
+      right: localizeBenchIngredient(benchById[right], locale).name,
+    }));
   };
   if (unmodelledIds.length > 1) {
     for (let i = 0; i < unmodelledIds.length; i += 1) {
@@ -356,7 +365,9 @@ function notModelledInteractions(
   }
   if (unmodelledIds.length === 1 && lines.length === 0) {
     const [id] = unmodelledIds;
-    lines.push(`${benchById[id].name}: no modeled interaction with another present ingredient`);
+    lines.push(tr(locale, "bench.model.notModeled.single", {
+      ingredient: localizeBenchIngredient(benchById[id], locale).name,
+    }));
   }
   return { notModelled: lines, count: unmodelledIds.length };
 }
@@ -376,10 +387,11 @@ function highestHazard(
 function waterBehavior(
   experiment: Experiment,
   evaluated: EvaluatedReaction[],
+  locale: Locale,
 ): { water: RunResult["water"]; dissolveTime: string } {
   const active = new Set(evaluated.filter((event) => event.activity > 0).map((event) => event.reaction.id));
   if (active.has("alginate-calcium") || active.has("alginate-fe-zn")) {
-    return { water: "swells", dissolveTime: "Hours; salty water or sweat can exchange the ions." };
+    return { water: "swells", dissolveTime: tr(locale, "bench.model.water.ionExchange") };
   }
   if (
     active.has("transglutaminase") ||
@@ -389,28 +401,27 @@ function waterBehavior(
     active.has("glutaraldehyde-amine") ||
     (active.has("latex-cure") && experiment.parts.some((part) => part.id === "sulfur"))
   ) {
-    return { water: "resists", dissolveTime: "No dissolving expected in ordinary water." };
+    return { water: "resists", dissolveTime: tr(locale, "bench.model.water.noDissolve") };
   }
   if (active.has("borax-pva") || experiment.parts.some((part) => part.id === "gelatin")) {
-    return { water: "dissolves", dissolveTime: "Hours or less, depending on thickness and temperature." };
+    return { water: "dissolves", dissolveTime: tr(locale, "bench.model.water.hoursOrLess") };
   }
   const structural = experiment.parts
     .map((part) => benchById[part.id])
     .filter((ingredient) => ingredient && ["protein", "polymer"].includes(ingredient.category));
   if (structural.some((ingredient) => ingredient.water === "dissolves")) {
-    return { water: "dissolves", dissolveTime: "Minutes to hours, depending on thickness." };
+    return { water: "dissolves", dissolveTime: tr(locale, "bench.model.water.minutesToHours") };
   }
   if (structural.some((ingredient) => ingredient.water === "swells")) {
-    return { water: "swells", dissolveTime: "Hours; material may swell without dissolving." };
+    return { water: "swells", dissolveTime: tr(locale, "bench.model.water.swells") };
   }
-  return { water: "resists", dissolveTime: "No dissolving expected in ordinary water." };
+  return { water: "resists", dissolveTime: tr(locale, "bench.model.water.noDissolve") };
 }
 
 function resultProduct(
   experiment: Experiment,
   context: ReactionContext,
   evaluated: EvaluatedReaction[],
-  warnings: Warning[],
   setSeconds: number,
   evaporationFast: boolean,
   missingSolvent: boolean,
@@ -420,10 +431,9 @@ function resultProduct(
   if (active.has("cyanoacrylate") && (context.waterPct > 0 || context.present.has("acetic-acid") || context.present.has("formic-acid"))) {
     return "clumps";
   }
-  if (
-    warnings.some((warning) => warning.text.includes("gels on contact into lumps")) &&
-    experiment.conditions.forming === "beaker"
-  ) {
+  const alginateIndex = experiment.parts.findIndex((part) => part.id === "alginate");
+  const calciumIndex = experiment.parts.findIndex((part) => ["cacl2", "caco3"].includes(part.id));
+  if (alginateIndex >= 0 && calciumIndex >= 0 && calciumIndex < alginateIndex) {
     return "clumps";
   }
   if (missingSolvent) return "clumps";
@@ -522,7 +532,9 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
       if (["transglutaminase", "phenol-oxidase", "hrp-crosslinking"].includes(event.reaction.id)) {
         event.activity *= 1 - proteaseEvent.activity;
         event.status = statusForActivity(event.activity);
-        if (event.activity < 0.8) event.reasons.push("protease reduces the other enzyme's activity");
+        if (event.activity < 0.8) {
+          event.reasons.push(tr(locale, "bench.model.reason.proteaseSuppression"));
+        }
       }
     }
   }
@@ -552,39 +564,39 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
 
   const warnings: Warning[] = [];
   if (!inputParts.some((part) => ["protein", "polymer"].includes(benchById[part.id]?.category ?? ""))) {
-    warnings.push({ level: "bad", text: "No structural polymer or protein is present." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.noStructure") });
   }
   if (missingSolvent) {
     warnings.push({
       level: "warn",
-      text: "Dry powder: nothing here dissolves it, so it can't be spun or cast.",
+      text: tr(locale, "bench.model.warning.dryPowder"),
     });
   }
   const solidsPct = inputParts.reduce((total, part) => {
     return total + (benchById[part.id].category === "solvent" ? 0 : part.pct);
   }, 0);
   if (solidsPct < 5 && inputParts.length > 0) {
-    warnings.push({ level: "warn", text: "Solids below 5%: the mixture is likely to be weak." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.lowSolids") });
   }
   if (waterBoiling && (conditions.atmosphere === "vacuum" || conditions.pressureKPa < 20)) {
-    warnings.push({ level: "bad", text: "Water boils off violently at this pressure." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.waterBoils") });
   } else if (boiling) {
-    warnings.push({ level: "warn", text: "A solvent reaches its boiling point and may evaporate or form bubbles." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.solventBoils") });
   }
   if (degassed) {
-    warnings.push({ level: "good", text: "Short vacuum mixing degasses the mixture; fewer bubbles are expected." });
+    warnings.push({ level: "good", text: tr(locale, "bench.model.warning.degassed") });
   }
   if (inputParts.some((part) => ["protein", "enzyme"].includes(benchById[part.id].category)) && conditions.mixRpm > 2000) {
-    warnings.push({ level: "warn", text: "High-shear mixing can foam protein mixtures." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.highShear") });
   }
   if (conditions.mixMinutes < 1 && inputParts.length > 3) {
-    warnings.push({ level: "warn", text: "Not fully mixed: less than one minute for more than three ingredients." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.incompleteMix") });
   }
   if (conditions.tempC > 200 || (conditions.tempC > 80 && inputParts.some((part) => benchById[part.id].category === "protein"))) {
-    warnings.push({ level: "bad", text: "High heat denatures or chars proteins." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.highHeat") });
   }
   if (inputParts.some((part) => part.id === "chitosan") && ph > 6.5) {
-    warnings.push({ level: "warn", text: "Chitosan does not dissolve above pH 6.5; add acetic acid to dissolve it." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.chitosanPH") });
   }
   if (
     conditions.forming === "beaker" &&
@@ -592,7 +604,7 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     inputParts.some((part) => part.id === "alginate") &&
     ph <= 6.5
   ) {
-    warnings.push({ level: "warn", text: "Chitosan and alginate can clump in a beaker; extrude for an interfacial film or fiber." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.chitosanAlginate") });
   }
   const alginateIndex = inputParts.findIndex((part) => part.id === "alginate");
   const calciumIndex = inputParts.findIndex((part) => ["cacl2", "caco3"].includes(part.id));
@@ -603,32 +615,32 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
   ) {
     warnings.push({
       level: "warn",
-      text: "Gels on contact into lumps (fish-eyes); extrude alginate into a calcium bath instead.",
+      text: tr(locale, "bench.model.warning.contactGel"),
     });
   }
   if (inputParts.some((part) => part.id === "sulfur") && inputParts.some((part) => part.id === "latex") && conditions.tempC < (present.has("zno") ? 120 : 140)) {
-    warnings.push({ level: "warn", text: "Nothing happens until heated: sulfur does not vulcanize latex at room temperature." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.latexCold") });
   }
   if (
     evaluated.some((event) => event.reaction.id === "alginate-fe-zn" && event.activity > 0) &&
     present.has("fecl3")
   ) {
-    warnings.push({ level: "warn", text: "Iron(III) makes the alginate mixture brown." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.ironColor") });
   }
   if (inputParts.some((part) => part.id === "iron-powder") && acidIdsForPairs.some((id) => present.has(id))) {
-    warnings.push({ level: "bad", text: "Iron powder with acid can release hydrogen gas." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.ironAcid") });
   }
   if (evaluated.some((event) => event.reaction.id === "bicarbonate-bubbles" && event.activity > 0) && !degassed) {
-    warnings.push({ level: "warn", text: "Acid and bicarbonate release CO₂ bubbles; voids can weaken the material." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.bubbles") });
   }
   if (evaluated.some((event) => event.reaction.id === "silk-beta-sheet" && event.activity === 0)) {
-    warnings.push({ level: "warn", text: "Silk has no β-sheet trigger and remains a weak solution or gel." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.silk") });
   }
   if (evaluated.some((event) => event.reaction.id === "cyanoacrylate" && event.activity > 0 && waterPct > 0)) {
-    warnings.push({ level: "bad", text: "Cyanoacrylate cures inside the mix or cartridge when water is present." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.cyanoacrylate") });
   }
   if (evaluated.some((event) => event.reaction.id === "sodium-water" && event.activity > 0)) {
-    warnings.push({ level: "bad", text: "DANGEROUS — sodium reacts violently with water; hydrogen fire risk. Do not attempt." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.sodium") });
   }
 
   let tensileBase = 0;
@@ -760,7 +772,10 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
       elongation *= 0.6;
       warnings.push({
         level: "warn",
-        text: `${ingredient.name} exceeds its ${limit * 100}% modeled loading limit; agglomeration makes it brittle.`,
+        text: tr(locale, "bench.model.warning.filler", {
+          ingredient: localizeBenchIngredient(ingredient, locale).name,
+          limit: limit * 100,
+        }),
       });
     } else {
       elongation *= 1 - share * 2;
@@ -791,7 +806,6 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     partsExperiment,
     context,
     evaluated,
-    warnings,
     setSeconds,
     evaporationFast,
     missingSolvent,
@@ -838,13 +852,13 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     elongation = 0;
   }
   if (product === "dangerous") {
-    warnings.push({ level: "bad", text: "DANGEROUS — do not attempt this mixture." });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.dangerous") });
   }
   if (tensile <= 0 && inputParts.length > 0) {
-    warnings.push({ level: "warn", text: "No modeled network is carrying tensile load." });
+    warnings.push({ level: "warn", text: tr(locale, "bench.model.warning.noNetwork") });
   }
 
-  const { notModelled, count } = notModelledInteractions(partsExperiment, evaluated);
+  const { notModelled, count } = notModelledInteractions(partsExperiment, evaluated, locale);
   const confidence = clamp(1 - 0.15 * count, 0.2, 1);
   const networkFormerHazard = inputParts.reduce((highest, part) => {
     const ingredient = benchById[part.id];
@@ -902,11 +916,11 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     wetToxicity = Math.max(wetToxicity, 2) as RunResult["wetToxicity"];
     skin = 3;
     edible = false;
-    warnings.push({ level: "bad", text: `Corrosive at pH ${ph.toFixed(1)}.` });
+    warnings.push({ level: "bad", text: tr(locale, "bench.model.warning.corrosive", { ph: ph.toFixed(1) }) });
   } else if (ph <= 3 || ph >= 11) {
     skin = Math.max(skin, 2) as RunResult["skin"];
   }
-  const baseWater = waterBehavior(partsExperiment, evaluated);
+  const baseWater = waterBehavior(partsExperiment, evaluated, locale);
   const biodegradable =
     inputParts.length > 0 &&
     inputParts.every((part) => benchById[part.id].biodegradable);
@@ -916,32 +930,33 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
   );
   const eventResults: ReactionEvent[] = evaluated.map((event) => ({
     id: event.reaction.id,
-    name: reactionName(event.reaction.id, context),
+    name: reactionName(event.reaction.id, context, locale),
     status: event.status,
     activity: roundTo(event.activity, 3),
-    mechanism: reactionMechanism(event.reaction.id, context),
+    mechanism: reactionMechanism(event.reaction.id, context, locale),
     reasons: [...new Set(event.reasons)],
   }));
-  const summaryByProduct: Record<Product, string> = {
-    nothing: "No modeled structural material or useful reaction is present.",
-    solution: "The mixture remains mostly a solution or weak, uncured material.",
-    gel: "The modeled interactions form a connected gel network.",
-    slime: "Reversible borate links make a stretchy PVA slime.",
-    fiber: "The process forms a continuous fiber in the selected forming conditions.",
-    film: "The mixture can be cast as a film; drying and defects are simplified.",
-    adhesive: "The mixture forms a modeled adhesive network.",
-    solid: "Heat and cure conditions form a solid; detailed curing chemistry is simplified.",
-    clumps: "The reaction happens too early or too locally, producing clumps instead of a uniform mix.",
-    dangerous: "DANGEROUS — the modeled reaction can release hydrogen and must not be attempted.",
+  const localizedEvents = eventResults.map((event) => localizeReactionEvent(event, locale));
+  const summaryKeys: Record<Product, MessageKey> = {
+    nothing: "bench.model.summary.nothing",
+    solution: "bench.model.summary.solution",
+    gel: "bench.model.summary.gel",
+    slime: "bench.model.summary.slime",
+    fiber: "bench.model.summary.fiber",
+    film: "bench.model.summary.film",
+    adhesive: "bench.model.summary.adhesive",
+    solid: "bench.model.summary.solid",
+    clumps: "bench.model.summary.clumps",
+    dangerous: "bench.model.summary.dangerous",
   };
-  const summary = summaryByProduct[product];
+  const summary = tr(locale, summaryKeys[product]);
   const warningsDeduplicated = warnings.filter(
     (warning, index) => warnings.findIndex((item) => item.text === warning.text) === index,
   );
 
-  const localizedResult = translateTree(locale, {
+  return {
     product,
-    productLabel: productLabel(product),
+    productLabel: productLabel(product, locale),
     summary,
     tensileMPa: roundTo(tensile, 2),
     elongationPct: roundTo(elongation, 2),
@@ -957,17 +972,10 @@ export function simulate(experiment: Experiment, locale: Locale = DEFAULT_LOCALE
     biodegradable,
     costPerKg: roundTo(costPerKg, 2),
     effectivePH: roundTo(activeEventIds.has("sodium-water") ? 14 : ph, 2),
-    events: eventResults,
+    events: localizedEvents,
     warnings: warningsDeduplicated,
     notModelled: notModelled,
     confidence: roundTo(confidence, 2),
-  });
-  return {
-    ...localizedResult,
-    events: localizedResult.events.map((event, index) => ({
-      ...event,
-      status: eventResults[index]?.status ?? event.status,
-    })),
   };
 }
 

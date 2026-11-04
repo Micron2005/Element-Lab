@@ -1,7 +1,9 @@
 import type { Category, Experiment, Forming, Product, RunResult } from "./types";
-import { benchById } from "./library";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
+import { benchById, localizeBenchIngredient } from "./library";
 import { eventParticipantIds } from "./participants";
 import { solventBoilingPointC, waterBoilingPointC } from "./conditions";
+import { localizeReactionEvent } from "./reactions";
 
 export type EffectKind = "bonds" | "bubbles" | "heat" | "evaporate" | "clump" | "digest" | "spark" | "dissolve" | "color" | "align";
 export interface SceneSpecies { id: string; name: string; color: string; category: Category; count: number; density: number; pourIndex: number }
@@ -107,11 +109,12 @@ function shiftLightness(hex: string, categoryIndex: number): string {
   return `#${shifted.map((channel) => Math.round(channel * 255).toString(16).padStart(2, "0")).join("")}`;
 }
 
-function buildSpecies(experiment: Experiment): SceneSpecies[] {
+function buildSpecies(experiment: Experiment, locale: Locale): SceneSpecies[] {
   const categoryCounts = new Map<Category, number>();
   return experiment.parts.flatMap((part, pourIndex) => {
     if (part.pct <= 0) return [];
-    const ingredient = benchById[part.id];
+    const source = benchById[part.id];
+    const ingredient = source ? localizeBenchIngredient(source, locale) : undefined;
     if (!ingredient) return [];
     const categoryIndex = categoryCounts.get(ingredient.category) ?? 0;
     categoryCounts.set(ingredient.category, categoryIndex + 1);
@@ -146,29 +149,37 @@ function phaseLabel(
   id: ScenePhase["id"],
   experiment: Experiment,
   result: RunResult,
+  locale: Locale,
 ): string {
   switch (id) {
     case "pour":
-      return "Pour the ingredients into the mixer";
+      return tr(locale, "bench.model.scene.pour");
     case "mix":
-      if (experiment.conditions.mixRpm === 0) return "Resting, no stirring";
-      if (experiment.conditions.mixMinutes <= 0) return "No mixing time";
-      return `Stirring at ${experiment.conditions.mixRpm} rpm for ${experiment.conditions.mixMinutes} min`;
+      if (experiment.conditions.mixRpm === 0) return tr(locale, "bench.model.scene.rest");
+      if (experiment.conditions.mixMinutes <= 0) return tr(locale, "bench.model.scene.noMix");
+      return tr(locale, "bench.model.scene.stir", {
+        rpm: experiment.conditions.mixRpm,
+        minutes: experiment.conditions.mixMinutes,
+      });
     case "react": {
       const activeEvents = result.events.filter((event) =>
         event.status === "happened" || event.status === "partial",
       );
-      const eventName = activeEvents[0]?.name ?? "The mixture";
-      return `${eventName} – sets in ~${Math.round(result.setSeconds)} s`;
+      const event = activeEvents[0];
+      const eventName = event ? localizeReactionEvent(event, locale).name : tr(locale, "bench.model.scene.mixture");
+      return tr(locale, "bench.model.scene.sets", {
+        name: eventName,
+        seconds: Math.round(result.setSeconds),
+      });
     }
     case "set":
-      return `Curing for ${experiment.conditions.cureMinutes} min`;
+      return tr(locale, "bench.model.scene.curing", { minutes: experiment.conditions.cureMinutes });
     case "final":
-      return "The finished mixture";
+      return tr(locale, "bench.model.scene.finished");
   }
 }
 
-function buildPhases(experiment: Experiment, result: RunResult): ScenePhase[] {
+function buildPhases(experiment: Experiment, result: RunResult, locale: Locale): ScenePhase[] {
   const middle: { id: ScenePhase["id"]; realSeconds: number }[] = [];
   const mixSeconds = experiment.conditions.mixRpm === 0
     ? 0
@@ -197,7 +208,7 @@ function buildPhases(experiment: Experiment, result: RunResult): ScenePhase[] {
   );
   const phases: ScenePhase[] = [{
     id: "pour",
-    label: phaseLabel("pour", experiment, result),
+    label: phaseLabel("pour", experiment, result, locale),
     start: 0,
     end: 0.12,
     realSeconds: 5,
@@ -207,7 +218,7 @@ function buildPhases(experiment: Experiment, result: RunResult): ScenePhase[] {
     const end = position + allocations[index];
     phases.push({
       id: phase.id,
-      label: phaseLabel(phase.id, experiment, result),
+      label: phaseLabel(phase.id, experiment, result, locale),
       start: position,
       end,
       realSeconds: phase.realSeconds,
@@ -216,7 +227,7 @@ function buildPhases(experiment: Experiment, result: RunResult): ScenePhase[] {
   });
   phases.push({
     id: "final",
-    label: phaseLabel("final", experiment, result),
+    label: phaseLabel("final", experiment, result, locale),
     start: position,
     end: 1,
     realSeconds: 0,
@@ -224,20 +235,21 @@ function buildPhases(experiment: Experiment, result: RunResult): ScenePhase[] {
   return phases;
 }
 
-function describeEvent(event: RunResult["events"][number]): string {
-  const mechanism = event.mechanism.trim().replace(/[.!?]+$/, "");
-  const caption = `${event.name}: ${mechanism}`;
+function describeEvent(event: RunResult["events"][number], locale: Locale): string {
+  const localized = localizeReactionEvent(event, locale);
+  const mechanism = localized.mechanism.trim().replace(/[.!?]+$/, "");
+  const caption = `${localized.name}: ${mechanism}`;
   return caption.length <= 100 ? caption : `${caption.slice(0, 97).trimEnd()}…`;
 }
 
-function effectSpecs(eventId: string): { kind: EffectKind; label?: string; color?: string }[] {
+function effectSpecs(eventId: string, locale: Locale): { kind: EffectKind; label?: string; color?: string }[] {
   let specs: { kind: EffectKind; label?: string; color?: string }[];
   switch (eventId) {
     case "silk-beta-sheet":
       specs = [{ kind: "align" }];
       break;
     case "pu-moisture-cure":
-      specs = [{ kind: "bonds" }, { kind: "bubbles", label: "CO₂ bubbles form" }];
+      specs = [{ kind: "bonds" }, { kind: "bubbles", label: tr(locale, "bench.model.scene.co2Bubbles") }];
       break;
     case "protease-digestion":
       specs = [{ kind: "digest" }];
@@ -246,11 +258,11 @@ function effectSpecs(eventId: string): { kind: EffectKind; label?: string; color
       specs = [
         { kind: "spark" },
         { kind: "heat" },
-        { kind: "bubbles", label: "Hydrogen bubbles form" },
+        { kind: "bubbles", label: tr(locale, "bench.model.scene.hydrogenBubbles") },
       ];
       break;
     case "bicarbonate-bubbles":
-      specs = [{ kind: "bubbles", label: "CO₂ bubbles form" }];
+      specs = [{ kind: "bubbles", label: tr(locale, "bench.model.scene.co2Bubbles") }];
       break;
     case "chitosan-solubility":
       specs = [{ kind: "dissolve" }];
@@ -259,9 +271,9 @@ function effectSpecs(eventId: string): { kind: EffectKind; label?: string; color
       specs = [{ kind: "bonds" }];
   }
   const colorShifts: Record<string, { label: string; color: string }> = {
-    "genipin-amine": { label: "Blue color develops", color: "#3b6cff" },
-    "catechol-oxidation": { label: "Brown color develops", color: "#8b5a2b" },
-    "glutaraldehyde-amine": { label: "Amber color develops", color: "#d99a42" },
+    "genipin-amine": { label: tr(locale, "bench.model.scene.blue"), color: "#3b6cff" },
+    "catechol-oxidation": { label: tr(locale, "bench.model.scene.brown"), color: "#8b5a2b" },
+    "glutaraldehyde-amine": { label: tr(locale, "bench.model.scene.amber"), color: "#d99a42" },
   };
   const colorShift = colorShifts[eventId];
   if (colorShift) {
@@ -273,16 +285,18 @@ function effectSpecs(eventId: string): { kind: EffectKind; label?: string; color
 function effectLabel(
   event: RunResult["events"][number],
   kind: EffectKind,
+  locale: Locale,
   label?: string,
 ): string {
-  if (label) return `${label}: ${describeEvent(event)}`;
-  if (kind === "color") return `Color changes: ${describeEvent(event)}`;
-  return describeEvent(event);
+  const description = describeEvent(event, locale);
+  if (label) return `${label}: ${description}`;
+  if (kind === "color") return tr(locale, "bench.model.scene.colorChanges", { event: description });
+  return description;
 }
 
 const ON_CONTACT_EVENTS = new Set(["sodium-water", "bicarbonate-bubbles"]);
 
-function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePhase[]): {
+function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePhase[], locale: Locale): {
   effects: SceneEffect[];
   blocked: { eventId: string; label: string }[];
 } {
@@ -293,7 +307,7 @@ function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePh
     .filter((event) => event.status === "blocked")
     .map((event) => ({
       eventId: event.id,
-      label: `${event.name}: ${event.reasons[0] ?? "conditions prevented this reaction."}`,
+      label: `${localizeReactionEvent(event, locale).name}: ${localizeReactionEvent(event, locale).reasons[0] ?? tr(locale, "bench.model.scene.prevented")}`,
     }));
   const reactPhase = phases.find((phase) => phase.id === "react");
   const setPhase = phases.find((phase) => phase.id === "set");
@@ -323,10 +337,10 @@ function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePh
     const end = onContact
       ? Math.max(start + 0.2, finalPhase?.start ?? activeEnd)
       : Math.min(activeEnd, start + span * 0.5);
-    return effectSpecs(event.id).map((spec) => ({
+    return effectSpecs(event.id, locale).map((spec) => ({
       kind: spec.kind,
       eventId: event.id,
-      label: effectLabel(event, spec.kind, spec.label),
+      label: effectLabel(event, spec.kind, locale, spec.label),
       species,
       start,
       end,
@@ -350,8 +364,8 @@ function buildEffects(experiment: Experiment, result: RunResult, phases: ScenePh
       kind: "evaporate",
       eventId: "evaporation",
       label: getBoilingState(experiment)
-        ? "Solvent boils and evaporates"
-        : "Volatile solvent evaporates during forming",
+        ? tr(locale, "bench.model.scene.solventBoils")
+        : tr(locale, "bench.model.scene.solventEvaporates"),
       species: volatileSolvents.map((part) => part.id),
       start: evaporationStart,
       end: finalPhase?.end ?? 1,
@@ -384,10 +398,14 @@ function shapeForProduct(product: Product): FinalShape {
   }
 }
 
-export function buildMixScene(experiment: Experiment, result: RunResult): MixScene {
-  const species = buildSpecies(experiment);
-  const phases = buildPhases(experiment, result);
-  const { effects, blocked } = buildEffects(experiment, result, phases);
+export function buildMixScene(
+  experiment: Experiment,
+  result: RunResult,
+  locale: Locale = DEFAULT_LOCALE,
+): MixScene {
+  const species = buildSpecies(experiment, locale);
+  const phases = buildPhases(experiment, result, locale);
+  const { effects, blocked } = buildEffects(experiment, result, phases, locale);
   let finalShape = species.length === 0 ? "empty" : shapeForProduct(result.product);
   if (
     ["gel", "slime", "solid", "film"].includes(result.product) &&

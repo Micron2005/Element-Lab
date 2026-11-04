@@ -1,5 +1,6 @@
 import { DEFAULT_CONDITIONS } from "./conditions";
-import { benchById } from "./library";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
+import { benchById, localizeBenchIngredient } from "./library";
 import { benchLibrary } from "./library";
 import { benchPresets } from "./presets";
 import { eventParticipantIds, isNetworkFormer } from "./participants";
@@ -8,11 +9,14 @@ import {
   requiresSolutionSolvent,
   simulate,
 } from "./simulate";
+import { localizeReactionEvent } from "./reactions";
 import type {
+  Atmosphere,
   Candidate,
   Conditions,
   Experiment,
   FindOptions,
+  Forming,
   Goal,
   Part,
 } from "./types";
@@ -302,13 +306,19 @@ function ingredientSet(experiment: Experiment): string {
 function explainCandidate(
   experiment: Experiment,
   result: Candidate["result"],
+  locale: Locale,
 ): string[] {
   const active = result.events.filter(
     (event) => event.status !== "blocked" && event.activity > 0,
   );
   const lines = active.map((event) => {
-    const reason = event.reasons.find((item) => item.length > 0);
-    return `${event.name} ${event.status}${reason ? `: ${reason}` : "."}`;
+    const localized = localizeReactionEvent(event, locale);
+    const reason = localized.reasons.find((item) => item.length > 0);
+    return tr(locale, "bench.model.optimize.event", {
+      reaction: localized.name,
+      status: tr(locale, `bench.reaction.status.${event.status}` as MessageKey),
+      reason: reason ? `: ${reason}` : ".",
+    });
   });
   const blockedMainRule = result.events.find((event) => {
     const mainFormer = experiment.parts
@@ -321,30 +331,58 @@ function explainCandidate(
     );
   });
   if (blockedMainRule) {
-    lines.push(`${blockedMainRule.name} was blocked: ${blockedMainRule.reasons[0] ?? "conditions were unsuitable."}`);
+    const localized = localizeReactionEvent(blockedMainRule, locale);
+    lines.push(tr(locale, "bench.model.optimize.blocked", {
+      reaction: localized.name,
+      reason: localized.reasons[0] ?? tr(locale, "bench.model.optimize.unsuitable"),
+    }));
   }
   const { conditions } = experiment;
-  lines.push(
-    `Conditions: ${conditions.tempC} °C, pH ${result.effectivePH.toFixed(1)}, ${conditions.forming.replace("-", " ")}, ${conditions.atmosphere}.`,
-  );
+  const formingKeys: Record<Forming, MessageKey> = {
+    beaker: "bench.model.compare.forming.beaker",
+    "extrude-air": "bench.model.compare.forming.extrudeAir",
+    "extrude-bath": "bench.model.compare.forming.extrudeBath",
+    "cast-film": "bench.model.compare.forming.castFilm",
+    "heat-cure": "bench.model.compare.forming.heatCure",
+  };
+  const formingKey = formingKeys[conditions.forming];
+  const atmosphereKeys: Record<Atmosphere, MessageKey> = {
+    air: "bench.model.compare.atmosphere.air",
+    nitrogen: "bench.model.compare.atmosphere.nitrogen",
+    vacuum: "bench.model.compare.atmosphere.vacuum",
+  };
+  const atmosphereKey = atmosphereKeys[conditions.atmosphere];
+  lines.push(tr(locale, "bench.model.optimize.conditions", {
+    temperature: conditions.tempC,
+    ph: result.effectivePH.toFixed(1),
+    humidity: conditions.humidityPct,
+    forming: tr(locale, formingKey),
+  }) + ` ${tr(locale, atmosphereKey)}.`);
   const participants = participatingIngredientIds(experiment, result);
   const solvents = requiredSolventIds(experiment, result);
   for (const part of experiment.parts) {
     if (isNetworkFormer(part.id)) continue;
     const ingredient = benchById[part.id];
-    const name = ingredient?.name ?? part.id;
+    const name = ingredient ? localizeBenchIngredient(ingredient, locale).name : part.id;
     if (solvents.has(part.id)) {
       const formers = experiment.parts
         .filter((candidate) => isNetworkFormer(candidate.id))
-        .map((candidate) => benchById[candidate.id]?.name ?? candidate.id);
-      lines.push(`${name} at ${part.pct}% supplies a matching solvent for ${formers.join(", ")}.`);
+        .map((candidate) => {
+          const former = benchById[candidate.id];
+          return former ? localizeBenchIngredient(former, locale).name : candidate.id;
+        });
+      lines.push(tr(locale, "bench.model.optimize.solvent", {
+        ingredient: name, amount: part.pct, former: formers.join(", "),
+      }));
     } else if (participants.has(part.id)) {
       const involved = active
         .filter((event) => eventParticipantIds(event.id, experiment.parts).has(part.id))
-        .map((event) => event.name);
-      lines.push(`${name} at ${part.pct}% participates in ${involved.join(", ")}.`);
+        .map((event) => localizeReactionEvent(event, locale).name);
+      lines.push(tr(locale, "bench.model.optimize.participates", {
+        ingredient: name, amount: part.pct, reaction: involved.join(", "),
+      }));
     } else {
-      lines.push(`${name} at ${part.pct}% has no active modeled role and dilutes the network.`);
+      lines.push(tr(locale, "bench.model.optimize.dilutes", { ingredient: name, amount: part.pct }));
     }
   }
   return [...new Set(lines)];
@@ -357,7 +395,7 @@ interface SearchState {
   candidates: () => Candidate[];
 }
 
-function createSearch(goal: Goal, options: FindOptions): SearchState {
+function createSearch(goal: Goal, options: FindOptions, locale: Locale): SearchState {
   const pool = [...new Set(options.pool)].filter((id) => Boolean(benchById[id]));
   const budget = Math.max(1, Math.floor(options.budget ?? 2500));
   const maxIngredients = Math.max(
@@ -409,13 +447,13 @@ function createSearch(goal: Goal, options: FindOptions): SearchState {
       } else {
         trial = mutateExperiment(current, pool, maxIngredients, locked, random);
       }
-      const result = simulate(trial);
+      const result = simulate(trial, locale);
       const score = scoreCandidate(goal, result, trial);
       const candidate: Candidate = {
         experiment: trial,
         result,
         score,
-        why: explainCandidate(trial, result),
+        why: explainCandidate(trial, result, locale),
       };
       const signature = ingredientSet(trial);
       const previous = archive.get(signature);
@@ -452,8 +490,12 @@ function createSearch(goal: Goal, options: FindOptions): SearchState {
   };
 }
 
-export function findBestMixes(goal: Goal, options: FindOptions): Candidate[] {
-  const search = createSearch(goal, options);
+export function findBestMixes(
+  goal: Goal,
+  options: FindOptions,
+  locale: Locale = DEFAULT_LOCALE,
+): Candidate[] {
+  const search = createSearch(goal, options, locale);
   while (search.done() < search.total) search.step(search.total - search.done());
   return search.candidates();
 }
@@ -462,8 +504,9 @@ export async function findBestMixesAsync(
   goal: Goal,
   options: FindOptions,
   onProgress?: (completed: number, total: number) => void,
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<Candidate[]> {
-  const search = createSearch(goal, options);
+  const search = createSearch(goal, options, locale);
   const chunkSize = 40;
   while (search.done() < search.total) {
     search.step(chunkSize);

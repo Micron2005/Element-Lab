@@ -81,6 +81,12 @@ describe("fluidFromMix", () => {
 });
 
 describe("shootTest", () => {
+  it("localizes unsafe refusal text to Spanish", () => {
+    const exp = preset("sodium-water");
+    const shot = shootTest(exp, simulate(exp, "es"), DEFAULT_SHOT, "es");
+    expect(shot.headline).toContain("No se disparará");
+  });
+
   it("does not fire a dangerous sodium-water preset", () => {
     const exp = preset("sodium-water");
     const shot = shootTest(exp, simulate(exp), DEFAULT_SHOT);

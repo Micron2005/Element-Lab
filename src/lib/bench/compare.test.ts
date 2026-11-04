@@ -43,6 +43,18 @@ function measure(result: ReturnType<typeof compareRuns>, label: string) {
 }
 
 describe("bench run comparison", () => {
+  it("localizes comparison explanations to Spanish", () => {
+    const withoutBath: Experiment = {
+      parts: alginate.parts,
+      conditions: { ...alginate.conditions, forming: "beaker", bathId: undefined },
+    };
+    const comparison = compareRuns([
+      run("Con baño", alginate),
+      run("Sin baño", withoutBath),
+    ], "es");
+    expect(comparison.why.join(" ")).toContain("pasó de ocurrió a");
+  });
+
   it("explains the alginate-calcium change when removing the bath", () => {
     const withoutBath: Experiment = {
       parts: alginate.parts,

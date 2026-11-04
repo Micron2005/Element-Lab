@@ -39,7 +39,7 @@ three time two type value vacuum water warning weak weight what happened partial
 
 const STATIC_ALLOWLIST = new Set(`
 Science Lab S·LAB
-elementlab.prefs elementlab.daily elementlab.packs elementlab.progress lang
+elementlab.prefs elementlab.daily elementlab.packs elementlab.progress elementlab.bench.cartridgeB lang
 use client use strict
 Hz kPa MPa MeV MJ mL m m/s rpm min s kg g cm mm nm μm °C pH pKa pKb %
 H C N O F Cl S P He Li Be B Ne Na Mg Al Si Ar K Ca Ti Cr Fe Ni Cu Zn Br Kr Xe Cs Ba

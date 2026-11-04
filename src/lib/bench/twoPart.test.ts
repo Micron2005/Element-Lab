@@ -37,6 +37,11 @@ const calciumB: Part[] = [
 ];
 
 describe("two-part nozzle", () => {
+  it("localizes the tip outcome to Spanish", () => {
+    const combined = combineAtTip(alginateA, calciumB, DEFAULT_RATIO);
+    expect(tipOutcome(simulate(combined, "es"), "es")).toBe("Se forma un gel después de salir de la boquilla");
+  });
+
   it("labels active alginate-calcium setting and preserves other product labels", () => {
     const combined = combineAtTip(alginateA, calciumB, DEFAULT_RATIO);
     const settingResult = simulate(combined);

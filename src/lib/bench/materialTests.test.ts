@@ -58,6 +58,7 @@ describe("material bench tests", () => {
     const sample = run(preset("vulcanized-latex"));
     const report = stretchTest(sample.experiment, sample.result, DEFAULT_STRETCH, "es");
     expect(report.metrics[0]?.label).toBe("Fuerza de rotura");
+    expect(report.headline).toContain("Se rompe");
   });
 
   it("changes slime response with pull speed", () => {
