@@ -1,4 +1,6 @@
 import { ATOMS, type AtomSymbol } from "./atoms";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
+import { MOLECULE_TEXT_ES } from "../i18n/data/es/molecule";
 
 export type BondOrder = 1 | 2 | 3;
 
@@ -156,7 +158,7 @@ export function moleculeSignature(g: MolGraph): string {
 }
 
 export interface KnownMolecule {
-  id: string;
+  id: MoleculeId;
   name: string;
   formula: string;
   shape: string;
@@ -166,6 +168,32 @@ export interface KnownMolecule {
   caution?: string;
   graph: MolGraph;
 }
+
+export type MoleculeId =
+  | "hydrogen"
+  | "oxygen"
+  | "nitrogen"
+  | "water"
+  | "carbon-dioxide"
+  | "methane"
+  | "ammonia"
+  | "hydrogen-chloride"
+  | "hydrogen-peroxide"
+  | "hydrogen-cyanide"
+  | "ethane"
+  | "ethylene"
+  | "acetylene"
+  | "methanol"
+  | "ethanol"
+  | "dimethyl-ether"
+  | "formaldehyde"
+  | "formic-acid"
+  | "acetic-acid"
+  | "hydrogen-sulfide"
+  | "phosphine"
+  | "hydrogen-fluoride"
+  | "carbon-tetrachloride"
+  | "chloroform";
 
 type AtomPoint = readonly [AtomSymbol, number, number];
 type BondSpec = readonly [number, number, BondOrder];
@@ -182,7 +210,7 @@ function graphFor(atoms: AtomPoint[], bonds: BondSpec[]): MolGraph {
 }
 
 function known(
-  id: string,
+  id: MoleculeId,
   name: string,
   shape: string,
   uses: string,
@@ -222,6 +250,13 @@ export const KNOWN_MOLECULES: KnownMolecule[] = [
   known("chloroform", "Chloroform", "tetrahedral", "Chloroform was once used as an anesthetic and is now mainly a laboratory solvent.", "Chloroform has one H and three Cl atoms bonded to a central carbon.", [["C", 0, 0], ["H", 50, 50], ["Cl", -50, -50], ["Cl", 50, -50], ["Cl", -50, 50]], [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]], { angle: "109.5°", caution: "Chloroform is toxic and should not be inhaled or swallowed." }),
 ];
 
+export function localizeMolecule(
+  molecule: KnownMolecule,
+  locale: Locale = DEFAULT_LOCALE,
+): KnownMolecule {
+  return locale === "es" ? { ...molecule, ...MOLECULE_TEXT_ES[molecule.id] } : molecule;
+}
+
 const knownBySignature = new Map(
   KNOWN_MOLECULES.map((molecule) => [moleculeSignature(molecule.graph), molecule]),
 );
@@ -256,7 +291,7 @@ function graphIsConnected(g: MolGraph): boolean {
   return visited.size === g.atoms.length;
 }
 
-export function checkMolecule(g: MolGraph): MolCheck {
+export function checkMolecule(g: MolGraph, locale: Locale = DEFAULT_LOCALE): MolCheck {
   const openValences = g.atoms.flatMap((atom) => {
     const missing = freeValence(g, atom.id);
     return missing > 0 ? [{ atomId: atom.id, el: atom.el, missing }] : [];
@@ -268,9 +303,9 @@ export function checkMolecule(g: MolGraph): MolCheck {
     openValences.length === 0;
   const problems: string[] = [];
 
-  if (g.atoms.length < 2) problems.push("Add at least two atoms");
+  if (g.atoms.length < 2) problems.push(tr(locale, "play.molecule.problem.addTwo"));
   if (g.atoms.length >= 2 && !connected) {
-    problems.push("Some atoms aren't connected to the rest");
+    problems.push(tr(locale, "play.molecule.problem.disconnected"));
   }
   const grouped = new Map<string, { el: AtomSymbol; missing: number; count: number }>();
   for (const open of openValences) {
@@ -280,9 +315,14 @@ export function checkMolecule(g: MolGraph): MolCheck {
     else grouped.set(key, { el: open.el, missing: open.missing, count: 1 });
   }
   for (const { el, missing, count } of grouped.values()) {
-    const subject = count === 1 ? el : `${count} ${el} atoms`;
-    const verb = count === 1 ? "still wants" : "still want";
-    problems.push(`${subject} ${verb} ${missing} more bond${missing === 1 ? "" : "s"}`);
+    problems.push(tr(locale, count === 1
+      ? "play.molecule.problem.oneAtom"
+      : "play.molecule.problem.manyAtoms", {
+      atom: el,
+      count,
+      missing,
+      suffix: missing === 1 ? "" : "s",
+    }));
   }
 
   return {

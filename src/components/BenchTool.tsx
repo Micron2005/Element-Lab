@@ -1,14 +1,32 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { fmtTime, hazardWord } from "@/lib/formula";
+import { fmtTime, hazardWord, waterLabel } from "@/lib/formula";
 import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
-import { compareRuns, isNotSolid, reactionStatusLabel } from "@/lib/bench/compare";
+import { compareRuns, isNotSolid } from "@/lib/bench/compare";
 import { CUSTOM_PREFIX, newCustomId } from "@/lib/bench/custom";
-import { allBenchIngredients, benchById } from "@/lib/bench/library";
+import {
+  allBenchIngredients,
+  benchById,
+  benchIngredientFormulaLabel,
+  localizeBenchIngredient,
+} from "@/lib/bench/library";
+import {
+  BENCH_EVENT_STATUS_LABEL_KEYS,
+  BENCH_FILTER_LABEL_KEYS,
+  BENCH_FILTER_OPTIONS,
+  BENCH_PRODUCT_LABEL_KEYS,
+  BENCH_WATER_LABEL_KEYS,
+  benchBooleanLabel,
+  benchCategoryLabel,
+  benchConfidenceLine,
+  type IngredientFilter,
+} from "@/lib/bench/displayLabels";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
-import { benchPresets } from "@/lib/bench/presets";
+import { benchPresets, localizeBenchPreset } from "@/lib/bench/presets";
+import { localizeReaction, localizeReactionEvent, REACTIONS } from "@/lib/bench/reactions";
 import { simulate } from "@/lib/bench/simulate";
+import { tr, trText } from "@/lib/i18n";
 import { buildMixScene } from "@/lib/bench/scene";
 import CustomIngredientForm from "./CustomIngredientForm";
 import MixViewer from "./MixViewer";
@@ -39,18 +57,7 @@ import type {
 import "./bench.css";
 import QuestBanner from "./QuestBanner";
 import { Term } from "./Term";
-
-type IngredientFilter =
-  | "All"
-  | "Elements"
-  | "Salts"
-  | "Proteins"
-  | "Enzymes"
-  | "Polymers"
-  | "Solvents"
-  | "Acids/Bases"
-  | "Additives"
-  | "Mine";
+import { useT } from "./LocaleProvider";
 
 interface NotebookEntry {
   id: string;
@@ -70,19 +77,6 @@ interface BenchShareUndo {
 
 const CURRENT_KEY = "elementlab.bench.current";
 const NOTEBOOK_KEY = "elementlab.notebook";
-const filterOptions: IngredientFilter[] = [
-  "All",
-  "Elements",
-  "Salts",
-  "Proteins",
-  "Enzymes",
-  "Polymers",
-  "Solvents",
-  "Acids/Bases",
-  "Additives",
-  "Mine",
-];
-
 function cloneExperiment(experiment: Experiment): Experiment {
   return {
     parts: experiment.parts.map((part) => ({ ...part })),
@@ -148,12 +142,12 @@ function normalizeMix(parts: Part[]): Part[] {
   return normalized;
 }
 
-function hazardLabel(value: number): string {
-  return hazardWord(value as 0 | 1 | 2 | 3);
+function hazardLabel(value: number, locale: "en" | "es"): string {
+  return hazardWord(value as 0 | 1 | 2 | 3, locale);
 }
 
-function showTime(seconds: number): string {
-  return seconds > 0 ? fmtTime(seconds) : "Doesn't set on its own";
+function showTime(seconds: number, locale: "en" | "es" = "en"): string {
+  return seconds > 0 ? fmtTime(seconds, locale) : tr(locale, "bench.notSet");
 }
 
 function formatMPa(value: number): string {
@@ -179,8 +173,9 @@ function formatCost(value: number): string {
 function formattedMechanicalValue(
   result: RunResult,
   value: string,
+  locale: "en" | "es" = "en",
 ): string {
-  return isNotSolid(result.product) ? "— · not a solid" : value;
+  return isNotSolid(result.product) ? tr(locale, "bench.notSolid") : value;
 }
 
 function makeNotebookId(): string {
@@ -219,56 +214,79 @@ function GoalNumberField({
   );
 }
 
-function conditionSummary(experiment: Experiment): string {
+function conditionSummary(experiment: Experiment, locale: "en" | "es"): string {
   const { conditions } = experiment;
-  return `${conditions.tempC} °C · pH ${effectivePH(experiment).toFixed(1)} · ${conditions.pressureKPa} kPa · ${conditions.forming}`;
+  const forming = {
+    beaker: tr(locale, "bench.beaker"),
+    "extrude-air": tr(locale, "bench.extrudeAir"),
+    "extrude-bath": tr(locale, "bench.extrudeBath"),
+    "cast-film": tr(locale, "bench.castFilm"),
+    "heat-cure": tr(locale, "bench.heatCure"),
+  }[conditions.forming];
+  return tr(locale, "bench.candidateConditions", {
+    temperature: conditions.tempC,
+    ph: effectivePH(experiment).toLocaleString(locale === "es" ? "es" : "en-US", { maximumFractionDigits: 1 }),
+    pressure: conditions.pressureKPa,
+    forming,
+  });
 }
 
-function candidateTargetStatus(goal: Goal, result: RunResult): {
+function candidateTargetStatus(goal: Goal, result: RunResult, locale: "en" | "es"): {
   label: string;
   met: boolean;
 } {
   const misses: string[] = [];
   if (goal.minTensileMPa && result.tensileMPa < goal.minTensileMPa) {
-    misses.push(`strength (needs ${formatMPa(goal.minTensileMPa)}, got ${formatMPa(result.tensileMPa)} MPa)`);
+    misses.push(tr(locale, "bench.candidateStrengthMiss", { need: formatMPa(goal.minTensileMPa), got: formatMPa(result.tensileMPa) }));
   }
   if (goal.minElongationPct && result.elongationPct < goal.minElongationPct) {
-    misses.push(`stretch (needs ${formatPercent(goal.minElongationPct)}%, got ${formatPercent(result.elongationPct)}%)`);
+    misses.push(tr(locale, "bench.candidateStretchMiss", { need: formatPercent(goal.minElongationPct), got: formatPercent(result.elongationPct) }));
   }
   if (goal.minTack && result.tack < goal.minTack) {
-    misses.push(`tack (needs ${formatTack(goal.minTack)}, got ${formatTack(result.tack)})`);
+    misses.push(tr(locale, "bench.candidateTackMiss", { need: formatTack(goal.minTack), got: formatTack(result.tack) }));
   }
   if (goal.maxSetSeconds && result.setSeconds > goal.maxSetSeconds) {
-    misses.push(`set time (max ${showTime(goal.maxSetSeconds)}, got ${showTime(result.setSeconds)})`);
+    misses.push(tr(locale, "bench.candidateSetMiss", { max: showTime(goal.maxSetSeconds, locale), got: showTime(result.setSeconds, locale) }));
   }
   if (goal.maxCostPerKg && result.costPerKg > goal.maxCostPerKg) {
-    misses.push(`cost (max $${formatCost(goal.maxCostPerKg)}/kg, got $${formatCost(result.costPerKg)}/kg)`);
+    misses.push(tr(locale, "bench.candidateCostMiss", { max: formatCost(goal.maxCostPerKg), got: formatCost(result.costPerKg) }));
   }
   if (goal.skinSafe && (result.skin > 1 || result.curedToxicity > 1)) {
-    misses.push("skin safety");
+    misses.push(tr(locale, "bench.candidateSkinMiss"));
   }
-  if (goal.edible && !result.edible) misses.push("edible");
+  if (goal.edible && !result.edible) misses.push(tr(locale, "bench.candidateEdibleMiss"));
   if (goal.water && goal.water !== "any" && result.water !== goal.water) {
-    misses.push(`water behavior (needs ${goal.water})`);
+    misses.push(tr(locale, "bench.candidateWaterMiss", {
+      need: tr(locale, BENCH_WATER_LABEL_KEYS[goal.water]),
+    }));
   }
   if (goal.product && goal.product !== "any" && result.product !== goal.product) {
-    misses.push(`product (needs ${goal.product})`);
+    misses.push(tr(locale, "bench.candidateProductMiss", {
+      need: tr(locale, BENCH_PRODUCT_LABEL_KEYS[goal.product]),
+    }));
   }
   return {
-    label: misses.length ? `Misses: ${misses.join("; ")}` : "Meets all targets",
+    label: misses.length ? tr(locale, "bench.targetMisses", { misses: misses.join("; ") }) : tr(locale, "bench.targetsMet"),
     met: misses.length === 0,
   };
 }
 
-function partsSummary(experiment: Experiment): string {
+function partsSummary(experiment: Experiment, locale: "en" | "es"): string {
   return experiment.parts
-    .map((part) =>
-      `${benchById[part.id]?.name ?? (part.id.startsWith(CUSTOM_PREFIX) ? "Deleted ingredient" : part.id)} ${part.pct}%`,
-    )
-    .join(", ") || "No ingredients";
+    .map((part) => {
+      const ingredient = benchById[part.id];
+      const name = ingredient
+        ? localizeBenchIngredient(ingredient, locale).name
+        : part.id.startsWith(CUSTOM_PREFIX)
+          ? tr(locale, "bench.deletedIngredient")
+          : part.id;
+      return `${name} ${part.pct}%`;
+    })
+    .join(", ") || tr(locale, "bench.noIngredients");
 }
 
 export default function BenchTool() {
+  const { locale, t } = useT();
   const {
     list: customList,
     ready: customReady,
@@ -498,8 +516,8 @@ export default function BenchTool() {
     JSON.stringify(experiment) !== JSON.stringify(lastRunExperiment);
 
   const scene = useMemo(
-    () => (result && lastRunExperiment ? buildMixScene(lastRunExperiment, result) : null),
-    [result, lastRunExperiment],
+    () => (result && lastRunExperiment ? buildMixScene(lastRunExperiment, result, locale) : null),
+    [result, lastRunExperiment, locale],
   );
 
   function updateExperiment(next: Experiment) {
@@ -550,7 +568,7 @@ export default function BenchTool() {
       }
     } catch (error) {
       setCustomSaveError(
-        error instanceof Error ? error.message : "Could not save this ingredient.",
+        error instanceof Error ? error.message : t("bench.ui.saveIngredientFailed"),
       );
     }
   }
@@ -562,7 +580,7 @@ export default function BenchTool() {
       removeCustomIngredient(id);
     } catch (error) {
       setCustomSaveError(
-        error instanceof Error ? error.message : "Could not delete this ingredient.",
+        error instanceof Error ? error.message : t("bench.ui.deleteIngredientFailed"),
       );
       return;
     }
@@ -597,15 +615,15 @@ export default function BenchTool() {
   function runExperiment(value: Experiment = experiment) {
     const snapshot = cloneExperiment(value);
     if (!snapshot.parts.some((part) => Number.isFinite(part.pct) && part.pct > 0)) {
-      setRunError("Add ingredients first.");
+      setRunError(t("ui.addIngredientsStart"));
       return;
     }
     setRunError("");
-    const nextResult = simulate(snapshot);
+    const nextResult = simulate(snapshot, locale);
     setResult(nextResult);
     setLastRunExperiment(snapshot);
     setRunId((id) => id + 1);
-    const name = notebookName.trim() || `Experiment ${new Date().toLocaleString()}`;
+    const name = notebookName.trim() || `${t("bench.experiment")} ${new Date().toLocaleString(locale === "es" ? "es" : "en-US")}`;
     const entry: NotebookEntry = {
       id: makeNotebookId(),
       name,
@@ -657,7 +675,7 @@ export default function BenchTool() {
   }
 
   function clearNotebook() {
-    if (!window.confirm("Clear all saved bench runs?")) return;
+    if (!window.confirm(t("bench.clearConfirm"))) return;
     setNotebook([]);
     setCompareIds([]);
     setCompareVisible(false);
@@ -669,7 +687,7 @@ export default function BenchTool() {
         ? allBenchIngredients().map((ingredient) => ingredient.id)
         : experiment.parts.map((part) => part.id);
     if (pool.length === 0) {
-      setOptimizerError("Add ingredients to your mix before using the selected-ingredients pool.");
+      setOptimizerError(t("bench.optimizerEmptyPool"));
       return;
     }
     setOptimizerError("");
@@ -688,11 +706,12 @@ export default function BenchTool() {
           lockConditions: keepConditions ? experiment.conditions : undefined,
         },
         (completed, total) => setProgress({ completed, total }),
+        locale,
       );
       setCandidates(found);
       setSearchTimeMs(performance.now() - start);
     } catch {
-      setOptimizerError("The search could not finish. Check the goal and try again.");
+      setOptimizerError(t("bench.optimizerFailed"));
     } finally {
       setOptimizing(false);
     }
@@ -702,7 +721,7 @@ export default function BenchTool() {
     .map((id) => notebook.find((entry) => entry.id === id))
     .filter((entry): entry is NotebookEntry => Boolean(entry));
   const comparison = comparisonEntries.length >= 2
-    ? compareRuns(comparisonEntries.map(({ name, experiment, result }) => ({ name, experiment, result })))
+    ? compareRuns(comparisonEntries.map(({ name, experiment, result }) => ({ name, experiment, result })), locale)
     : null;
 
   function undoSharedExperiment() {
@@ -770,33 +789,32 @@ export default function BenchTool() {
         />
       )}
       <header className="bench-intro">
-        <p className="bench-eyebrow">VIRTUAL EXPERIMENT SANDBOX</p>
-        <h1>Experiment Bench</h1>
+        <p className="bench-eyebrow">{t("bench.eyebrow")}</p>
+        <h1>{t("bench.title")}</h1>
         <p>
-          Mix proteins, enzymes, polymers, salts, and process conditions. Run a
-          model, see what changed, or search for a better mix.
+          {t("ui.benchDescription")}
         </p>
       </header>
 
       <section className="bench-panel">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">01 · BUILD</p>
-            <h2>Your mixture</h2>
+            <p className="bench-kicker">01 · {t("bench.ui.build")}</p>
+            <h2>{t("ui.yourMixture")}</h2>
           </div>
           <div className="bench-preset-control">
-            <label htmlFor="bench-preset">Load a preset</label>
+            <label htmlFor="bench-preset">{t("ui.loadPreset")}</label>
             <select
               className="select"
               id="bench-preset"
               value={selectedPreset}
               onChange={(event) => loadPreset(event.target.value)}
             >
-              <option value="">Choose a preset…</option>
-              <option value="custom">Custom mix</option>
+              <option value="">{t("ui.choosePreset")}</option>
+              <option value="custom">{t("ui.customMix")}</option>
               {benchPresets.map((preset) => (
                 <option value={preset.id} key={preset.id}>
-                  {preset.name}
+                  {localizeBenchPreset(preset, locale).name}
                 </option>
               ))}
             </select>
@@ -806,14 +824,14 @@ export default function BenchTool() {
         <div className="bench-builder-grid">
           <section className="bench-subpanel" aria-labelledby="bench-library-heading">
             <div className="bench-subheading bench-library-heading">
-              <h3 id="bench-library-heading">Ingredient library</h3>
-              <span>{visibleIngredients.length} items</span>
+              <h3 id="bench-library-heading">{t("ui.ingredientLibrary")}</h3>
+              <span>{visibleIngredients.length} {t("ui.items")}</span>
               <button
                 className="button button-secondary bench-custom-create"
                 type="button"
                 onClick={openNewCustomIngredient}
               >
-                + Make your own
+                {t("ui.makeYourOwn")}
               </button>
             </div>
             {customSaveError && (
@@ -832,8 +850,8 @@ export default function BenchTool() {
                 onDelete={customFormInitial ? deleteOpenCustomIngredient : undefined}
               />
             )}
-            <div className="bench-filter-list" aria-label="Ingredient categories">
-              {filterOptions.map((option) => (
+            <div className="bench-filter-list" aria-label={t("ui.ingredientCategories")}>
+              {BENCH_FILTER_OPTIONS.map((option) => (
                 <button
                   className={`chip bench-chip${filter === option ? " is-active" : ""}`}
                   key={option}
@@ -841,18 +859,18 @@ export default function BenchTool() {
                   aria-pressed={filter === option}
                   onClick={() => setFilter(option)}
                 >
-                  {option}
+                  {t(BENCH_FILTER_LABEL_KEYS[option])}
                 </button>
               ))}
             </div>
             <label className="bench-search-label" htmlFor="bench-search">
-              Search ingredients
+              {t("ui.searchIngredients")}
             </label>
             <input
               id="bench-search"
               className="input"
               type="search"
-              placeholder="Try “calcium” or “silk”"
+              placeholder={t("ui.tryCalciumSilk")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -862,10 +880,10 @@ export default function BenchTool() {
                 return (
                   <div className="bench-library-item" key={ingredient.id}>
                     <div className="bench-library-copy">
-                      <strong>{ingredient.name}</strong>
-                      <span>{ingredient.formula}</span>
+                      <strong>{localizeBenchIngredient(ingredient, locale).name}</strong>
+                      <span>{benchIngredientFormulaLabel(ingredient, locale)}</span>
                       {ingredient.id.startsWith(CUSTOM_PREFIX) && (
-                        <span className="bench-yours-badge">Yours</span>
+                      <span className="bench-yours-badge">{t("ui.yours")}</span>
                       )}
                     </div>
                     <div className="bench-library-actions">
@@ -875,7 +893,7 @@ export default function BenchTool() {
                         disabled={added}
                         onClick={() => addIngredient(ingredient.id)}
                       >
-                        {added ? "Added" : "Add"}
+                        {added ? t("ui.added") : t("ui.add")}
                       </button>
                       {ingredient.id.startsWith(CUSTOM_PREFIX) && (
                         <button
@@ -883,7 +901,7 @@ export default function BenchTool() {
                           type="button"
                           onClick={() => openCustomIngredient(ingredient)}
                         >
-                          Edit
+                          {t("ui.edit")}
                         </button>
                       )}
                     </div>
@@ -891,20 +909,20 @@ export default function BenchTool() {
                 );
               })}
               {visibleIngredients.length === 0 && (
-                <p className="bench-muted">No ingredients match that search.</p>
+                <p className="bench-muted">{t("ui.noIngredientsMatch")}</p>
               )}
             </div>
           </section>
 
           <section className="bench-subpanel" aria-labelledby="bench-mix-heading">
             <div className="bench-subheading">
-              <h3 id="bench-mix-heading">Mixing order</h3>
+              <h3 id="bench-mix-heading">{t("ui.mixingOrder")}</h3>
               <span className={Math.abs(totalPct - 100) > 0.1 ? "bench-total-warn" : ""}>
                 {totalPct.toFixed(1)}%
               </span>
             </div>
             {experiment.parts.length === 0 ? (
-              <div className="bench-empty">Add ingredients from the library to start a mix.</div>
+              <div className="bench-empty">{t("ui.addIngredientsStart")}</div>
             ) : (
               <div className="bench-mix-list">
                 {experiment.parts.map((part, index) => {
@@ -916,9 +934,9 @@ export default function BenchTool() {
                         <div className="bench-mix-row-top">
                           <div className="bench-mix-title">
                             <span className="bench-order">{String(index + 1).padStart(2, "0")}</span>
-                            <strong>Deleted ingredient</strong>
+                            <strong>{t("bench.ui.deletedIngredient")}</strong>
                           </div>
-                          <span className="badge bench-category-badge">Custom</span>
+                        <span className="badge bench-category-badge">{t("bench.custom")}</span>
                         </div>
                         <div className="bench-row-actions">
                           <button
@@ -931,7 +949,7 @@ export default function BenchTool() {
                               })
                             }
                           >
-                            Remove
+                            {t("bench.test.remove")}
                           </button>
                         </div>
                       </article>
@@ -942,13 +960,13 @@ export default function BenchTool() {
                       <div className="bench-mix-row-top">
                         <div className="bench-mix-title">
                           <span className="bench-order">{String(index + 1).padStart(2, "0")}</span>
-                          <strong>{ingredient.name}</strong>
+                          <strong>{localizeBenchIngredient(ingredient, locale).name}</strong>
                         </div>
-                        <span className="badge bench-category-badge">{ingredient.category}</span>
+                        <span className="badge bench-category-badge">{benchCategoryLabel(ingredient.category, locale)}</span>
                       </div>
                       <div className="bench-mix-controls">
                         <input
-                          aria-label={`${ingredient.name} percentage slider`}
+                          aria-label={`${localizeBenchIngredient(ingredient, locale).name} percentage slider`}
                           className="bench-range"
                           type="range"
                           min="0"
@@ -958,7 +976,7 @@ export default function BenchTool() {
                           onChange={(event) => setPartPct(index, Number(event.target.value))}
                         />
                         <label className="bench-percent-field">
-                          <span className="sr-only">{ingredient.name} percentage</span>
+                          <span className="sr-only">{localizeBenchIngredient(ingredient, locale).name} percentage</span>
                           <input
                             className="input"
                             type="number"
@@ -974,7 +992,7 @@ export default function BenchTool() {
                       <div className="bench-row-actions">
                         <button
                           className="button button-secondary bench-icon-button"
-                          aria-label={`Move ${ingredient.name} up`}
+                          aria-label={`Move ${localizeBenchIngredient(ingredient, locale).name} up`}
                           type="button"
                           disabled={index === 0}
                           onClick={() => movePart(index, -1)}
@@ -983,7 +1001,7 @@ export default function BenchTool() {
                         </button>
                         <button
                           className="button button-secondary bench-icon-button"
-                          aria-label={`Move ${ingredient.name} down`}
+                          aria-label={`Move ${localizeBenchIngredient(ingredient, locale).name} down`}
                           type="button"
                           disabled={index === experiment.parts.length - 1}
                           onClick={() => movePart(index, 1)}
@@ -1000,13 +1018,13 @@ export default function BenchTool() {
                             })
                           }
                         >
-                          Remove
+                          {t("bench.test.remove")}
                         </button>
                       </div>
                       <details className="bench-ingredient-details">
-                        <summary>How it bonds / notes</summary>
-                        <p>{ingredient.bonding}</p>
-                        <p>{ingredient.notes}</p>
+                        <summary>{t("bench.howItBonds")}</summary>
+                        <p>{localizeBenchIngredient(ingredient, locale).bonding}</p>
+                        <p>{localizeBenchIngredient(ingredient, locale).notes}</p>
                       </details>
                     </article>
                   );
@@ -1022,9 +1040,9 @@ export default function BenchTool() {
                   updateExperiment({ ...experiment, parts: normalizeMix(experiment.parts) })
                 }
               >
-                Normalize to 100%
+                {t("ui.normalizeBench")}
               </button>
-              <p>Order matters for contact reactions.</p>
+            <p>{t("bench.orderMatters")}</p>
             </div>
           </section>
         </div>
@@ -1033,13 +1051,13 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-conditions-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">02 · PROCESS</p>
-            <h2 id="bench-conditions-heading">Conditions</h2>
+            <p className="bench-kicker">02 · {t("bench.ui.process")}</p>
+            <h2 id="bench-conditions-heading">{t("ui.conditions")}</h2>
           </div>
         </div>
         <div className="bench-condition-grid">
           <RangeNumberField
-            label="Temperature"
+            label={t("bench.temperature")}
             value={experiment.conditions.tempC}
             min={-20}
             max={200}
@@ -1048,16 +1066,14 @@ export default function BenchTool() {
             onChange={(value) => setCondition("tempC", value)}
           />
           <div className="bench-field">
-            <span className="bench-field-label"><Term id="ph">pH</Term> (from your ingredients)</span>
+            <span className="bench-field-label"><Term id="ph">pH</Term> {t("bench.phFromIngredients")}</span>
             <output className="bench-ph-value">{livePH.toFixed(1)}</output>
             <span className="bench-ph-hint">
-              Comes from what you add. Add an acid (vinegar, citric acid) to lower it, or a base
-              (baking soda, borax, sodium hydroxide) to raise it. Proteins&apos; own buffering isn&apos;t
-              modeled.
+              {t("bench.phHelp")}
             </span>
           </div>
           <RangeNumberField
-            label="Pressure"
+            label={t("bench.pressure")}
             value={experiment.conditions.pressureKPa}
             min={0.1}
             max={300}
@@ -1066,7 +1082,7 @@ export default function BenchTool() {
             onChange={(value) => setCondition("pressureKPa", value)}
           />
           <label className="bench-field">
-            <span className="bench-field-label">Atmosphere</span>
+            <span className="bench-field-label">{t("bench.atmosphere")}</span>
             <select
               className="select"
               value={experiment.conditions.atmosphere}
@@ -1074,13 +1090,13 @@ export default function BenchTool() {
                 setCondition("atmosphere", event.target.value as Conditions["atmosphere"])
               }
             >
-              <option value="air">Air</option>
-              <option value="nitrogen">Nitrogen</option>
-              <option value="vacuum">Vacuum</option>
+              <option value="air">{t("bench.air")}</option>
+              <option value="nitrogen">{t("bench.nitrogen")}</option>
+              <option value="vacuum">{t("bench.vacuum")}</option>
             </select>
           </label>
           <label className="bench-field">
-            <span className="bench-field-label">Humidity</span>
+            <span className="bench-field-label">{t("bench.humidity")}</span>
             <span className="bench-goal-input-wrap">
               <input
                 className="input"
@@ -1094,7 +1110,7 @@ export default function BenchTool() {
             </span>
           </label>
           <label className="bench-field">
-            <span className="bench-field-label">Mixing speed</span>
+            <span className="bench-field-label">{t("bench.mixingSpeed")}</span>
             <span className="bench-goal-input-wrap">
               <input
                 className="input"
@@ -1108,7 +1124,7 @@ export default function BenchTool() {
             </span>
           </label>
           <label className="bench-field">
-            <span className="bench-field-label">Mix time</span>
+            <span className="bench-field-label">{t("bench.mixTime")}</span>
             <span className="bench-goal-input-wrap">
               <input
                 className="input"
@@ -1122,7 +1138,7 @@ export default function BenchTool() {
             </span>
           </label>
           <label className="bench-field">
-            <span className="bench-field-label">Cure time</span>
+            <span className="bench-field-label">{t("bench.cureTime")}</span>
             <span className="bench-goal-input-wrap">
               <input
                 className="input"
@@ -1136,7 +1152,7 @@ export default function BenchTool() {
             </span>
           </label>
           <label className="bench-field">
-            <span className="bench-field-label">Forming method</span>
+            <span className="bench-field-label">{t("bench.formingMethod")}</span>
             <select
               className="select"
               value={experiment.conditions.forming}
@@ -1144,27 +1160,27 @@ export default function BenchTool() {
                 setCondition("forming", event.target.value as Conditions["forming"])
               }
             >
-              <option value="beaker">Beaker</option>
-              <option value="extrude-air">Extrude into air</option>
-              <option value="extrude-bath">Extrude into bath</option>
-              <option value="cast-film">Cast film</option>
-              <option value="heat-cure">Heat cure</option>
+              <option value="beaker">{t("bench.beaker")}</option>
+              <option value="extrude-air">{t("bench.extrudeAir")}</option>
+              <option value="extrude-bath">{t("bench.extrudeBath")}</option>
+              <option value="cast-film">{t("bench.castFilm")}</option>
+              <option value="heat-cure">{t("bench.heatCure")}</option>
             </select>
           </label>
           {experiment.conditions.forming === "extrude-bath" && (
             <label className="bench-field">
-              <span className="bench-field-label">Bath ingredient</span>
+              <span className="bench-field-label">{t("bench.bathIngredient")}</span>
               <select
                 className="select"
                 value={experiment.conditions.bathId ?? ""}
                 onChange={(event) => setCondition("bathId", event.target.value || undefined)}
               >
-                <option value="">Choose a bath</option>
+                <option value="">{t("bench.chooseBath")}</option>
                 {allBenchIngredients()
                   .filter((ingredient) => ["salt", "solvent"].includes(ingredient.category))
                   .map((ingredient) => (
                     <option value={ingredient.id} key={ingredient.id}>
-                      {ingredient.name}
+                      {localizeBenchIngredient(ingredient, locale).name}
                     </option>
                   ))}
               </select>
@@ -1173,9 +1189,9 @@ export default function BenchTool() {
         </div>
         <div className="bench-condition-chips">
           {[
-            { label: "Vacuum 1 kPa", value: 1 },
-            { label: "Room 101 kPa", value: 101 },
-            { label: "Pressurized 200 kPa", value: 200 },
+            { label: t("bench.vacuumChip", { pressure: 1 }), value: 1 },
+            { label: t("bench.roomChip", { pressure: 101 }), value: 101 },
+            { label: t("bench.pressurizedChip", { pressure: 200 }), value: 200 },
           ].map((chip) => (
             <button
               className="chip bench-chip"
@@ -1188,29 +1204,31 @@ export default function BenchTool() {
           ))}
         </div>
         <p className="bench-condition-note">
-          Water boils at {waterBoilingPointC(experiment.conditions.pressureKPa).toFixed(1)} °C at
-          this pressure. pH {livePH.toFixed(1)} from your ingredients.
+          {t("bench.waterBoilsAt", {
+            temperature: waterBoilingPointC(experiment.conditions.pressureKPa).toLocaleString(locale === "es" ? "es" : "en-US", { maximumFractionDigits: 1 }),
+            ph: livePH.toLocaleString(locale === "es" ? "es" : "en-US", { maximumFractionDigits: 1 }),
+          })}
         </p>
       </section>
 
-      <section className="bench-run-panel" aria-label="Run experiment">
+      <section className="bench-run-panel" aria-label={t("ui.runExperiment")}>
         <label className="bench-run-name">
-          <span>Notebook name (optional)</span>
+          <span>{t("bench.notebookName")}</span>
           <input
             className="input"
             value={notebookName}
-            placeholder="e.g. warm silk trial"
+            placeholder={t("bench.notebookPlaceholder")}
             onChange={(event) => setNotebookName(event.target.value)}
           />
         </label>
         <div className="bench-run-actions">
           <button className="button bench-run-button" type="button" onClick={() => runExperiment()}>
-            Run experiment
+            {t("ui.runExperiment")}
           </button>
           <ShareButton
             build={buildBenchShare}
-            label="Share experiment"
-            disabledReason={experiment.parts.length ? undefined : "Add an ingredient first"}
+            label={t("bench.shareExperiment")}
+            disabledReason={experiment.parts.length ? undefined : t("bench.addIngredientFirst")}
           />
         </div>
         {runError && <p className="bench-empty" role="alert">{runError}</p>}
@@ -1219,36 +1237,39 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-results-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">03 · RESULTS</p>
-            <h2 id="bench-results-heading">What formed?</h2>
+            <p className="bench-kicker">03 · {t("ui.results").toUpperCase()}</p>
+            <h2 id="bench-results-heading">{t("ui.whatFormed")}</h2>
           </div>
-          {changedSinceRun && <span className="bench-changed">Conditions changed — run again.</span>}
+          {changedSinceRun && <span className="bench-changed">{t("bench.resultsChanged")}</span>}
         </div>
         {!result ? (
           <div className="bench-empty">
-            Results appear after you run an experiment. Your input changes are not simulated until Run.
+            {t("bench.resultsEmpty")}
           </div>
         ) : (
           <div className="bench-results" aria-live="polite">
             <div className={`bench-product bench-product-${result.product}`}>
               <div>
-                <span className="bench-product-label">Estimated product</span>
+                <span className="bench-product-label">{t("bench.estimatedProduct")}</span>
                 <h3>{result.productLabel}</h3>
                 <p>{result.summary}</p>
               </div>
               <span className="bench-confidence">
-                {result.confidence >= 0.8 ? "High" : result.confidence >= 0.5 ? "Medium" : "Low"}{" "}
-                <Term id="confidence">confidence</Term> · {Math.round(result.confidence * 100)}%
+                {benchConfidenceLine(
+                  result.confidence,
+                  Math.round(result.confidence * 100),
+                  locale,
+                )}
               </span>
             </div>
             {scene && (
-              <section className="bench-result-section" aria-label="Watch the experiment">
-                <h3>Watch it happen</h3>
+              <section className="bench-result-section" aria-label={t("bench.watchExperiment")}>
+                <h3>{t("bench.watchHappen")}</h3>
                 <MixViewer key={runId} scene={scene} resultLabel={result.productLabel} />
               </section>
             )}
-            <section className="bench-result-section" aria-label="Test it">
-              <h3>Test it</h3>
+            <section className="bench-result-section" aria-label={t("ui.testIt")}>
+              <h3>{t("ui.testIt")}</h3>
               {lastRunExperiment && (
                 <BenchTests
                   key={`${runId}-${shareTestVersion}`}
@@ -1261,31 +1282,33 @@ export default function BenchTool() {
               )}
             </section>
             <div className="bench-metric-grid">
-              <Metric label="Tensile strength" value={formattedMechanicalValue(result, `${formatMPa(result.tensileMPa)} MPa`)} />
-              <Metric label="Stretch" value={formattedMechanicalValue(result, `${formatPercent(result.elongationPct)}%`)} />
-              <Metric label="Stickiness" value={formattedMechanicalValue(result, `${formatTack(result.tack)}/10`)} />
-              <Metric label="Toughness" value={formattedMechanicalValue(result, `${formatToughness(result.toughnessMJm3)} MJ/m³`)} />
-              <Metric label="Set time" value={showTime(result.setSeconds)} />
-              <Metric label="Cost estimate" value={`$${formatCost(result.costPerKg)}/kg`} />
+              <Metric label={t("bench.tensileStrength")} value={formattedMechanicalValue(result, `${formatMPa(result.tensileMPa)} MPa`, locale)} />
+              <Metric label={t("bench.stretch")} value={formattedMechanicalValue(result, `${formatPercent(result.elongationPct)}%`, locale)} />
+              <Metric label={t("bench.stickiness")} value={formattedMechanicalValue(result, `${formatTack(result.tack)}/10`, locale)} />
+              <Metric label={t("bench.toughness")} value={formattedMechanicalValue(result, `${formatToughness(result.toughnessMJm3)} MJ/m³`, locale)} />
+              <Metric label={t("bench.setTime")} value={showTime(result.setSeconds, locale)} />
+              <Metric label={t("bench.costEstimate")} value={`$${formatCost(result.costPerKg)}/kg`} />
             </div>
             <div className="bench-safety-grid">
-              <SafetyMetric label="Toxicity while mixing" value={hazardLabel(result.wetToxicity)} />
-              <SafetyMetric label="Cured toxicity" value={hazardLabel(result.curedToxicity)} />
-              <SafetyMetric label="Skin contact" value={hazardLabel(result.skin)} />
-              <SafetyMetric label="Edible" value={result.edible ? "Yes" : "No"} />
+              <SafetyMetric label={t("bench.toxicityMixing")} value={hazardLabel(result.wetToxicity, locale)} />
+              <SafetyMetric label={t("bench.curedToxicity")} value={hazardLabel(result.curedToxicity, locale)} />
+              <SafetyMetric label={t("bench.skinContact")} value={hazardLabel(result.skin, locale)} />
+              <SafetyMetric label={t("bench.edible")} value={benchBooleanLabel(result.edible, locale)} />
               <SafetyMetric
-                label="Water behavior"
-                value={`${result.water} · ${result.dissolveTime}`}
+                label={t("bench.waterBehavior")}
+                value={`${waterLabel(result.water, locale)} · ${result.dissolveTime}`}
               />
-              <SafetyMetric label="Biodegradable" value={result.biodegradable ? "Yes" : "No"} />
+              <SafetyMetric label={t("bench.biodegradable")} value={benchBooleanLabel(result.biodegradable, locale)} />
             </div>
             <section className="bench-result-section">
-              <h3>What happened</h3>
+              <h3>{t("bench.whatHappened")}</h3>
               {result.events.length === 0 ? (
-                <p className="bench-muted">No modeled reaction rule matched this mix.</p>
+                <p className="bench-muted">{t("bench.noReactionMatched")}</p>
               ) : (
                 <div className="bench-event-list">
-                  {result.events.map((event) => (
+                  {result.events.map((sourceEvent) => {
+                    const event = localizeReactionEvent(sourceEvent, locale);
+                    return (
                     <article className={`bench-event bench-event-${event.status}`} key={event.id}>
                       <span className="bench-event-icon" aria-hidden="true">
                         {event.status === "happened" ? "✓" : event.status === "partial" ? "◐" : "×"}
@@ -1293,7 +1316,7 @@ export default function BenchTool() {
                       <div>
                         <div className="bench-event-title">
                           <strong><TermLabel label={event.name} /></strong>
-                          <span>{event.status} · activity {event.activity.toFixed(2)}</span>
+                          <span>{t(BENCH_EVENT_STATUS_LABEL_KEYS[event.status], { value: event.activity.toLocaleString(locale === "es" ? "es" : "en-US", { maximumFractionDigits: 2 }) })} · {t("bench.activity", { value: event.activity.toLocaleString(locale === "es" ? "es" : "en-US", { maximumFractionDigits: 2 }) })}</span>
                         </div>
                         <p>{event.mechanism}</p>
                         {event.reasons.length > 0 && (
@@ -1303,13 +1326,14 @@ export default function BenchTool() {
                         )}
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
             {result.warnings.length > 0 && (
               <section className="bench-result-section">
-                <h3>Warnings and notes</h3>
+                <h3>{t("bench.warningsNotes")}</h3>
                 <ul className="bench-warning-list">
                   {result.warnings.map((warning) => (
                     <li className={`bench-warning bench-warning-${warning.level}`} key={warning.text}>
@@ -1320,23 +1344,22 @@ export default function BenchTool() {
               </section>
             )}
             <section className="bench-result-section">
-              <h3>Not modelled</h3>
+              <h3>{t("bench.notModelled")}</h3>
               {result.notModelled.length > 0 ? (
                 <ul className="bench-unknown-list">
                   {result.notModelled.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               ) : (
-                <p className="bench-muted">No unmodelled reactive interactions detected.</p>
+                <p className="bench-muted">{t("bench.noUnmodelled")}</p>
               )}
               <p className="bench-confidence-note">
-                Confidence is reduced for reactive ingredients without a modeled pairing. Unknown
-                chemistry is not guessed.
+                {t("bench.confidenceNote")}
               </p>
             </section>
           </div>
         )}
         <LabReportButton
-          disabledReason={!result || !lastRunExperiment ? "Run the experiment first" : undefined}
+          disabledReason={!result || !lastRunExperiment ? t("bench.runFirst") : undefined}
           build={(extra) => {
             if (!result || !lastRunExperiment) return null;
             const payload = buildBenchShare(lastRunExperiment);
@@ -1348,7 +1371,7 @@ export default function BenchTool() {
             return benchReport(lastRunExperiment, result, testSummary ?? undefined, {
               ...extra,
               shareUrl: url,
-            });
+            }, locale);
           }}
         />
       </section>
@@ -1356,35 +1379,33 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-optimizer-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">04 · SEARCH</p>
-            <h2 id="bench-optimizer-heading">Find best mix</h2>
+            <p className="bench-kicker">04 · {t("bench.search")}</p>
+            <h2 id="bench-optimizer-heading">{t("bench.findBest")}</h2>
           </div>
-          <span className="bench-live-value">Rule-based · seeded search</span>
+          <span className="bench-live-value">{t("bench.ruleSearch")}</span>
         </div>
-        <p className="bench-panel-copy">
-          Set targets and the search will compare mixtures from the same rule-based model.
-        </p>
+        <p className="bench-panel-copy">{t("bench.searchIntro")}</p>
         <div className="bench-goal-grid">
           <GoalNumberField
-            label="Minimum tensile strength"
+            label={t("bench.minimumTensile")}
             value={goal.minTensileMPa}
             unit="MPa"
             onChange={(value) => setGoal({ ...goal, minTensileMPa: value })}
           />
           <GoalNumberField
-            label="Minimum stretch"
+            label={t("bench.minimumStretch")}
             value={goal.minElongationPct}
             unit="%"
             onChange={(value) => setGoal({ ...goal, minElongationPct: value })}
           />
           <GoalNumberField
-            label="Minimum stickiness"
+            label={t("bench.minimumStickiness")}
             value={goal.minTack}
             unit="/10"
             onChange={(value) => setGoal({ ...goal, minTack: value })}
           />
           <GoalNumberField
-            label="Maximum set time"
+            label={t("bench.maximumSetTime")}
             value={goal.maxSetSeconds === undefined ? undefined : goal.maxSetSeconds / 60}
             unit="min"
             onChange={(value) =>
@@ -1392,13 +1413,13 @@ export default function BenchTool() {
             }
           />
           <GoalNumberField
-            label="Maximum cost"
+            label={t("bench.maximumCost")}
             value={goal.maxCostPerKg}
             unit="$/kg"
             onChange={(value) => setGoal({ ...goal, maxCostPerKg: value })}
           />
           <label className="bench-field">
-            <span className="bench-field-label">Water behavior</span>
+            <span className="bench-field-label">{t("bench.waterBehavior")}</span>
             <select
               className="select"
               value={goal.water ?? "any"}
@@ -1406,13 +1427,13 @@ export default function BenchTool() {
                 setGoal({ ...goal, water: event.target.value as Goal["water"] })
               }
             >
-              <option value="any">Any</option>
-              <option value="resists">Resists</option>
-              <option value="dissolves">Dissolves</option>
+              <option value="any">{t("bench.any")}</option>
+              <option value="resists">{t("bench.resists")}</option>
+              <option value="dissolves">{t("bench.dissolves")}</option>
             </select>
           </label>
           <label className="bench-field">
-            <span className="bench-field-label">Product type</span>
+            <span className="bench-field-label">{t("ui.productType")}</span>
             <select
               className="select"
               value={goal.product ?? "any"}
@@ -1420,11 +1441,11 @@ export default function BenchTool() {
                 setGoal({ ...goal, product: event.target.value as Goal["product"] })
               }
             >
-              <option value="any">Any</option>
-              <option value="fiber">Fiber</option>
-              <option value="film">Film</option>
-              <option value="gel">Gel</option>
-              <option value="adhesive">Adhesive</option>
+              <option value="any">{t("bench.any")}</option>
+              <option value="fiber">{t("bench.fiber")}</option>
+              <option value="film">{t("bench.film")}</option>
+              <option value="gel">{t("bench.gel")}</option>
+              <option value="adhesive">{t("bench.adhesive")}</option>
             </select>
           </label>
         </div>
@@ -1435,7 +1456,7 @@ export default function BenchTool() {
               checked={Boolean(goal.skinSafe)}
               onChange={(event) => setGoal({ ...goal, skinSafe: event.target.checked })}
             />
-            <span>Skin-safe (skin and cured toxicity ≤ 1)</span>
+            <span>{t("bench.skinSafe")}</span>
           </label>
           <label className="bench-check">
             <input
@@ -1443,11 +1464,11 @@ export default function BenchTool() {
               checked={Boolean(goal.edible)}
               onChange={(event) => setGoal({ ...goal, edible: event.target.checked })}
             />
-            <span>Edible</span>
+            <span>{t("bench.edible")}</span>
           </label>
         </div>
         <fieldset className="bench-pool-options">
-          <legend>Ingredient pool</legend>
+          <legend>{t("bench.ingredientPool")}</legend>
           <label className="bench-check">
             <input
               type="radio"
@@ -1455,7 +1476,7 @@ export default function BenchTool() {
               checked={poolMode === "all"}
               onChange={() => setPoolMode("all")}
             />
-            <span>Whole library</span>
+            <span>{t("bench.wholeLibrary")}</span>
           </label>
           <label className="bench-check">
             <input
@@ -1464,12 +1485,12 @@ export default function BenchTool() {
               checked={poolMode === "selected"}
               onChange={() => setPoolMode("selected")}
             />
-            <span>Only my selected ingredients ({experiment.parts.length})</span>
+            <span>{t("bench.selectedIngredients", { count: experiment.parts.length })}</span>
           </label>
         </fieldset>
         <div className="bench-search-options">
           <label className="bench-field bench-max-field">
-            <span className="bench-field-label">Maximum ingredients</span>
+            <span className="bench-field-label">{t("bench.maximumIngredients")}</span>
             <select
               className="select"
               value={maxIngredients}
@@ -1484,7 +1505,7 @@ export default function BenchTool() {
               checked={keepConditions}
               onChange={(event) => setKeepConditions(event.target.checked)}
             />
-            <span>Keep my current conditions</span>
+            <span>{t("bench.keepConditions")}</span>
           </label>
         </div>
         <div className="bench-search-actions">
@@ -1494,38 +1515,38 @@ export default function BenchTool() {
             disabled={optimizing}
             onClick={() => void findMixes()}
           >
-            {optimizing ? "Searching…" : "Find best mix"}
+            {optimizing ? t("bench.searching") : t("bench.findBest")}
           </button>
           {searchTimeMs !== null && !optimizing && (
-            <span className="bench-search-time">Finished in {searchTimeMs.toFixed(0)} ms</span>
+            <span className="bench-search-time">{t("bench.searchFinished", { ms: searchTimeMs.toLocaleString(locale === "es" ? "es" : "en-US", { maximumFractionDigits: 0 }) })}</span>
           )}
         </div>
         {optimizing && (
           <div className="bench-progress" aria-live="polite">
             <progress max={progress.total || 2500} value={progress.completed} />
-            <span>{progress.completed.toLocaleString()} / {progress.total.toLocaleString()} mixes checked</span>
+            <span>{progress.completed.toLocaleString(locale === "es" ? "es" : "en-US")} / {progress.total.toLocaleString(locale === "es" ? "es" : "en-US")} {t("ui.mixesChecked")}</span>
           </div>
         )}
         {optimizerError && <p className="bench-inline-error">{optimizerError}</p>}
         {candidates.length > 0 && (
           <div className="bench-candidate-list">
-            <h3>Top candidates</h3>
+            <h3>{t("bench.topCandidates")}</h3>
             {candidates.map((candidate, index) => (
               <article className="bench-candidate-card" key={`${candidate.experiment.parts.map((part) => part.id).sort().join("-")}-${index}`}>
                 <div className="bench-candidate-head">
                   <span className="bench-rank">#{index + 1}</span>
                   <span className="badge bench-category-badge">{candidate.result.productLabel}</span>
-                  <span className={`bench-target-status ${candidateTargetStatus(goal, candidate.result).met ? "is-met" : "is-missed"}`}>
-                    {candidateTargetStatus(goal, candidate.result).label}
+                  <span className={`bench-target-status ${candidateTargetStatus(goal, candidate.result, locale).met ? "is-met" : "is-missed"}`}>
+                    {candidateTargetStatus(goal, candidate.result, locale).label}
                   </span>
                 </div>
-                <p className="bench-candidate-parts">{partsSummary(candidate.experiment)}</p>
-                <p className="bench-candidate-conditions">{conditionSummary(candidate.experiment)}</p>
+                <p className="bench-candidate-parts">{partsSummary(candidate.experiment, locale)}</p>
+                <p className="bench-candidate-conditions">{conditionSummary(candidate.experiment, locale)}</p>
                 <div className="bench-candidate-metrics">
-                  <span>{formattedMechanicalValue(candidate.result, `${formatMPa(candidate.result.tensileMPa)} MPa`)}</span>
-                  <span>{formattedMechanicalValue(candidate.result, `${formatPercent(candidate.result.elongationPct)}% stretch`)}</span>
-                  <span>{formattedMechanicalValue(candidate.result, `${formatTack(candidate.result.tack)}/10 tack`)}</span>
-                  <span>{showTime(candidate.result.setSeconds)}</span>
+                  <span>{formattedMechanicalValue(candidate.result, `${formatMPa(candidate.result.tensileMPa)} MPa`, locale)}</span>
+                  <span>{formattedMechanicalValue(candidate.result, `${formatPercent(candidate.result.elongationPct)}% ${t("bench.stretch")}`, locale)}</span>
+                  <span>{formattedMechanicalValue(candidate.result, `${formatTack(candidate.result.tack)}/10 ${t("bench.stickiness").toLowerCase()}`, locale)}</span>
+                  <span>{showTime(candidate.result.setSeconds, locale)}</span>
                 </div>
                 <ul>
                   {candidate.why.map((why) => <li key={why}>{why}</li>)}
@@ -1539,7 +1560,7 @@ export default function BenchTool() {
                     runExperiment(loaded);
                   }}
                 >
-                  Load into bench
+                  {t("bench.loadIntoBench")}
                 </button>
               </article>
             ))}
@@ -1550,17 +1571,17 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-notebook-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">05 · RECORD</p>
-            <h2 id="bench-notebook-heading">Notebook</h2>
+            <p className="bench-kicker">{t("bench.ui.record")}</p>
+            <h2 id="bench-notebook-heading">{t("bench.ui.notebook")}</h2>
           </div>
-          <span className="bench-live-value">{notebook.length} / 50 runs</span>
+          <span className="bench-live-value">{t("bench.runsCount", { count: notebook.length })}</span>
         </div>
         <div className="bench-notebook-actions">
           <button className="button button-secondary" type="button" disabled={!notebook.length} onClick={exportNotebook}>
-            Export JSON
+            {t("bench.exportJson")}
           </button>
           <button className="button button-secondary" type="button" disabled={!notebook.length} onClick={clearNotebook}>
-            Clear notebook
+            {t("bench.clearNotebook")}
           </button>
           <button
             className="button button-secondary"
@@ -1568,13 +1589,13 @@ export default function BenchTool() {
             disabled={compareIds.length < 2}
             onClick={() => setCompareVisible(true)}
           >
-            Compare selected ({compareIds.length}/3)
+            {t("bench.compareSelected", { count: compareIds.length })}
           </button>
         </div>
         {compareVisible && comparison && (
           <div className="bench-comparison">
             <div className="bench-compare-why">
-              <h3>What changed and why</h3>
+              <h3>{t("bench.whatChanged")}</h3>
               <ul>
                 {comparison.why.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}
               </ul>
@@ -1583,7 +1604,7 @@ export default function BenchTool() {
               <table className="bench-compare-table">
                 <thead>
                   <tr>
-                    <th scope="col">Compare</th>
+                    <th scope="col">{t("bench.compare")}</th>
                     {comparison.names.map((name, index) => (
                       <th scope="col" key={`${index}-${name}`}>
                         <div className="bench-compare-column-heading">
@@ -1593,7 +1614,7 @@ export default function BenchTool() {
                             type="button"
                             onClick={() => loadNotebookEntry(comparisonEntries[index])}
                           >
-                            Load
+                            {t("bench.load")}
                           </button>
                         </div>
                       </th>
@@ -1601,63 +1622,68 @@ export default function BenchTool() {
                   </tr>
                 </thead>
                 <tbody>
-                  <ComparisonSection heading="Ingredients" colSpan={comparison.names.length + 1} />
+                  <ComparisonSection heading={t("bench.sectionIngredients")} colSpan={comparison.names.length + 1} />
                   {comparison.ingredients.map((ingredient) => (
                     <tr key={`ingredient-${ingredient.id}`}>
                       <th scope="row">
-                        {ingredient.name}
-                        {ingredient.changed && <ChangedTag />}
+                        {benchById[ingredient.id]
+                          ? localizeBenchIngredient(benchById[ingredient.id], locale).name
+                          : ingredient.name}
+                        {ingredient.changed && <ChangedTag text={t("bench.changed")} />}
                       </th>
                       {ingredient.pcts.map((pct, index) => (
                         <td key={index}>{pct === null ? "—" : `${Number.isInteger(pct) ? pct : Number(pct.toFixed(1))}%`}</td>
                       ))}
                     </tr>
                   ))}
-                  <ComparisonSection heading="Conditions" colSpan={comparison.names.length + 1} />
+                  <ComparisonSection heading={t("bench.sectionConditions")} colSpan={comparison.names.length + 1} />
                   {comparison.conditions.map((condition) => (
                     <tr key={`condition-${condition.label}`}>
                       <th scope="row">
                         <TermLabel label={condition.label} />
-                        {condition.changed && <ChangedTag />}
+                        {condition.changed && <ChangedTag text={t("bench.changed")} />}
                       </th>
                       {condition.values.map((value, index) => <td key={index}>{value}</td>)}
                     </tr>
                   ))}
-                  <ComparisonSection heading="Results" colSpan={comparison.names.length + 1} />
+                  <ComparisonSection heading={t("bench.sectionResults")} colSpan={comparison.names.length + 1} />
                   {comparison.measures.map((measure) => (
                     <tr key={`measure-${measure.label}`}>
                       <th scope="row">
                         <TermLabel label={measure.label} />
-                        {measure.values.some((value) => value !== measure.values[0]) && <ChangedTag />}
+                        {measure.values.some((value) => value !== measure.values[0]) && <ChangedTag text={t("bench.changed")} />}
                       </th>
                       {measure.values.map((value, index) => (
                         <td key={index}>
                           <span>{value}</span>
-                          {measure.best === index && <strong className="bench-compare-best">★ best</strong>}
+                          {measure.best === index && <strong className="bench-compare-best">★ {t("bench.best")}</strong>}
                           {measure.deltas[index] !== "—" && <small className="bench-compare-delta">Δ {measure.deltas[index]}</small>}
                         </td>
                       ))}
                     </tr>
                   ))}
-                  <ComparisonSection heading="Reactions" colSpan={comparison.names.length + 1} />
-                  {comparison.reactions.map((reaction) => (
-                    <tr key={`reaction-${reaction.name}`}>
-                      <th scope="row">
-                        {reaction.name}
-                        {reaction.changed && <ChangedTag />}
-                      </th>
-                      {reaction.statuses.map((status, index) => (
-                        <td key={index}>{reactionStatusLabel(status)}</td>
-                      ))}
-                    </tr>
-                  ))}
+                  <ComparisonSection heading={t("bench.sectionReactions")} colSpan={comparison.names.length + 1} />
+                  {comparison.reactions.map((reaction) => {
+                    const source = REACTIONS.find(({ name }) => name === reaction.name);
+                    return (
+                      <tr key={`reaction-${reaction.name}`}>
+                        <th scope="row">
+                          {source ? localizeReaction(source, locale).name : trText(locale, reaction.name)}
+                          {reaction.changed && <ChangedTag text={t("bench.changed")} />}
+                        </th>
+                        {reaction.statuses.map((status, index) => (
+                          <td key={index}>{status === "absent" ? t("bench.statusAbsent") : t(BENCH_EVENT_STATUS_LABEL_KEYS[status])}</td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
         {notebook.length === 0 ? (
-          <div className="bench-empty">Each run is saved here automatically on this device.</div>
+          <div className="bench-empty">{t("bench.noRuns")}</div>
         ) : (
           <div className="bench-notebook-list">
             {notebook.map((entry) => (
@@ -1676,11 +1702,11 @@ export default function BenchTool() {
                   onClick={() => loadNotebookEntry(entry)}
                 >
                   <strong>{entry.name}</strong>
-                  <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                  <span>{new Date(entry.createdAt).toLocaleString(locale === "es" ? "es" : "en-US")}</span>
                   <span>
-                    {entry.result.productLabel} · {formattedMechanicalValue(entry.result, `${formatMPa(entry.result.tensileMPa)} MPa`)} · {formattedMechanicalValue(entry.result, `${formatPercent(entry.result.elongationPct)}% stretch`)}
+                    {entry.result.productLabel} · {formattedMechanicalValue(entry.result, `${formatMPa(entry.result.tensileMPa)} MPa`, locale)} · {formattedMechanicalValue(entry.result, `${formatPercent(entry.result.elongationPct)}% ${t("bench.stretch")}`, locale)}
                   </span>
-                  <small>{partsSummary(entry.experiment)}</small>
+                  <small>{partsSummary(entry.experiment, locale)}</small>
                 </button>
               </article>
             ))}
@@ -1689,8 +1715,7 @@ export default function BenchTool() {
       </section>
 
       <p className="bench-footer-note">
-        Rule-based estimates from known chemistry. Unknown combinations are flagged, not guessed.
-        Don&apos;t try risky mixes for real.
+        {t("bench.footerWarning")}
       </p>
     </div>
   );
@@ -1753,16 +1778,18 @@ const TERM_LABELS: Record<string, import("@/lib/glossary").TermId> = {
 };
 
 function TermLabel({ label }: { label: string }) {
+  const { locale } = useT();
   const normalized = label.trim().toLowerCase();
   if (normalized === "acids/bases") {
-    return <><Term id="acid">Acids</Term> / <Term id="base">Bases</Term></>;
+    return <><Term id="acid">{trText(locale, "Acids")}</Term> / <Term id="base">{trText(locale, "Bases")}</Term></>;
   }
   if (normalized.startsWith("toxicity")) {
     const start = label.toLowerCase().indexOf("toxicity");
-    return <>{label.slice(0, start)}<Term id="toxicity">Toxicity</Term>{label.slice(start + "toxicity".length)}</>;
+    return <>{label.slice(0, start)}<Term id="toxicity">{trText(locale, "Toxicity")}</Term>{label.slice(start + "toxicity".length)}</>;
   }
   const id = TERM_LABELS[normalized];
-  return id ? <Term id={id}>{label}</Term> : label;
+  const translated = trText(locale, label);
+  return id ? <Term id={id}>{translated}</Term> : translated;
 }
 
 function ComparisonSection({ heading, colSpan }: { heading: string; colSpan: number }) {
@@ -1773,6 +1800,6 @@ function ComparisonSection({ heading, colSpan }: { heading: string; colSpan: num
   );
 }
 
-function ChangedTag() {
-  return <span className="bench-compare-changed">Changed</span>;
+function ChangedTag({ text }: { text: string }) {
+  return <span className="bench-compare-changed">{text}</span>;
 }

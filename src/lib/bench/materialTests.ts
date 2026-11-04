@@ -1,8 +1,9 @@
 import { fmtTime } from "../formula";
 import { CUSTOM_PREFIX } from "./custom";
-import { benchById } from "./library";
+import { benchById, localizeBenchIngredient } from "./library";
 import { fluidFromMix } from "./shootTest";
 import type { BenchIngredient, Experiment, RunResult } from "./types";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
 
 export type TestTone = "good" | "warn" | "bad";
 
@@ -33,6 +34,10 @@ function presentIngredients(experiment: Experiment): PresentIngredient[] {
   });
 }
 
+function ingredientName(ingredient: BenchIngredient, locale: Locale): string {
+  return localizeBenchIngredient(ingredient, locale).name;
+}
+
 function percentWithTag(parts: PresentIngredient[], tag: string): number {
   return parts.reduce(
     (sum, part) => sum + (part.ingredient.tags.includes(tag as never) ? part.pct : 0),
@@ -44,16 +49,16 @@ function activeEvents(result: RunResult): Set<string> {
   return new Set(result.events.filter((event) => event.activity > 0).map((event) => event.id));
 }
 
-function displayNumber(value: number, digits = 3): string {
+function displayNumber(value: number, digits = 3, locale: Locale = DEFAULT_LOCALE): string {
   if (!Number.isFinite(value)) return "—";
-  return Number(value.toPrecision(digits)).toLocaleString("en-US");
+  return Number(value.toPrecision(digits)).toLocaleString(locale === "es" ? "es" : "en-US");
 }
 
-function unsafeReport<V extends string>(confidence: number): TestReport<V> {
+function unsafeReport<V extends string>(confidence: number, locale: Locale): TestReport<V> {
   return {
     verdict: "unsafe" as V,
     tone: "bad",
-    headline: "Unsafe mix; the model won't run this test.",
+    headline: tr(locale, "bench.model.material.unsafe"),
     notes: [],
     metrics: [],
     confidence,
@@ -99,6 +104,7 @@ function emptyStretch(
   verdict: "nothing-to-test" | "falls-apart" | "unsafe",
   headline: string,
   confidence: number,
+  locale: Locale,
 ): StretchReport {
   return {
     verdict,
@@ -106,10 +112,10 @@ function emptyStretch(
     headline,
     notes: [],
     metrics: [
-      { label: "Breaking force", value: "— N" },
-      { label: "Holds", value: "— kg" },
-      { label: "Length at break", value: "— mm" },
-      { label: "Energy to break", value: "— J" },
+      { label: tr(locale, "bench.model.material.breakingForce"), value: "— N" },
+      { label: tr(locale, "bench.model.material.holds"), value: "— kg" },
+      { label: tr(locale, "bench.model.material.lengthBreak"), value: "— mm" },
+      { label: tr(locale, "bench.model.material.energyBreak"), value: "— J" },
     ],
     confidence,
     curve: [],
@@ -122,30 +128,34 @@ function emptyStretch(
   };
 }
 
-export function stretchTest(
+function stretchTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: StretchSetup,
+  locale: Locale,
 ): StretchReport {
   if (result.product === "dangerous") {
     return emptyStretch(
       "unsafe",
-      "Unsafe mix; the model won't run this test.",
+      tr(locale, "bench.model.material.unsafe"),
       result.confidence,
+      locale,
     );
   }
   if (result.product === "solution" || result.product === "nothing") {
     return emptyStretch(
       "nothing-to-test",
-      "There's no solid to pull; it's a liquid mix.",
+      tr(locale, "bench.model.material.noSolid"),
       result.confidence,
+      locale,
     );
   }
   if (result.product === "clumps") {
     return emptyStretch(
       "falls-apart",
-      "Clumps crumble instead of stretching.",
+      tr(locale, "bench.model.material.clumps"),
       result.confidence,
+      locale,
     );
   }
 
@@ -185,24 +195,27 @@ export function stretchTest(
     };
   });
   const notes: string[] = [];
-  if (rubbery) notes.push("Snaps back close to its length when released (rubbery).");
-  if (result.elongationPct < 5) notes.push("Brittle: barely stretches before snapping.");
+  if (rubbery) notes.push(tr(locale, "bench.model.material.rubbery"));
+  if (result.elongationPct < 5) notes.push(tr(locale, "bench.model.material.brittle"));
   const verdict: StretchVerdict = flows ? "flows" : snaps ? "snaps" : "breaks";
   const headline = flows
-    ? "Pulled slowly, the slime flows and thins out before it breaks."
+    ? tr(locale, "bench.model.material.flows")
     : snaps
-      ? "Pulled fast, the slime snaps like a solid."
-      : `Breaks at ${displayNumber(breakN)} N after stretching ${displayNumber(elongationPct, 3)}%.`;
+      ? tr(locale, "bench.model.material.snaps")
+      : tr(locale, "bench.model.material.breaksAt", {
+          force: displayNumber(breakN, 3, locale),
+          stretch: displayNumber(elongationPct, 3, locale),
+        });
   return {
     verdict,
     tone: flows || snaps ? "warn" : "good",
     headline,
     notes,
     metrics: [
-      { label: "Breaking force", value: `${displayNumber(breakN)} N` },
-      { label: "Holds", value: `${displayNumber(holdsKg)} kg` },
-      { label: "Length at break", value: `${displayNumber(breakLengthMm)} mm` },
-      { label: "Energy to break", value: `${displayNumber(energyJ)} J` },
+      { label: tr(locale, "bench.model.material.breakingForce"), value: `${displayNumber(breakN, 3, locale)} N` },
+      { label: tr(locale, "bench.model.material.holds"), value: `${displayNumber(holdsKg, 3, locale)} kg` },
+      { label: tr(locale, "bench.model.material.lengthBreak"), value: `${displayNumber(breakLengthMm, 3, locale)} mm` },
+      { label: tr(locale, "bench.model.material.energyBreak"), value: `${displayNumber(energyJ, 3, locale)} J` },
     ],
     confidence: result.confidence,
     curve,
@@ -231,39 +244,39 @@ export interface HeatEvent {
   reversible: boolean;
 }
 
-type ThermalEntry = Omit<HeatEvent, "reversible"> & { reversible?: boolean };
+type ThermalEntry = Omit<HeatEvent, "reversible"> & { text: MessageKey; reversible?: boolean };
 
 const THERMAL: Record<string, ThermalEntry[]> = {
-  pva: [{ tempC: 200, kind: "decompose", text: "PVA starts to break down and brown." }],
-  alginate: [{ tempC: 200, kind: "decompose", text: "Alginate breaks down and chars." }],
-  "hyaluronic-acid": [{ tempC: 200, kind: "decompose", text: "Hyaluronic acid breaks down." }],
-  chitosan: [{ tempC: 250, kind: "decompose", text: "Chitosan breaks down and chars." }],
-  pu: [{ tempC: 250, kind: "decompose", text: "Polyurethane breaks down." }],
-  latex: [{ tempC: 300, kind: "decompose", text: "Rubber breaks down." }],
-  pib: [{ tempC: 300, kind: "decompose", text: "Polyisobutylene breaks down." }],
+  pva: [{ tempC: 200, kind: "decompose", text: "bench.model.material.thermal.pva" }],
+  alginate: [{ tempC: 200, kind: "decompose", text: "bench.model.material.thermal.alginate" }],
+  "hyaluronic-acid": [{ tempC: 200, kind: "decompose", text: "bench.model.material.thermal.hyaluronic" }],
+  chitosan: [{ tempC: 250, kind: "decompose", text: "bench.model.material.thermal.chitosan" }],
+  pu: [{ tempC: 250, kind: "decompose", text: "bench.model.material.thermal.polyurethane" }],
+  latex: [{ tempC: 300, kind: "decompose", text: "bench.model.material.thermal.rubber" }],
+  pib: [{ tempC: 300, kind: "decompose", text: "bench.model.material.thermal.polyisobutylene" }],
   nylon66: [
-    { tempC: 265, kind: "melt", text: "Nylon 6,6 melts." },
-    { tempC: 350, kind: "decompose", text: "Nylon breaks down." },
+    { tempC: 265, kind: "melt", text: "bench.model.material.thermal.nylonMelt" },
+    { tempC: 350, kind: "decompose", text: "bench.model.material.thermal.nylonBreaks" },
   ],
   cyanoacrylate: [
-    { tempC: 80, kind: "soften", text: "Cured superglue softens and loses grip." },
-    { tempC: 200, kind: "decompose", text: "Cured superglue breaks down." },
+    { tempC: 80, kind: "soften", text: "bench.model.material.thermal.superglueSoftens" },
+    { tempC: 200, kind: "decompose", text: "bench.model.material.thermal.superglueBreaks" },
   ],
-  cnf: [{ tempC: 280, kind: "decompose", text: "Cellulose nanofibers char." }],
-  glycerol: [{ tempC: 290, kind: "evaporate", text: "Glycerol boils off and starts to break down." }],
-  sulfur: [{ tempC: 115, kind: "melt", text: "Sulfur melts." }],
-  "sodium-bicarbonate": [{ tempC: 80, kind: "gas", text: "Baking soda breaks down and gives off CO₂ gas." }],
-  "citric-acid": [{ tempC: 175, kind: "decompose", text: "Citric acid breaks down." }],
-  "acetic-acid": [{ tempC: 118, kind: "evaporate", text: "Acetic acid boils off (sharp vinegar smell)." }],
-  "formic-acid": [{ tempC: 101, kind: "evaporate", text: "Formic acid boils off." }],
-  "hydrogen-peroxide": [{ tempC: 50, kind: "gas", text: "Hydrogen peroxide breaks down faster into oxygen and water." }],
-  fecl3: [{ tempC: 306, kind: "melt", text: "Iron(III) chloride melts." }],
-  caco3: [{ tempC: 825, kind: "gas", text: "Calcium carbonate breaks down and gives off CO₂." }],
-  cacl2: [{ tempC: 772, kind: "melt", text: "Calcium chloride melts." }],
-  nacl: [{ tempC: 801, kind: "melt", text: "Salt melts." }],
-  kcl: [{ tempC: 770, kind: "melt", text: "Potassium chloride melts." }],
-  graphene: [{ tempC: 550, kind: "decompose", text: "Graphene starts to oxidize in air." }],
-  cnt: [{ tempC: 550, kind: "decompose", text: "Carbon nanotubes start to oxidize in air." }],
+  cnf: [{ tempC: 280, kind: "decompose", text: "bench.model.material.thermal.cellulose" }],
+  glycerol: [{ tempC: 290, kind: "evaporate", text: "bench.model.material.thermal.glycerol" }],
+  sulfur: [{ tempC: 115, kind: "melt", text: "bench.model.material.thermal.sulfur" }],
+  "sodium-bicarbonate": [{ tempC: 80, kind: "gas", text: "bench.model.material.thermal.bakingSoda" }],
+  "citric-acid": [{ tempC: 175, kind: "decompose", text: "bench.model.material.thermal.citricAcid" }],
+  "acetic-acid": [{ tempC: 118, kind: "evaporate", text: "bench.model.material.thermal.aceticAcid" }],
+  "formic-acid": [{ tempC: 101, kind: "evaporate", text: "bench.model.material.thermal.formicAcid" }],
+  "hydrogen-peroxide": [{ tempC: 50, kind: "gas", text: "bench.model.material.thermal.peroxide" }],
+  fecl3: [{ tempC: 306, kind: "melt", text: "bench.model.material.thermal.ironChloride" }],
+  caco3: [{ tempC: 825, kind: "gas", text: "bench.model.material.thermal.calciumCarbonate" }],
+  cacl2: [{ tempC: 772, kind: "melt", text: "bench.model.material.thermal.calciumChloride" }],
+  nacl: [{ tempC: 801, kind: "melt", text: "bench.model.material.thermal.salt" }],
+  kcl: [{ tempC: 770, kind: "melt", text: "bench.model.material.thermal.potassiumChloride" }],
+  graphene: [{ tempC: 550, kind: "decompose", text: "bench.model.material.thermal.graphene" }],
+  cnt: [{ tempC: 550, kind: "decompose", text: "bench.model.material.thermal.nanotubes" }],
 };
 
 export type HeatVerdict =
@@ -312,25 +325,28 @@ function heatTone(verdict: HeatVerdict): TestTone {
   return "bad";
 }
 
-function displayTime(seconds: number): string {
-  return seconds > 7 * 24 * 60 * 60 ? "more than a week" : fmtTime(seconds);
+function displayTime(seconds: number, locale: Locale): string {
+  return seconds > 7 * 24 * 60 * 60
+    ? tr(locale, "bench.model.material.moreThanWeek")
+    : fmtTime(seconds, locale);
 }
 
-export function heatTest(
+function heatTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: HeatSetup,
+  locale: Locale,
 ): HeatReport {
   const parts = presentIngredients(experiment);
   const confidence = result.confidence;
   const metricDefaults = [
-    { label: "Max temperature", value: `${setup.maxTempC} °C` },
-    { label: "Mass lost", value: "about 0%" },
-    { label: "First change", value: "none" },
-    { label: "Reversible", value: "—" },
+    { label: tr(locale, "bench.model.material.maxTemperature"), value: `${setup.maxTempC} °C` },
+    { label: tr(locale, "bench.model.material.massLost"), value: tr(locale, "bench.model.material.aboutZero") },
+    { label: tr(locale, "bench.model.material.firstChange"), value: tr(locale, "bench.model.material.none") },
+    { label: tr(locale, "bench.model.material.reversible"), value: "—" },
   ];
-  const unsafe = (headline = "Unsafe mix; the model won't run this test."): HeatReport => ({
-    ...unsafeReport<HeatVerdict>(confidence),
+  const unsafe = (headline = tr(locale, "bench.model.material.unsafe")): HeatReport => ({
+    ...unsafeReport<HeatVerdict>(confidence, locale),
     headline,
     metrics: metricDefaults,
     events: [],
@@ -339,7 +355,7 @@ export function heatTest(
   });
   if (result.product === "dangerous") return unsafe();
   if (parts.some(({ ingredient }) => ingredient.id === "sodium-metal")) {
-    return unsafe("Sodium metal can catch fire when heated; the model won't run this.");
+    return unsafe(tr(locale, "bench.model.material.sodiumHeatUnsafe"));
   }
 
   const active = activeEvents(result);
@@ -347,9 +363,14 @@ export function heatTest(
   const add = (
     event: Omit<HeatEvent, "reversible"> & { reversible?: boolean },
     ingredientId?: string,
+    localized = false,
   ) => {
     candidates.push({
-      event: { ...event, reversible: event.reversible ?? false },
+      event: {
+        ...event,
+        text: localized ? event.text : tr(locale, event.text as MessageKey),
+        reversible: event.reversible ?? false,
+      },
       ingredientId,
     });
   };
@@ -359,7 +380,7 @@ export function heatTest(
       tempC: 35,
       kind: "melt",
       reversible: true,
-      text: "The gelatin network melts (it re-sets when cooled).",
+      text: "bench.model.material.gelatinMelt",
     });
   }
   if (active.has("borax-pva")) {
@@ -367,7 +388,7 @@ export function heatTest(
       tempC: 50,
       kind: "soften",
       reversible: true,
-      text: "Borate links loosen; the slime gets runnier (it firms up again when cool).",
+      text: "bench.model.material.borateSoftens",
     });
   }
 
@@ -377,12 +398,14 @@ export function heatTest(
         {
           tempC: ingredient.boilC,
           kind: "evaporate",
-          text:
-            setup.minutes < 2
-              ? `${ingredient.name} starts boiling off.`
-              : `${ingredient.name} boils off.`,
+          text: tr(locale, setup.minutes < 2
+            ? "bench.model.material.startsBoiling"
+            : "bench.model.material.boilsOff", {
+            ingredient: ingredientName(ingredient, locale),
+          }),
         },
         ingredient.id,
+        true,
       );
     }
     if (
@@ -398,7 +421,7 @@ export function heatTest(
         {
           tempC: 60,
           kind: "denature",
-          text: "Proteins unfold (denature); this doesn't undo.",
+          text: "bench.model.material.proteinsDenature",
         },
         ingredient.id,
       );
@@ -408,16 +431,17 @@ export function heatTest(
           {
             tempC: 250,
             kind: "decompose",
-            text: custom
-              ? `${ingredient.name} probably chars (estimate).`
-              : `${ingredient.name} chars.`,
+            text: tr(locale, custom
+              ? "bench.model.material.charsEstimate"
+              : "bench.model.material.chars", { ingredient: ingredientName(ingredient, locale) }),
           },
           ingredient.id,
+          true,
         );
       }
     } else if (ingredient.category === "enzyme") {
       add(
-        { tempC: 60, kind: "denature", text: "Enzymes stop working." },
+        { tempC: 60, kind: "denature", text: "bench.model.material.enzymesStop" },
         ingredient.id,
       );
     }
@@ -431,9 +455,10 @@ export function heatTest(
           {
             tempC: 250,
             kind: "decompose",
-            text: `${ingredient.name} probably chars (estimate).`,
+            text: tr(locale, "bench.model.material.charsEstimate", { ingredient: ingredientName(ingredient, locale) }),
           },
           ingredient.id,
+          true,
         );
       }
     }
@@ -456,7 +481,7 @@ export function heatTest(
       add({
         tempC: first.event.tempC + 100,
         kind: "burn",
-        text: "Can catch fire in air (modeled warning).",
+        text: "bench.model.material.fireWarning",
       });
     }
   }
@@ -468,7 +493,7 @@ export function heatTest(
     add({
       tempC: 232,
       kind: "burn",
-      text: "Sulfur can burn, giving off toxic sulfur dioxide.",
+      text: "bench.model.material.sulfurBurn",
     });
   }
   const firedCandidates = candidates.filter(({ event }) => event.tempC <= setup.maxTempC);
@@ -484,7 +509,7 @@ export function heatTest(
       const text = events[firstDecompose].text.replace(/\.$/, "");
       events[firstDecompose] = {
         ...events[firstDecompose],
-        text: `${text} without burning (no oxygen).`,
+        text: tr(locale, "bench.model.material.withoutBurning", { event: text }),
       };
     }
   }
@@ -555,36 +580,38 @@ export function heatTest(
     },
   );
   const notes = events.map((event) => event.text);
-  if (reversible) notes.push("Cools back to roughly how it was.");
+  if (reversible) notes.push(tr(locale, "bench.model.material.coolsBack"));
   for (const { ingredient } of customUnknown) {
-    notes.push(`${ingredient.name}'s heat/water behavior isn't in the model.`);
+    notes.push(tr(locale, "bench.model.material.unknownHeat", { ingredient: ingredientName(ingredient, locale) }));
   }
   const confidenceResult =
     customUnknown.length > 0 ? result.confidence * 0.8 : result.confidence;
-  const headline =
-    verdict === "stable"
-      ? `Stays stable up to ${setup.maxTempC} °C.`
-      : `At ${setup.maxTempC} °C it ${
-          verdict === "dries-out"
-            ? "dries out"
-            : verdict === "softens"
-              ? "softens"
-              : verdict === "melts"
-                ? "melts"
-                : verdict === "chars"
-                  ? "chars"
-                  : "burns"
-        }.`;
+  const changeKeys: Record<HeatVerdict, MessageKey> = {
+    "dries-out": "bench.model.material.change.driesOut",
+    softens: "bench.model.material.change.softens",
+    melts: "bench.model.material.change.melts",
+    chars: "bench.model.material.change.chars",
+    burns: "bench.model.material.change.burns",
+    stable: "bench.model.material.none",
+    unsafe: "bench.model.material.none",
+  };
+  const changeKey = changeKeys[verdict];
+  const headline = verdict === "stable"
+    ? tr(locale, "bench.model.material.staysStable", { temperature: setup.maxTempC })
+    : tr(locale, "bench.model.material.atTemperature", {
+        temperature: setup.maxTempC,
+        change: tr(locale, changeKey),
+      });
   return {
     verdict,
     tone: heatTone(verdict),
     headline,
     notes,
     metrics: [
-      { label: "Max temperature", value: `${setup.maxTempC} °C` },
-      { label: "Mass lost", value: `about ${Math.round(massLostPct)}%` },
-      { label: "First change", value: events[0] ? `${events[0].tempC} °C` : "none" },
-      { label: "Reversible", value: reversible ? "Yes" : events.length ? "No" : "—" },
+      { label: tr(locale, "bench.model.material.maxTemperature"), value: `${setup.maxTempC} °C` },
+      { label: tr(locale, "bench.model.material.massLost"), value: tr(locale, "bench.model.material.percentAbout", { percent: Math.round(massLostPct) }) },
+      { label: tr(locale, "bench.model.material.firstChange"), value: events[0] ? `${events[0].tempC} °C` : tr(locale, "bench.model.material.none") },
+      { label: tr(locale, "bench.model.material.reversible"), value: reversible ? tr(locale, "bench.model.material.yes") : events.length ? tr(locale, "bench.model.material.no") : "—" },
     ],
     confidence: confidenceResult,
     events,
@@ -620,20 +647,21 @@ export interface DissolveReport extends TestReport<DissolveVerdict> {
   leftBehind: string[];
 }
 
-const LIQUID_LABELS: Record<DissolveLiquid, string> = {
-  water: "Water",
-  "salt-water": "Salt water",
-  acidic: "Acidic water",
-  alkaline: "Alkaline water",
+export const DISSOLVE_LIQUID_LABEL_KEYS: Record<DissolveLiquid, MessageKey> = {
+  water: "bench.model.material.water",
+  "salt-water": "bench.model.material.saltWater",
+  acidic: "bench.model.material.acidicWater",
+  alkaline: "bench.model.material.alkalineWater",
 };
 
-export function dissolveTest(
+function dissolveTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: DissolveSetup,
+  locale: Locale,
 ): DissolveReport {
   const parts = presentIngredients(experiment);
-  const liquidLabel = LIQUID_LABELS[setup.liquid];
+  const liquidLabel = tr(locale, DISSOLVE_LIQUID_LABEL_KEYS[setup.liquid]);
   const noChange = (
     verdict: "no-change" | "already-liquid" | "unsafe",
     headline: string,
@@ -645,9 +673,9 @@ export function dissolveTest(
     headline,
     notes,
     metrics: [
-      { label: "Liquid", value: liquidLabel },
-      { label: "Time", value: "—" },
-      { label: "What's left", value: "—" },
+      { label: tr(locale, "bench.model.material.liquid"), value: liquidLabel },
+      { label: tr(locale, "bench.model.material.time"), value: "—" },
+      { label: tr(locale, "bench.model.material.whatsLeft"), value: "—" },
     ],
     confidence,
     timeSeconds: null,
@@ -657,23 +685,23 @@ export function dissolveTest(
     return {
       ...noChange(
         "unsafe",
-        "Unsafe mix; the model won't run this test.",
+        tr(locale, "bench.model.material.unsafe"),
         [],
       ),
-      headline: "Unsafe mix; the model won't run this test.",
+      headline: tr(locale, "bench.model.material.unsafe"),
     };
   }
   if (parts.some(({ ingredient }) => ingredient.id === "sodium-metal")) {
     return noChange(
       "unsafe",
-      "Sodium metal reacts violently with water; the model won't run this.",
+      tr(locale, "bench.model.material.sodiumWaterUnsafe"),
       [],
     );
   }
   if (result.product === "solution" || result.product === "nothing") {
     return noChange(
       "already-liquid",
-      "It's already a liquid mix; it just blends in.",
+      tr(locale, "bench.model.material.alreadyLiquid"),
       [],
     );
   }
@@ -690,20 +718,20 @@ export function dissolveTest(
     if (setup.tempC >= 35) {
       verdict = "dissolves";
       tRef = 30;
-      notes.push("Warm water melts the gelatin network.");
+      notes.push(tr(locale, "bench.model.material.warmGelatin"));
     } else {
       verdict = "swells";
-      notes.push("Gelatin swells in cold water and only dissolves when warm.");
+      notes.push(tr(locale, "bench.model.material.coldGelatin"));
     }
   } else if (active.has("alginate-calcium") || active.has("alginate-fe-zn")) {
     if (setup.liquid === "salt-water") {
       verdict = "dissolves";
       tRef = 7200;
-      notes.push("Sodium swaps out the calcium links, so it slowly falls apart.");
+      notes.push(tr(locale, "bench.model.material.sodiumCalcium"));
     } else {
       verdict = "swells";
       if (setup.liquid === "acidic") {
-        notes.push("Acid firms it into an alginic-acid gel.");
+        notes.push(tr(locale, "bench.model.material.acidGel"));
       }
     }
   } else {
@@ -714,16 +742,16 @@ export function dissolveTest(
     if (belowPH) {
       if (setup.liquid === "acidic") {
         verdict = "dissolves";
-        notes.push("Chitosan dissolves in acid.");
+        notes.push(tr(locale, "bench.model.material.chitosanDissolves"));
       } else {
         verdict = "no-change";
-        notes.push("Chitosan only dissolves in acid.");
+        notes.push(tr(locale, "bench.model.material.chitosanOnlyAcid"));
       }
     } else if (active.has("borax-pva")) {
       verdict = "dissolves";
       if (setup.liquid === "acidic") {
         tRef = 30;
-        notes.push("Acid breaks the borate links.");
+        notes.push(tr(locale, "bench.model.material.acidBorate"));
       }
     } else {
       verdict =
@@ -755,9 +783,9 @@ export function dissolveTest(
             ingredient.category === "filler" ||
             ingredient.id === "caco3",
         )
-        .map(({ ingredient }) => ingredient.name)
+        .map(({ ingredient }) => ingredientName(ingredient, locale))
     : [];
-  if (leftBehind.length) notes.push(`Leaves behind: ${leftBehind.join(", ")}.`);
+  if (leftBehind.length) notes.push(tr(locale, "bench.model.material.leftBehind", { ingredients: leftBehind.join(", ") }));
   const customUnknown = parts.filter(({ ingredient }) => {
     if (!ingredient.id.startsWith(CUSTOM_PREFIX)) return false;
     if (ingredient.dissolvesOnlyBelowPH !== undefined) return false;
@@ -768,7 +796,7 @@ export function dissolveTest(
     );
   });
   for (const { ingredient } of customUnknown) {
-    notes.push(`${ingredient.name}'s heat/water behavior isn't in the model.`);
+    notes.push(tr(locale, "bench.model.material.unknownHeat", { ingredient: ingredientName(ingredient, locale) }));
   }
   const confidence =
     customUnknown.length > 0 ? result.confidence * 0.8 : result.confidence;
@@ -776,23 +804,23 @@ export function dissolveTest(
     timeSeconds === null
       ? "—"
       : verdict === "swells"
-        ? `Swells over ~${displayTime(timeSeconds)}`
-        : displayTime(timeSeconds);
+        ? tr(locale, "bench.model.material.swellsOver", { time: displayTime(timeSeconds, locale) })
+        : displayTime(timeSeconds, locale);
   const headline =
     verdict === "dissolves"
-      ? `Dissolves in about ${displayTime(timeSeconds ?? 0)}.`
+      ? tr(locale, "bench.model.material.dissolvesIn", { time: displayTime(timeSeconds ?? 0, locale) })
       : verdict === "swells"
-        ? `Swells over about ${displayTime(timeSeconds ?? 0)}.`
-        : "No visible change in this liquid.";
+        ? tr(locale, "bench.model.material.swellsAbout", { time: displayTime(timeSeconds ?? 0, locale) })
+        : tr(locale, "bench.model.material.noVisibleChange");
   return {
     verdict,
     tone: verdict === "swells" ? "warn" : "good",
     headline,
     notes,
     metrics: [
-      { label: "Liquid", value: liquidLabel },
-      { label: "Time", value: timeLabel },
-      { label: "What's left", value: leftBehind.join(", ") || "—" },
+      { label: tr(locale, "bench.model.material.liquid"), value: liquidLabel },
+      { label: tr(locale, "bench.model.material.time"), value: timeLabel },
+      { label: tr(locale, "bench.model.material.whatsLeft"), value: leftBehind.join(", ") || "—" },
     ],
     confidence,
     timeSeconds,
@@ -823,22 +851,32 @@ export interface StickReport extends TestReport<StickVerdict> {
 }
 
 export const STICK_SURFACE_LABELS: Record<StickSurface, string> = {
-  glass: "Glass",
-  steel: "Steel",
-  wood: "Wood",
-  plastic: "Plastic",
-  ptfe: "Non-stick (PTFE)",
-  skin: "Skin",
+  glass: tr("en", "bench.model.material.surface.glass"),
+  steel: tr("en", "bench.model.material.surface.steel"),
+  wood: tr("en", "bench.model.material.surface.wood"),
+  plastic: tr("en", "bench.model.material.surface.plastic"),
+  ptfe: tr("en", "bench.model.material.nonStickPTFE"),
+  skin: tr("en", "bench.model.material.surface.skin"),
 };
 
-export function stickTest(
+export const STICK_SURFACE_LABEL_KEYS: Record<StickSurface, MessageKey> = {
+  glass: "bench.model.material.surface.glass",
+  steel: "bench.model.material.surface.steel",
+  wood: "bench.model.material.surface.wood",
+  plastic: "bench.model.material.surface.plastic",
+  ptfe: "bench.model.material.nonStickPTFE",
+  skin: "bench.model.material.surface.skin",
+};
+
+function stickTestCore(
   _experiment: Experiment,
   result: RunResult,
   setup: StickSetup,
+  locale: Locale,
 ): StickReport {
   if (result.product === "dangerous") {
     return {
-      ...unsafeReport<StickVerdict>(result.confidence),
+      ...unsafeReport<StickVerdict>(result.confidence, locale),
       holdsKg: 0,
       bondMPa: 0,
       cureFrac: 0,
@@ -847,8 +885,8 @@ export function stickTest(
   }
   if (setup.surface === "skin" && result.skin >= 2) {
     return {
-      ...unsafeReport<StickVerdict>(result.confidence),
-      headline: "Not skin-safe; the model won't test it on skin.",
+      ...unsafeReport<StickVerdict>(result.confidence, locale),
+      headline: tr(locale, "bench.model.material.notSkinSafe"),
       holdsKg: 0,
       bondMPa: 0,
       cureFrac: 0,
@@ -889,39 +927,40 @@ export function stickTest(
       : "weak";
   const notes = [
     cohesiveFailure
-      ? "It tears inside itself and leaves residue on both sides."
-      : "Peels off cleanly from the surface.",
+      ? tr(locale, "bench.model.material.tears")
+      : tr(locale, "bench.model.material.peels"),
   ];
   if (result.setSeconds > 0 && cureFrac < 1) {
     notes.push(
-      `Not fully set; press for at least ${fmtTime(result.setSeconds)} for full strength.`,
+      tr(locale, "bench.model.material.pressSet", { time: fmtTime(result.setSeconds, locale) }),
     );
   }
   if (setup.surface === "ptfe") {
-    notes.push("Almost nothing sticks to non-stick coatings.");
+    notes.push(tr(locale, "bench.model.material.nonStickCoatings"));
   }
   if (setup.surface === "skin") {
     notes.push(
-      "Rough model of skin; real skin is oily and stretchy, and some glues can bond skin—don't try it.",
+      tr(locale, "bench.model.material.skinCaution"),
     );
   }
-  if (liquidNoStick) notes.unshift("It runs off; there's nothing tacky to hold.");
+  if (liquidNoStick) notes.unshift(tr(locale, "bench.model.material.runsOff"));
+  const surface = tr(locale, STICK_SURFACE_LABEL_KEYS[setup.surface]);
   return {
     verdict,
     tone: verdict === "sticks" ? "good" : "warn",
     headline: liquidNoStick
-      ? "It runs off; there's nothing tacky to hold."
+      ? tr(locale, "bench.model.material.runsOff")
       : verdict === "sticks"
-        ? `Holds about ${displayNumber(holdsKg)} kg on ${STICK_SURFACE_LABELS[setup.surface]}.`
-        : `It holds only about ${displayNumber(holdsKg)} kg on ${STICK_SURFACE_LABELS[setup.surface]}.`,
+        ? tr(locale, "bench.model.material.holdsOn", { weight: displayNumber(holdsKg, 3, locale), surface })
+        : tr(locale, "bench.model.material.holdsOnly", { weight: displayNumber(holdsKg, 3, locale), surface }),
     notes,
     metrics: [
-      { label: "Holds", value: `${displayNumber(holdsKg)} kg` },
-      { label: "Bond strength", value: `${displayNumber(bondMPa)} MPa` },
-      { label: "Set", value: `${Math.round(cureFrac * 100)}%` },
+      { label: tr(locale, "bench.model.material.holds"), value: `${displayNumber(holdsKg, 3, locale)} kg` },
+      { label: tr(locale, "bench.model.material.bondStrength"), value: `${displayNumber(bondMPa, 3, locale)} MPa` },
+      { label: tr(locale, "bench.model.material.set"), value: `${Math.round(cureFrac * 100)}%` },
       {
-        label: "How it fails",
-        value: cohesiveFailure ? "Tears inside itself" : "Peels off cleanly",
+        label: tr(locale, "bench.model.material.howFails"),
+        value: cohesiveFailure ? tr(locale, "bench.model.material.tearsInside") : tr(locale, "bench.model.material.peelsCleanly"),
       },
     ],
     confidence: result.confidence,
@@ -933,6 +972,10 @@ export function stickTest(
 }
 
 export type DropFloor = "hard" | "soft";
+export const DROP_FLOOR_LABEL_KEYS: Record<DropFloor, MessageKey> = {
+  hard: "bench.test.hard",
+  soft: "bench.test.soft",
+};
 export type DropVerdict =
   | "survives"
   | "cracks"
@@ -961,14 +1004,15 @@ export interface DropReport extends TestReport<DropVerdict> {
   massKg: number;
 }
 
-export function dropTest(
+function dropTestCore(
   experiment: Experiment,
   result: RunResult,
   setup: DropSetup,
+  locale: Locale,
 ): DropReport {
   if (result.product === "dangerous") {
     return {
-      ...unsafeReport<DropVerdict>(result.confidence),
+      ...unsafeReport<DropVerdict>(result.confidence, locale),
       bounceM: null,
       impactSpeedMs: 0,
       energyJ: 0,
@@ -976,7 +1020,7 @@ export function dropTest(
     };
   }
   const g = 9.81;
-  const densityKgM3 = fluidFromMix(experiment, result).densityKgM3;
+  const densityKgM3 = fluidFromMix(experiment, result, locale).densityKgM3;
   const impactSpeedMs = Math.sqrt(2 * g * setup.heightM);
   const massKg =
     densityKgM3 *
@@ -994,28 +1038,28 @@ export function dropTest(
   let headline: string;
   if (result.product === "solution" || result.product === "nothing") {
     verdict = "splashes";
-    headline = "It splashes on impact.";
+    headline = tr(locale, "bench.model.material.splashes");
   } else if (result.product === "clumps") {
     verdict = "scatters";
-    headline = "The clumps scatter on impact.";
+    headline = tr(locale, "bench.model.material.clumpsScatter");
   } else if (result.product === "slime") {
     verdict = "splats";
-    headline = "It splats and slowly flows flat.";
+    headline = tr(locale, "bench.model.material.splats");
   } else if (tough <= 0 || hit > tough) {
     verdict = "breaks";
     headline =
       result.product === "gel"
-        ? "It shatters into pieces."
-        : "It breaks on impact.";
+        ? tr(locale, "bench.model.material.shatters")
+        : tr(locale, "bench.model.material.breaksImpact");
   } else if (hit > 0.5 * tough) {
     verdict = "cracks";
-    headline = "It cracks on impact.";
+    headline = tr(locale, "bench.model.material.cracksImpact");
   } else {
     verdict = "survives";
     headline =
       bounceM > 0.01
-        ? `Survives and bounces back up about ${displayNumber(bounceM)} m.`
-        : "Survives the drop.";
+        ? tr(locale, "bench.model.material.bounces", { height: displayNumber(bounceM, 3, locale) })
+        : tr(locale, "bench.model.material.survives");
   }
   const tone: TestTone =
     verdict === "survives"
@@ -1027,15 +1071,15 @@ export function dropTest(
     verdict,
     tone,
     headline,
-    notes: ["Ignores air drag, so long drops are overestimated."],
+    notes: [tr(locale, "bench.model.material.airDrag")],
     metrics: [
-      { label: "Impact speed", value: `${displayNumber(impactSpeedMs)} m/s` },
-      { label: "Impact energy", value: `${displayNumber(energyJ)} J` },
+      { label: tr(locale, "bench.model.material.impactSpeed"), value: `${displayNumber(impactSpeedMs, 3, locale)} m/s` },
+      { label: tr(locale, "bench.model.material.impactEnergy"), value: `${displayNumber(energyJ, 3, locale)} J` },
       {
-        label: "Bounce height",
-        value: verdict === "survives" ? `${displayNumber(bounceM)} m` : "—",
+        label: tr(locale, "bench.model.material.bounceHeight"),
+        value: verdict === "survives" ? `${displayNumber(bounceM, 3, locale)} m` : "—",
       },
-      { label: "Weight", value: `${displayNumber(massKg * 1000)} g` },
+      { label: tr(locale, "bench.model.material.weight"), value: `${displayNumber(massKg * 1000, 3, locale)} g` },
     ],
     confidence: result.confidence,
     bounceM: verdict === "survives" ? bounceM : null,
@@ -1043,4 +1087,49 @@ export function dropTest(
     energyJ,
     massKg,
   };
+}
+
+export function stretchTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: StretchSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): StretchReport {
+  return stretchTestCore(experiment, result, setup, locale);
+}
+
+export function heatTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: HeatSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): HeatReport {
+  return heatTestCore(experiment, result, setup, locale);
+}
+
+export function dissolveTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: DissolveSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): DissolveReport {
+  return dissolveTestCore(experiment, result, setup, locale);
+}
+
+export function stickTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: StickSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): StickReport {
+  return stickTestCore(experiment, result, setup, locale);
+}
+
+export function dropTest(
+  experiment: Experiment,
+  result: RunResult,
+  setup: DropSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): DropReport {
+  return dropTestCore(experiment, result, setup, locale);
 }

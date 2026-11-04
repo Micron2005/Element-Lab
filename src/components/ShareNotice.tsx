@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "./LocaleProvider";
+
 export default function ShareNotice({
   invalid = false,
   dropped = [],
@@ -13,37 +15,36 @@ export default function ShareNotice({
   onUndo?: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useT();
   return (
-    <aside
+    <div
       className={`share-banner${invalid ? " share-banner-invalid" : ""}`}
       role={invalid ? "alert" : "status"}
     >
       <div className="share-banner-copy">
         <p>
-          {message ?? (invalid
-            ? "This share link is broken or from a newer version."
-            : "Opened a shared experiment.")}
+          {message ?? (invalid ? t("share.invalidLink") : t("share.opened"))}
         </p>
-        {!invalid && onUndo && <p>Your previous mix was replaced.</p>}
+        {!invalid && onUndo && <p>{t("share.replaced")}</p>}
         {!invalid && dropped.length > 0 && (
           <p>
-            Some ingredients weren&apos;t recognized and were left out: {dropped.join(", ")}.
+            {t("share.unrecognized", { names: dropped.join(", ") })}
           </p>
         )}
       </div>
       {!invalid && onUndo && (
         <button className="button button-secondary share-banner-action" type="button" onClick={onUndo}>
-          Undo
+          {t("share.undo")}
         </button>
       )}
       <button
         className="share-banner-close"
         type="button"
-        aria-label="Dismiss share message"
+        aria-label={t("share.dismiss")}
         onClick={onDismiss}
       >
         ×
       </button>
-    </aside>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT } from "./LocaleProvider";
 
 export const PLAYBACK_SPEEDS = [0.5, 1, 2, 4] as const;
 
@@ -104,17 +105,18 @@ export function PlaybackControls({
   playback: ReturnType<typeof usePlayback>;
   label: string;
 }) {
+  const { t } = useT();
   return (
     <div className="viewer-controls">
       <button
         type="button"
         className="button button-primary"
         onClick={playback.playing ? playback.pause : playback.play}
-        aria-label={playback.playing ? "Pause" : "Play"}
+        aria-label={playback.playing ? t("bench.viewer.pause") : t("bench.viewer.play")}
       >
         {playback.playing ? "❚❚" : "▶"}
       </button>
-      <button type="button" className="button button-secondary" onClick={playback.restart} aria-label="Restart">
+      <button type="button" className="button button-secondary" onClick={playback.restart} aria-label={t("bench.viewer.restart")}>
         ↺
       </button>
       <input
@@ -132,11 +134,11 @@ export function PlaybackControls({
         className="select"
         value={playback.speed}
         onChange={(event) => playback.setSpeed(Number(event.target.value))}
-        aria-label="Playback speed"
+        aria-label={t("bench.viewer.playbackSpeed")}
       >
         {PLAYBACK_SPEEDS.map((value) => (
           <option key={value} value={value}>
-            {value}× speed
+            {t("bench.viewer.speed", { value })}
           </option>
         ))}
       </select>

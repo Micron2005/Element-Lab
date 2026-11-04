@@ -1,4 +1,6 @@
-import { byId } from "../ingredients";
+import { byId, localizeIngredient, localizeIngredientFormula } from "../ingredients";
+import type { Locale } from "../i18n";
+import { BENCH_LIBRARY_TEXT_ES } from "../i18n/data/es/benchLibrary";
 import { CUSTOM_PREFIX } from "./custom";
 import type { BenchIngredient, Category, Hazard, Tag, WaterBehavior } from "./types";
 import type { Ingredient } from "../ingredients";
@@ -36,7 +38,7 @@ const legacy = (
   options: IngredientOptions = {},
 ): BenchIngredient => {
   const source = (byId as Record<string, Ingredient>)[id];
-  if (!source) throw new Error(`Unknown legacy ingredient: ${id}`);
+  if (!source) throw new Error(`UNKNOWN_LEGACY_INGREDIENT:${id}`);
   return {
     id,
     name: source.name,
@@ -627,6 +629,31 @@ export const benchLibrary: BenchIngredient[] = [
 export const benchById: Record<string, BenchIngredient> = Object.fromEntries(
   benchLibrary.map((ingredient) => [ingredient.id, ingredient]),
 );
+
+export function localizeBenchIngredient(
+  ingredient: BenchIngredient,
+  locale: Locale,
+): BenchIngredient {
+  if (locale !== "es" || ingredient.id.startsWith(CUSTOM_PREFIX)) return ingredient;
+  const source = byId[ingredient.id];
+  const sourceText = source ? localizeIngredient(source, locale) : undefined;
+  const overlay = BENCH_LIBRARY_TEXT_ES[ingredient.id];
+  return {
+    ...ingredient,
+    ...(sourceText
+      ? { name: sourceText.name, notes: sourceText.notes, bonding: sourceText.bonding }
+      : {}),
+    ...overlay,
+  };
+}
+
+export function benchIngredientFormulaLabel(
+  ingredient: Pick<BenchIngredient, "id" | "formula">,
+  locale: Locale,
+): string {
+  if (locale !== "es" || ingredient.id.startsWith(CUSTOM_PREFIX)) return ingredient.formula;
+  return localizeIngredientFormula(ingredient.formula, locale);
+}
 
 let customList: BenchIngredient[] = [];
 

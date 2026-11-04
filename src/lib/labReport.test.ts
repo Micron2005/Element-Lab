@@ -103,4 +103,17 @@ describe("lab report documents", () => {
     const pdf = new TextDecoder().decode(bytes);
     expect((pdf.match(/\/Type\s*\/Page\b/g) ?? []).length).toBeGreaterThan(1);
   });
+
+  it("preserves Spanish accents in generated PDF text", async () => {
+    const report = nucleusReport(1, 2, undefined, {
+      now: new Date("2025-04-03T12:00:00Z"),
+      question: "¿Qué pasó? á é í ó ú ñ ¡",
+    });
+    report.locale = "es";
+    const bytes = await renderLabReportBytes(report);
+    const pdf = new TextDecoder("latin1").decode(bytes);
+    for (const character of ["á", "é", "í", "ó", "ú", "ñ", "¿", "¡"]) {
+      expect(pdf).toContain(character);
+    }
+  });
 });

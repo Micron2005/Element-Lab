@@ -3,6 +3,7 @@ import {
   KNOWN_MOLECULES,
   checkMolecule,
   identify,
+  localizeMolecule,
   type MolGraph,
 } from "./molecule";
 import { analyzeNucleus, bindingEnergy } from "../nuclear";
@@ -15,6 +16,8 @@ import type { QuestTemplate } from "./templates";
 import { dailyFor } from "./daily";
 import { loadPacks } from "./packs";
 import { compileTemplate } from "./templates";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
+import { CHAPTER_TEXT_ES, QUEST_TEXT_ES, type BuiltinQuestId } from "../i18n/data/es/quests";
 
 export type Chapter = "molecules" | "mixing" | "atoms";
 export type Stars = 0 | 1 | 2 | 3;
@@ -45,13 +48,13 @@ export interface MoleculeQuest extends QuestBase {
 export interface MixQuest extends QuestBase {
   chapter: "mixing";
   reference: Experiment;
-  grade(experiment: Experiment, result: RunResult): Grade;
+  grade(experiment: Experiment, result: RunResult, locale?: Locale): Grade;
 }
 
 export interface AtomQuest extends QuestBase {
   chapter: "atoms";
   reference: { z: number; n: number };
-  grade(z: number, n: number): Grade;
+  grade(z: number, n: number, locale?: Locale): Grade;
 }
 
 export type Quest = MoleculeQuest | MixQuest | AtomQuest;
@@ -213,38 +216,41 @@ export function gradeMolecule(
   quest: MoleculeQuest,
   g: MolGraph,
   hintsUsed: number,
+  locale: Locale = DEFAULT_LOCALE,
 ): Grade {
   const target = KNOWN_MOLECULES.find((molecule) => molecule.id === quest.moleculeId);
-  if (!target) return { stars: 0, feedback: ["This molecule is not in the lab library yet."] };
+  if (!target) return { stars: 0, feedback: [tr(locale, "play.grade.moleculeMissing")] };
 
-  const checked = checkMolecule(g);
+  const checked = checkMolecule(g, locale);
   if (!checked.complete) {
     return {
       stars: 0,
-      feedback: checked.problems.length > 0 ? checked.problems : ["Finish connecting the atoms and their bonds."],
+      feedback: checked.problems.length > 0 ? checked.problems : [tr(locale, "play.grade.finishBonds")],
     };
   }
 
   const built = checked.match ?? identify(g);
   if (built?.id !== target.id) {
-    const builtName = built ? built.name[0].toLowerCase() + built.name.slice(1) : "";
-    const targetName = target.name[0].toLowerCase() + target.name.slice(1);
+    const builtName = built ? localizeMolecule(built, locale).name[0].toLowerCase() + localizeMolecule(built, locale).name.slice(1) : "";
+    const localizedTarget = localizeMolecule(target, locale).name;
+    const targetName = localizedTarget[0].toLowerCase() + localizedTarget.slice(1);
     return {
       stars: 0,
       feedback: built
-        ? [`That's ${builtName}, not ${targetName}.`]
-        : ["That complete structure is not one of the molecules in this lab."],
+        ? [tr(locale, "play.grade.wrongMolecule", { built: builtName, target: targetName })]
+        : [tr(locale, "play.grade.unknownMolecule")],
     };
   }
 
   const hintCount = Number.isFinite(hintsUsed) ? Math.max(0, Math.floor(hintsUsed)) : 0;
+  const builtMessage = tr(locale, "play.grade.moleculeBuilt", { name: localizeMolecule(target, locale).name });
   if (hintCount === 0) {
-    return { stars: 3, feedback: [`You built ${target.name} with every valence filled.`, "No hints used—three stars!"] };
+    return { stars: 3, feedback: [builtMessage, tr(locale, "play.grade.noHints")] };
   }
   if (hintCount === 1) {
-    return { stars: 2, feedback: [`You built ${target.name} with every valence filled.`, "Use no hints next time for the final star."] };
+    return { stars: 2, feedback: [builtMessage, tr(locale, "play.grade.useNoHints")] };
   }
-  return { stars: 1, feedback: [`You built ${target.name} with every valence filled.`, "Try using one hint or fewer for another star."] };
+  return { stars: 1, feedback: [builtMessage, tr(locale, "play.grade.useFewerHints")] };
 }
 
 export const MIX_THRESHOLDS = {
@@ -258,7 +264,7 @@ export const MIX_THRESHOLDS = {
 
 function presetExperiment(id: string): Experiment {
   const preset = benchPresets.find((item) => item.id === id);
-  if (!preset) throw new Error(`Missing bench preset: ${id}`);
+  if (!preset) throw new Error(`missing-bench-preset:${id}`);
   return {
     parts: preset.experiment.parts.map((part) => ({ ...part })),
     conditions: { ...preset.experiment.conditions },
@@ -311,21 +317,21 @@ const mixQuests: MixQuest[] = [
       "Every ingredient is edible in the model.",
     ],
     reference: presetExperiment("baking-soda-vinegar"),
-    grade: (_experiment, result) => {
+    grade: (_experiment, result, locale = DEFAULT_LOCALE) => {
       const event = result.events.find((item) => item.id === "bicarbonate-bubbles");
       if (event?.status !== "happened") {
         return {
           stars: 0,
-          feedback: [event?.status === "partial" ? "The fizz is only partial; make the event happen fully." : "The bicarbonate-bubbles event has not happened yet."],
+          feedback: [tr(locale, event?.status === "partial" ? "play.grade.fizzPartial" : "play.grade.fizzMissing")],
         };
       }
       if (result.product === "dangerous") {
-        return { stars: 1, feedback: ["The fizz happened.", "Keep the product from being dangerous for another star."] };
+        return { stars: 1, feedback: [tr(locale, "play.grade.fizzHappened"), tr(locale, "play.grade.keepSafe")] };
       }
       if (!result.edible) {
-        return { stars: 2, feedback: ["The fizz happened and the product is not dangerous.", "Use only edible ingredients for the final star."] };
+        return { stars: 2, feedback: [tr(locale, "play.grade.fizzSafe"), tr(locale, "play.grade.edibleOnly")] };
       }
-      return { stars: 3, feedback: ["The fizz happened.", "The product is not dangerous.", "Every ingredient is edible in the model."] };
+      return { stars: 3, feedback: [tr(locale, "play.grade.fizzHappened"), tr(locale, "play.grade.notDangerous"), tr(locale, "play.grade.allEdible")] };
     },
   },
   {
@@ -342,23 +348,23 @@ const mixQuests: MixQuest[] = [
       `Skin hazard is level ${MIX_THRESHOLDS.skinSafeHazard} or lower.`,
     ],
     reference: presetExperiment("borax-slime"),
-    grade: (_experiment, result) => {
+    grade: (_experiment, result, locale = DEFAULT_LOCALE) => {
       if (result.product !== "gel" && result.product !== "slime") {
-        return { stars: 0, feedback: ["The product is not a gel or slime yet."] };
+        return { stars: 0, feedback: [tr(locale, "play.grade.notGel")] };
       }
       if (result.elongationPct < MIX_THRESHOLDS.slimeElongationPct) {
         return {
           stars: 1,
-          feedback: ["You formed a gel or slime.", `Reach ${MIX_THRESHOLDS.slimeElongationPct}% elongation for another star.`],
+          feedback: [tr(locale, "play.grade.formedGel"), tr(locale, "play.grade.reachElongation", { value: MIX_THRESHOLDS.slimeElongationPct })],
         };
       }
       if (result.skin > MIX_THRESHOLDS.skinSafeHazard) {
         return {
           stars: 2,
-          feedback: [`The sample stretches ${Math.round(result.elongationPct)}%.`, "Lower the skin hazard to level 1 or below for the final star."],
+          feedback: [tr(locale, "play.grade.sampleStretches", { value: Math.round(result.elongationPct) }), tr(locale, "play.grade.lowerSkinHazard")],
         };
       }
-      return { stars: 3, feedback: ["You formed a gel or slime.", "The sample stretches well.", "Skin hazard is at the safest modeled level."] };
+      return { stars: 3, feedback: [tr(locale, "play.grade.formedGel"), tr(locale, "play.grade.stretchesWell"), tr(locale, "play.grade.safestSkin")] };
     },
   },
   {
@@ -378,20 +384,20 @@ const mixQuests: MixQuest[] = [
       [{ id: "pva", pct: 12 }, { id: "water", pct: 88 }],
       { forming: "cast-film" },
     ),
-    grade: (_experiment, result) => {
+    grade: (_experiment, result, locale = DEFAULT_LOCALE) => {
       if (result.product !== "film" || result.water !== "dissolves") {
-        return { stars: 0, feedback: ["Make a film that is modeled to dissolve in water."] };
+        return { stars: 0, feedback: [tr(locale, "play.grade.makeDissolvingFilm")] };
       }
       if (!result.biodegradable) {
-        return { stars: 1, feedback: ["You formed a dissolving film.", "Use biodegradable ingredients for another star."] };
+        return { stars: 1, feedback: [tr(locale, "play.grade.formedDissolvingFilm"), tr(locale, "play.grade.useBiodegradable")] };
       }
       if (result.costPerKg > MIX_THRESHOLDS.filmCostPerKg) {
         return {
           stars: 2,
-          feedback: ["You formed a dissolving film from biodegradable ingredients.", `Lower the modeled cost to $${MIX_THRESHOLDS.filmCostPerKg.toFixed(2)}/kg for the final star.`],
+          feedback: [tr(locale, "play.grade.formedBioFilm"), tr(locale, "play.grade.lowerCost", { value: MIX_THRESHOLDS.filmCostPerKg.toFixed(2) })],
         };
       }
-      return { stars: 3, feedback: ["The film dissolves in water.", "Every ingredient is biodegradable.", "The modeled cost is within budget."] };
+      return { stars: 3, feedback: [tr(locale, "play.grade.filmDissolves"), tr(locale, "play.grade.everythingBiodegradable"), tr(locale, "play.grade.costWithinBudget")] };
     },
   },
   {
@@ -412,20 +418,20 @@ const mixQuests: MixQuest[] = [
       { id: "water", pct: 78 },
       { id: "sodium-bicarbonate", pct: 2 },
     ]),
-    grade: (_experiment, result) => {
+    grade: (_experiment, result, locale = DEFAULT_LOCALE) => {
       if (result.product !== "adhesive") {
-        return { stars: 0, feedback: ["The mixture has not formed an adhesive."] };
+        return { stars: 0, feedback: [tr(locale, "play.grade.notAdhesive")] };
       }
       if (result.tack < MIX_THRESHOLDS.adhesiveTack) {
         return {
           stars: 1,
-          feedback: ["You formed an adhesive.", `Reach ${MIX_THRESHOLDS.adhesiveTack}/10 tack for another star.`],
+          feedback: [tr(locale, "play.grade.formedAdhesive"), tr(locale, "play.grade.reachTack", { value: MIX_THRESHOLDS.adhesiveTack })],
         };
       }
       if (result.skin > MIX_THRESHOLDS.skinSafeHazard) {
-        return { stars: 2, feedback: ["The adhesive has useful tack.", "Lower the skin hazard to level 1 or below for the final star."] };
+        return { stars: 2, feedback: [tr(locale, "play.grade.usefulTack"), tr(locale, "play.grade.lowerSkinHazard")] };
       }
-      return { stars: 3, feedback: ["You formed an adhesive.", "Its tack meets the target.", "Skin hazard is at the safe modeled level."] };
+      return { stars: 3, feedback: [tr(locale, "play.grade.formedAdhesive"), tr(locale, "play.grade.tackTarget"), tr(locale, "play.grade.safeSkin")] };
     },
   },
   {
@@ -450,21 +456,21 @@ const mixQuests: MixQuest[] = [
       ],
       conditions: { ...silkFiberConditions },
     },
-    grade: (_experiment, result) => {
-      if (result.product !== "fiber") return { stars: 0, feedback: ["The forming conditions have not made a fiber."] };
+    grade: (_experiment, result, locale = DEFAULT_LOCALE) => {
+      if (result.product !== "fiber") return { stars: 0, feedback: [tr(locale, "play.grade.notFiber")] };
       if (result.tensileMPa < MIX_THRESHOLDS.fiberTensileMPa) {
         return {
           stars: 1,
-          feedback: ["You formed a fiber.", `Reach ${MIX_THRESHOLDS.fiberTensileMPa} MPa tensile strength for another star.`],
+          feedback: [tr(locale, "play.grade.formedFiber"), tr(locale, "play.grade.reachStrength", { value: MIX_THRESHOLDS.fiberTensileMPa })],
         };
       }
       if (result.elongationPct < MIX_THRESHOLDS.fiberElongationPct) {
         return {
           stars: 2,
-          feedback: ["The fiber meets the strength target.", `Reach ${MIX_THRESHOLDS.fiberElongationPct}% elongation for the final star.`],
+          feedback: [tr(locale, "play.grade.fiberStrength"), tr(locale, "play.grade.reachFiberStretch", { value: MIX_THRESHOLDS.fiberElongationPct })],
         };
       }
-      return { stars: 3, feedback: ["You formed a fiber.", "The fiber meets the strength target.", "It stretches at least 15%."] };
+      return { stars: 3, feedback: [tr(locale, "play.grade.formedFiber"), tr(locale, "play.grade.fiberStrength"), tr(locale, "play.grade.fiberStretches")] };
     },
   },
   {
@@ -486,10 +492,10 @@ const mixQuests: MixQuest[] = [
       { id: "trypsin", pct: 2 },
       { id: "sodium-bicarbonate", pct: 0.001 },
     ], { tempC: 37 }),
-    grade: (run, result) => {
+    grade: (run, result, locale = DEFAULT_LOCALE) => {
       const enzymeIds = activeEnzymeIds(run, result);
       if (enzymeIds.length === 0) {
-        return { stars: 0, feedback: ["No enzyme reaction is active yet; check the ingredients and conditions."] };
+        return { stars: 0, feedback: [tr(locale, "play.grade.noEnzyme")] };
       }
       const enzymes = enzymeIds.flatMap((id) => {
         const enzyme = benchById[id]?.enzyme;
@@ -508,16 +514,26 @@ const mixQuests: MixQuest[] = [
       if (!inRange) {
         return {
           stars: 1,
-          feedback: [partial ? "A partial enzyme reaction is active." : "An enzyme reaction happened.", "Move the pH into the enzyme's working range for another star."],
+          feedback: [
+            tr(locale, partial ? "play.grade.partialEnzyme" : "play.grade.enzymeHappened"),
+            tr(locale, "play.grade.movePhRange"),
+          ],
         };
       }
       if (!nearOptimum) {
         return {
           stars: 2,
-          feedback: ["An enzyme reaction is active and the pH is in range.", `Move pH within 1 unit of the enzyme optimum for the final star (current pH ${result.effectivePH.toFixed(1)}).`],
+          feedback: [
+            tr(locale, "play.grade.enzymeInRange"),
+            tr(locale, "play.grade.movePhOptimum", { value: result.effectivePH.toFixed(1) }),
+          ],
         };
       }
-      return { stars: 3, feedback: ["An enzyme reaction is active.", "The pH is within its working range.", "The pH is within 1 unit of the enzyme optimum."] };
+      return { stars: 3, feedback: [
+        tr(locale, "play.grade.enzymeActive"),
+        tr(locale, "play.grade.phInRange"),
+        tr(locale, "play.grade.phNearOptimum"),
+      ] };
     },
   },
 ];
@@ -574,8 +590,8 @@ function validNucleus(z: number, n: number): boolean {
     Number.isInteger(n) && Number.isFinite(n) && n > 0;
 }
 
-function invalidNucleusGrade(): Grade {
-  return { stars: 0, feedback: ["Enter positive whole-number proton and neutron counts."] };
+function invalidNucleusGrade(locale: Locale = DEFAULT_LOCALE): Grade {
+  return { stars: 0, feedback: [tr(locale, "play.grade.invalidNucleus")] };
 }
 
 const atomQuests: AtomQuest[] = [
@@ -593,29 +609,32 @@ const atomQuests: AtomQuest[] = [
       `The starting nucleus has a modeled half-life of at least ${NUCLEAR_THRESHOLDS.longLivedYears} year.`,
     ],
     reference: { z: 92, n: 143 },
-    grade: (z, n) => {
-      if (!validNucleus(z, n)) return invalidNucleusGrade();
+    grade: (z, n, locale = DEFAULT_LOCALE) => {
+      if (!validNucleus(z, n)) return invalidNucleusGrade(locale);
       try {
         const split = neutronHit(z, n);
         if (split.kind !== "fission") {
-          return { stars: 0, feedback: ["This target captures a neutron but does not fission in the model."] };
+          return { stars: 0, feedback: [tr(locale, "play.grade.noFission")] };
         }
         const report = analyzeNucleus(z, n);
         if (split.energyMeV < NUCLEAR_THRESHOLDS.splitEnergyMeV) {
           return {
             stars: 1,
-            feedback: ["Neutron capture triggers fission.", `Reach ${NUCLEAR_THRESHOLDS.splitEnergyMeV} MeV for another star.`],
+            feedback: [tr(locale, "play.grade.fissionTriggered"), tr(locale, "play.grade.reachEnergy", { value: NUCLEAR_THRESHOLDS.splitEnergyMeV })],
           };
         }
         if (halfLifeSeconds(report.halfLife) < NUCLEAR_THRESHOLDS.longLivedYears * YEAR_SECONDS) {
           return {
             stars: 2,
-            feedback: [`The modeled fission releases ${Math.round(split.energyMeV)} MeV.`, "Choose a starting nucleus with a modeled half-life of at least one year for the final star."],
+            feedback: [
+              tr(locale, "play.grade.fissionEnergy", { value: Math.round(split.energyMeV) }),
+              tr(locale, "play.grade.longLivedStart"),
+            ],
           };
         }
-        return { stars: 3, feedback: ["Neutron capture triggers fission.", "The modeled energy exceeds 150 MeV.", "The starting nucleus is long-lived in this model."] };
+        return { stars: 3, feedback: [tr(locale, "play.grade.fissionTriggered"), tr(locale, "play.grade.energyOver150"), tr(locale, "play.grade.startLongLived")] };
       } catch {
-        return invalidNucleusGrade();
+        return invalidNucleusGrade(locale);
       }
     },
   },
@@ -633,22 +652,31 @@ const atomQuests: AtomQuest[] = [
       `Reach at least ${(MAX_BINDING_PER_NUCLEON * NUCLEAR_THRESHOLDS.bindingThreeStarFraction).toFixed(2)} MeV per nucleon.`,
     ],
     reference: { z: 26, n: 32 },
-    grade: (z, n) => {
-      if (!validNucleus(z, n)) return invalidNucleusGrade();
+    grade: (z, n, locale = DEFAULT_LOCALE) => {
+      if (!validNucleus(z, n)) return invalidNucleusGrade(locale);
       try {
         const report = analyzeNucleus(z, n);
         if (!report.bound || report.perNucleonMeV < MAX_BINDING_PER_NUCLEON * NUCLEAR_THRESHOLDS.bindingOneStarFraction) {
-          return { stars: 0, feedback: ["This nucleus is not bound tightly enough in the model yet."] };
+          return { stars: 0, feedback: [tr(locale, "play.grade.notBoundEnough")] };
         }
         if (report.perNucleonMeV < MAX_BINDING_PER_NUCLEON * NUCLEAR_THRESHOLDS.bindingTwoStarFraction) {
-          return { stars: 1, feedback: [`Binding energy is ${report.perNucleonMeV.toFixed(2)} MeV per nucleon.`, "Move closer to the iron/nickel peak for another star."] };
+          return { stars: 1, feedback: [
+            tr(locale, "play.grade.bindingEnergy", { value: report.perNucleonMeV.toFixed(2) }),
+            tr(locale, "play.grade.moveIronNickel"),
+          ] };
         }
         if (report.perNucleonMeV < MAX_BINDING_PER_NUCLEON * NUCLEAR_THRESHOLDS.bindingThreeStarFraction) {
-          return { stars: 2, feedback: [`Binding energy is ${report.perNucleonMeV.toFixed(2)} MeV per nucleon.`, "Reach the near-peak iron/nickel region for the final star."] };
+          return { stars: 2, feedback: [
+            tr(locale, "play.grade.bindingEnergy", { value: report.perNucleonMeV.toFixed(2) }),
+            tr(locale, "play.grade.reachIronNickel"),
+          ] };
         }
-        return { stars: 3, feedback: [`Binding energy is ${report.perNucleonMeV.toFixed(2)} MeV per nucleon.`, "That is within 1% of the model's maximum."] };
+        return { stars: 3, feedback: [
+          tr(locale, "play.grade.bindingEnergy", { value: report.perNucleonMeV.toFixed(2) }),
+          tr(locale, "play.grade.withinOnePercent"),
+        ] };
       } catch {
-        return invalidNucleusGrade();
+        return invalidNucleusGrade(locale);
       }
     },
   },
@@ -666,22 +694,29 @@ const atomQuests: AtomQuest[] = [
       "The chain ends at a stable nucleus in the model.",
     ],
     reference: { z: 92, n: 146 },
-    grade: (z, n) => {
-      if (!validNucleus(z, n)) return invalidNucleusGrade();
+    grade: (z, n, locale = DEFAULT_LOCALE) => {
+      if (!validNucleus(z, n)) return invalidNucleusGrade(locale);
       try {
         const chain = decayChain(z, n, 32);
         if (chain[0]?.kind !== "alpha") {
-          return { stars: 0, feedback: ["The first decay step is not alpha emission in the model."] };
+          return { stars: 0, feedback: [tr(locale, "play.grade.notAlpha")] };
         }
         if (chain.length < 3) {
-          return { stars: 1, feedback: ["The first step is alpha decay.", "Follow at least three steps for another star."] };
+          return { stars: 1, feedback: [tr(locale, "play.grade.firstAlpha"), tr(locale, "play.grade.followThree")] };
         }
         if (chain[chain.length - 1].kind !== "stable") {
-          return { stars: 2, feedback: [`You followed ${chain.length} steps beginning with alpha decay.`, "Find a chain that reaches a stable nucleus for the final star."] };
+          return { stars: 2, feedback: [
+            tr(locale, "play.grade.followedSteps", { count: chain.length }),
+            tr(locale, "play.grade.stableChain"),
+          ] };
         }
-        return { stars: 3, feedback: ["The first step is alpha decay.", `The chain includes ${chain.length} steps.`, "It ends at a stable nucleus in the model."] };
+        return { stars: 3, feedback: [
+          tr(locale, "play.grade.firstAlpha"),
+          tr(locale, "play.grade.chainIncludes", { count: chain.length }),
+          tr(locale, "play.grade.endsStable"),
+        ] };
       } catch {
-        return invalidNucleusGrade();
+        return invalidNucleusGrade(locale);
       }
     },
   },
@@ -699,25 +734,33 @@ const atomQuests: AtomQuest[] = [
       `Reach a modeled half-life of at least ${NUCLEAR_THRESHOLDS.newElementThreeStarSeconds * 1e3} milliseconds.`,
     ],
     reference: { z: 120, n: 244 },
-    grade: (z, n) => {
-      if (!validNucleus(z, n)) return invalidNucleusGrade();
-      if (z < 119) return { stars: 0, feedback: ["Choose Z ≥ 119 to explore a new element in the model."] };
+    grade: (z, n, locale = DEFAULT_LOCALE) => {
+      if (!validNucleus(z, n)) return invalidNucleusGrade(locale);
+      if (z < 119) return { stars: 0, feedback: [tr(locale, "play.grade.chooseZ119")] };
       try {
         const report = analyzeNucleus(z, n);
         const first = decayChain(z, n, 1)[0];
         if (!report.bound || first?.kind === "neutron-drip" || first?.kind === "proton-drip") {
-          return { stars: 0, feedback: ["This nucleus is not bound without a nucleon drip in the model."] };
+          return { stars: 0, feedback: [tr(locale, "play.grade.nucleonDrip")] };
         }
         const lifetime = halfLifeSeconds(report.halfLife);
         if (lifetime < NUCLEAR_THRESHOLDS.newElementTwoStarSeconds) {
-          return { stars: 1, feedback: ["The model finds a bound nucleus above Z 118.", "Reach a half-life of at least 1 microsecond for another star."] };
+          return { stars: 1, feedback: [tr(locale, "play.grade.boundAbove118"), tr(locale, "play.grade.reachMicrosecond")] };
         }
         if (lifetime < NUCLEAR_THRESHOLDS.newElementThreeStarSeconds) {
-          return { stars: 2, feedback: ["The model finds a bound nucleus above Z 118.", "Its modeled half-life reaches 1 microsecond.", "Reach 1 millisecond for the final star."] };
+          return { stars: 2, feedback: [
+            tr(locale, "play.grade.boundAbove118"),
+            tr(locale, "play.grade.microsecondReached"),
+            tr(locale, "play.grade.reachMillisecond"),
+          ] };
         }
-        return { stars: 3, feedback: ["The nucleus is bound and does not drip a nucleon.", "Its modeled half-life exceeds 1 microsecond.", "Its modeled half-life exceeds 1 millisecond."] };
+        return { stars: 3, feedback: [
+          tr(locale, "play.grade.boundNoDrip"),
+          tr(locale, "play.grade.halfLifeOverMicrosecond"),
+          tr(locale, "play.grade.halfLifeOverMillisecond"),
+        ] };
       } catch {
-        return invalidNucleusGrade();
+        return invalidNucleusGrade(locale);
       }
     },
   },
@@ -731,18 +774,28 @@ export const CHAPTERS: { id: Chapter; title: string; blurb: string }[] = [
   { id: "atoms", title: "Nuclear stories", blurb: "Explore what a simplified nucleus model predicts." },
 ];
 
-export function questById(id: string): Quest | undefined {
+export function localizeChapter(chapter: typeof CHAPTERS[number], locale: Locale = DEFAULT_LOCALE) {
+  return locale === "es" ? { ...chapter, ...CHAPTER_TEXT_ES[chapter.id] } : chapter;
+}
+
+export function localizeQuest<T extends Quest>(quest: T, locale: Locale = DEFAULT_LOCALE): T {
+  if (locale !== "es") return quest;
+  const overlay = QUEST_TEXT_ES[quest.id as BuiltinQuestId];
+  return overlay ? { ...quest, ...overlay } : quest;
+}
+
+export function questById(id: string, locale: Locale = DEFAULT_LOCALE): Quest | undefined {
   const builtIn = QUESTS.find((quest) => quest.id === id);
-  if (builtIn) return builtIn;
+  if (builtIn) return localizeQuest(builtIn, locale);
   const daily = /^daily:(\d{4}-\d{2}-\d{2})$/.exec(id);
-  if (daily) return compileTemplate(id, dailyFor(daily[1]).template);
+  if (daily) return compileTemplate(id, dailyFor(daily[1], locale).template, locale);
   const packQuest = /^pack:([^:]+):(\d+)$/.exec(id);
   if (!packQuest) return undefined;
   const pack = loadPacks().find(({ id: packId }) => packId === packQuest[1]);
   const template = pack?.quests[Number(packQuest[2])];
-  return template ? compileTemplate(id, template) : undefined;
+  return template ? compileTemplate(id, template, locale) : undefined;
 }
 
-export function questsIn(chapter: Chapter): Quest[] {
-  return QUESTS.filter((quest) => quest.chapter === chapter);
+export function questsIn(chapter: Chapter, locale: Locale = DEFAULT_LOCALE): Quest[] {
+  return QUESTS.filter((quest) => quest.chapter === chapter).map((quest) => localizeQuest(quest, locale));
 }

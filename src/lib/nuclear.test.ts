@@ -12,6 +12,12 @@ describe("analyzeNucleus", () => {
     expect(result.halfLife).toContain("years");
   });
 
+  it("localizes uranium decay modes and half-life to Spanish", () => {
+    const result = analyzeNucleus(92, 146, "es");
+    expect(result.modes.some((mode) => mode.startsWith("Decaimiento alfa"))).toBe(true);
+    expect(result.halfLife).toContain("años");
+  });
+
   it("marks a neutron-rich helium nucleus as unbound", () => {
     const result = analyzeNucleus(2, 10);
     expect(result.bound).toBe(false);

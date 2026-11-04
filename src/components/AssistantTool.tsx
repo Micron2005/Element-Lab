@@ -3,71 +3,120 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { analyze, fmtTime, hazardWord } from "@/lib/formula";
-import { byId } from "@/lib/ingredients";
+import { analyze, cureLabel, fmtTime, hazardWord, waterLabel } from "@/lib/formula";
+import { byId, localizeIngredient } from "@/lib/ingredients";
 import { CUSTOM_PREFIX } from "@/lib/bench/custom";
-import { benchById } from "@/lib/bench/library";
+import { benchById, localizeBenchIngredient } from "@/lib/bench/library";
 import { simulate } from "@/lib/bench/simulate";
 import type { Experiment } from "@/lib/bench/types";
 import { maskKey, USER_KEY_STORAGE, validateUserKey } from "@/lib/assistantKey";
 import type { Provider } from "@/lib/assistantKey";
+import { tr, type Locale, type MessageKey } from "@/lib/i18n";
 import { loadCustomIngredients } from "./useCustomIngredients";
 import { PageIntro, Panel } from "./shared";
+import { useT } from "./LocaleProvider";
 
 type Message = { role: "user" | "assistant"; content: string };
 type LearnContext = { title: string; context: string };
 type SavedUserKey = { provider: Provider; apiKey: string };
 const STORAGE_KEY = "elementlab.chat";
 const HANDOFF_KEY = "elementlab.assistant.handoff";
-const welcome: Message = { role: "assistant", content: "Hi, I’m your lab partner. Ask about a science question, an experiment, or what these estimates can—and can’t—tell you." };
-const prompts = ["Why might this experiment fail?", "What could improve this material’s load capacity?", "Is it safe on skin?", "Do I need a vacuum for this process?", "Could we make a new element?"];
-const cureNames: Record<string, string> = {
-  evaporation: "solvent evaporation",
-  "ionic-bath": "ionic bath",
-  moisture: "moisture",
-  anionic: "anionic polymerization",
-  shear: "shear alignment",
-  cooling: "cooling",
-  covalent: "covalent reaction",
-  none: "none",
+const ASSISTANT_API_PATH = "api/assistant";
+const PROMPTS = [
+  "assistant.prompt.fail",
+  "assistant.prompt.capacity",
+  "assistant.prompt.skin",
+  "assistant.prompt.vacuum",
+  "assistant.prompt.element",
+  "assistant.prompt.learn",
+] as const;
+const FORMULA_LEVEL_KEYS: Record<"good" | "warn" | "bad", MessageKey> = {
+  good: "assistant.state.level.good",
+  warn: "assistant.state.level.warn",
+  bad: "assistant.state.level.bad",
+};
+const EVENT_STATUS_KEYS: Record<"happened" | "partial" | "blocked", MessageKey> = {
+  happened: "assistant.state.status.happened",
+  partial: "assistant.state.status.partial",
+  blocked: "assistant.state.status.partial",
+};
+const ATMOSPHERE_KEYS: Record<Experiment["conditions"]["atmosphere"], MessageKey> = {
+  air: "bench.model.compare.atmosphere.air",
+  nitrogen: "bench.model.compare.atmosphere.nitrogen",
+  vacuum: "bench.model.compare.atmosphere.vacuum",
+};
+const FORMING_KEYS: Record<Experiment["conditions"]["forming"], MessageKey> = {
+  beaker: "assistant.state.forming.beaker",
+  "extrude-air": "assistant.state.forming.extrudeAir",
+  "extrude-bath": "assistant.state.forming.extrudeBath",
+  "cast-film": "assistant.state.forming.castFilm",
+  "heat-cure": "assistant.state.forming.heatCure",
 };
 
-function buildFormulaLabState(): string | null {
+function welcomeMessage(locale: Locale): Message {
+  return { role: "assistant", content: tr(locale, "assistant.welcome") };
+}
+
+function buildFormulaLabState(locale: Locale): string | null {
   try {
     const stored = JSON.parse(localStorage.getItem("elementlab.current") ?? "null");
     const parts = stored?.parts;
     if (!Array.isArray(parts)) return null;
-    const result = analyze(parts);
-    const ingredients = parts.map((part) => `- ${byId[part.id]?.name ?? part.id}: ${Number(part.pct).toFixed(1)}%`).join("\n");
-    const checks = result.checks.length ? result.checks.map((check) => `- [${check.level}] ${check.text}`).join("\n") : "No checks raised.";
-    const cureMechanisms = result.cure.map((mechanism) => cureNames[mechanism] ?? mechanism).join(", ") || "None listed";
-    const environment = result.environment.length ? result.environment.map((line) => `- ${line}`).join("\n") : "No special requirements listed.";
+    const result = analyze(parts, locale);
+    const ingredients = parts.map((part) => {
+      const ingredient = byId[part.id];
+      return tr(locale, "assistant.state.ingredientLine", {
+        name: ingredient ? localizeIngredient(ingredient, locale).name : part.id,
+        percent: Number(part.pct).toFixed(1),
+      });
+    }).join("\n");
+    const checks = result.checks.length
+      ? result.checks.map((check) => tr(locale, "assistant.state.checkLine", {
+          level: tr(locale, FORMULA_LEVEL_KEYS[check.level]),
+          text: check.text,
+        })).join("\n")
+      : tr(locale, "assistant.state.noChecks");
+    const cureMechanisms = result.cure.map((mechanism) => cureLabel(mechanism, locale)).join(", ") ||
+      tr(locale, "assistant.state.noneListed");
+    const environment = result.environment.length
+      ? result.environment.map((line) => `- ${line}`).join("\n")
+      : tr(locale, "assistant.state.noRequirements");
     return [
-      "Formula Lab:",
-      `Ingredients:\n${ingredients || "No ingredients."}`,
+      tr(locale, "assistant.state.formulaLab"),
+      `${tr(locale, "assistant.state.ingredients")}\n${ingredients || tr(locale, "assistant.state.noIngredients")}`,
       [
-        "Formula analysis:",
-        `Solids: ${result.solidsPct.toFixed(1)}%.`,
-        `Estimated results: strength ${result.tensileMPa.toFixed(1)} MPa; stretch ${result.elongationPct.toFixed(1)}%; toughness ${result.toughnessMJm3.toFixed(2)} MJ/m³; stickiness ${result.tack.toFixed(1)}/10.`,
-        `Cure mechanisms: ${cureMechanisms}.`,
-        `Set time: ${fmtTime(result.cureSeconds)}.`,
-        `Toxicity while mixing: ${hazardWord(result.wetToxicity)}.`,
-        `Toxicity once cured: ${hazardWord(result.curedToxicity)}.`,
-        `Skin hazard: ${hazardWord(result.skin)}.`,
-        `Edible: ${result.edible ? "Yes" : "No"}.`,
-        `Water behavior: ${result.water}; ${result.dissolveTime}.`,
-        `Biodegradable: ${result.biodegradable ? "Yes" : "No"}.`,
-        `Cost per kg: ${result.costPerKg.toFixed(2)}.`,
+        tr(locale, "assistant.state.formulaAnalysis"),
+        tr(locale, "assistant.state.solids", { value: result.solidsPct.toFixed(1) }),
+        tr(locale, "assistant.state.estimatedResults", {
+          strength: result.tensileMPa.toFixed(1),
+          stretch: result.elongationPct.toFixed(1),
+          toughness: result.toughnessMJm3.toFixed(2),
+          stickiness: result.tack.toFixed(1),
+        }),
+        tr(locale, "assistant.state.cureMechanisms", { value: cureMechanisms }),
+        tr(locale, "assistant.state.setTime", { value: fmtTime(result.cureSeconds, locale) }),
+        tr(locale, "assistant.state.toxicityMixing", { value: hazardWord(result.wetToxicity, locale) }),
+        tr(locale, "assistant.state.toxicityCured", { value: hazardWord(result.curedToxicity, locale) }),
+        tr(locale, "assistant.state.skinHazard", { value: hazardWord(result.skin, locale) }),
+        tr(locale, "assistant.state.edible", { value: tr(locale, result.edible ? "assistant.state.yes" : "assistant.state.no") }),
+        tr(locale, "assistant.state.waterBehavior", {
+          water: waterLabel(result.water, locale),
+          time: result.dissolveTime,
+        }),
+        tr(locale, "assistant.state.biodegradable", {
+          value: tr(locale, result.biodegradable ? "assistant.state.yes" : "assistant.state.no"),
+        }),
+        tr(locale, "assistant.state.costPerKg", { value: result.costPerKg.toFixed(2) }),
       ].join("\n"),
-      `Environment and preparation:\n${environment}`,
-      `Checks:\n${checks}`,
+      `${tr(locale, "assistant.state.environment")}\n${environment}`,
+      `${tr(locale, "assistant.state.checks")}\n${checks}`,
     ].join("\n\n");
   } catch {
     return null;
   }
 }
 
-function buildBenchMixState(): string | null {
+function buildBenchMixState(locale: Locale): string | null {
   loadCustomIngredients();
   try {
     const stored = JSON.parse(localStorage.getItem("elementlab.bench.current") ?? "null");
@@ -80,75 +129,96 @@ function buildBenchMixState(): string | null {
       return null;
     }
     const experiment = stored as Experiment;
-    const result = simulate(experiment);
+    const result = simulate(experiment, locale);
     const ingredients = experiment.parts
       .filter((part) => part.pct > 0)
       .map((part) => {
         const ingredient = benchById[part.id];
-        const name = ingredient?.name ??
-          (part.id.startsWith(CUSTOM_PREFIX) ? "Deleted ingredient" : part.id);
+        const name = ingredient
+          ? localizeBenchIngredient(ingredient, locale).name
+          : part.id.startsWith(CUSTOM_PREFIX)
+            ? tr(locale, "assistant.state.deletedIngredient")
+            : part.id;
         const properties = ingredient && part.id.startsWith(CUSTOM_PREFIX)
           ? [
               ingredient.tensileMPa !== undefined
-                ? `strength ${ingredient.tensileMPa} MPa`
+                ? tr(locale, "assistant.state.strength", { value: ingredient.tensileMPa })
                 : "",
               ingredient.elongationPct !== undefined
-                ? `stretch ${ingredient.elongationPct}%`
+                ? tr(locale, "assistant.state.stretch", { value: ingredient.elongationPct })
                 : "",
               Number.isFinite(ingredient.density)
-                ? `density ${ingredient.density} g/cm³`
+                ? tr(locale, "assistant.state.density", { value: ingredient.density })
                 : "",
             ].filter(Boolean).join(", ")
           : "";
         const suffix = properties
-          ? ` (user-defined ingredient: ${properties})`
+          ? tr(locale, "assistant.state.userDefined", { properties })
           : "";
-        return `- ${name}${suffix}: ${part.pct.toFixed(1)}%`;
+        return tr(locale, "assistant.state.ingredientLine", { name: `${name}${suffix}`, percent: part.pct.toFixed(1) });
       })
       .join("\n");
     const conditions = experiment.conditions;
     const events = result.events
       .filter((event) => event.status === "happened" || event.status === "partial")
-      .map((event) => `- ${event.name} (${event.status}): ${event.mechanism}`);
+      .map((event) => tr(locale, "assistant.state.eventLine", {
+        name: event.name,
+        status: tr(locale, EVENT_STATUS_KEYS[event.status]),
+        mechanism: event.mechanism,
+      }));
     const warnings = result.warnings
       .slice(0, 5)
-      .map((warning) => `- [${warning.level}] ${warning.text}`);
+      .map((warning) => `- ${warning.text}`);
     return [
-      "Bench mix:",
-      `Ingredients:\n${ingredients || "No ingredients."}`,
+      tr(locale, "assistant.state.benchMix"),
+      `${tr(locale, "assistant.state.ingredients")}\n${ingredients || tr(locale, "assistant.state.noIngredients")}`,
       [
-        "Conditions:",
-        `${conditions.tempC} °C`,
-        `${conditions.pressureKPa} kPa`,
-        conditions.atmosphere,
-        `${conditions.humidityPct}% humidity`,
-        `${conditions.mixRpm} rpm for ${conditions.mixMinutes} min mixing`,
-        `${conditions.cureMinutes} min cure`,
-        `forming: ${conditions.forming}`,
-        `bath: ${conditions.bathId ?? "none"}`,
+        tr(locale, "assistant.state.conditions"),
+        tr(locale, "assistant.state.temperature", { value: conditions.tempC }),
+        tr(locale, "assistant.state.pressure", { value: conditions.pressureKPa }),
+        tr(locale, ATMOSPHERE_KEYS[conditions.atmosphere]),
+        tr(locale, "assistant.state.humidity", { value: conditions.humidityPct }),
+        tr(locale, "assistant.state.mixing", { rpm: conditions.mixRpm, minutes: conditions.mixMinutes }),
+        tr(locale, "assistant.state.cure", { minutes: conditions.cureMinutes }),
+        tr(locale, "assistant.state.forming", { value: tr(locale, FORMING_KEYS[conditions.forming]) }),
+        tr(locale, "assistant.state.bath", {
+          value: conditions.bathId
+            ? benchById[conditions.bathId]
+              ? localizeBenchIngredient(benchById[conditions.bathId], locale).name
+              : conditions.bathId
+            : tr(locale, "assistant.state.none"),
+        }),
       ].join("; "),
-      `Effective pH: ${result.effectivePH.toFixed(1)}.`,
+      tr(locale, "assistant.state.effectivePH", { value: result.effectivePH.toFixed(1) }),
       `${result.productLabel}: ${result.summary}`,
-      `Events:\n${events.join("\n") || "No events happened or were partial."}`,
+      `${tr(locale, "assistant.state.events")}\n${events.join("\n") || tr(locale, "assistant.state.noEvents")}`,
       result.setSeconds > 0
-        ? `Set time: ${fmtTime(result.setSeconds)}.`
-        : "Set time: doesn't set on its own.",
-      `Strength: ${result.tensileMPa.toFixed(1)} MPa tensile; stretch: ${result.elongationPct.toFixed(1)}%; stickiness: ${result.tack.toFixed(1)}/10.`,
-      `Safety: wet toxicity ${hazardWord(result.wetToxicity)}; cured toxicity ${hazardWord(result.curedToxicity)}; skin hazard ${hazardWord(result.skin)}.`,
-      `Warnings:\n${warnings.join("\n") || "No warnings."}`,
+        ? tr(locale, "assistant.state.setTime", { value: fmtTime(result.setSeconds, locale) })
+        : tr(locale, "assistant.state.noSet"),
+      tr(locale, "assistant.state.strengthStretch", {
+        strength: result.tensileMPa.toFixed(1),
+        stretch: result.elongationPct.toFixed(1),
+        stickiness: result.tack.toFixed(1),
+      }),
+      tr(locale, "assistant.state.safety", {
+        wet: hazardWord(result.wetToxicity, locale),
+        cured: hazardWord(result.curedToxicity, locale),
+        skin: hazardWord(result.skin, locale),
+      }),
+      `${tr(locale, "assistant.state.warnings")}\n${warnings.join("\n") || tr(locale, "assistant.state.noWarnings")}`,
     ].join("\n\n");
   } catch {
     return null;
   }
 }
 
-function buildLabState() {
-  const sections = [buildBenchMixState(), buildFormulaLabState()].filter(
+function buildLabState(locale: Locale) {
+  const sections = [buildBenchMixState(locale), buildFormulaLabState(locale)].filter(
     (section): section is string => section !== null,
   );
   return sections.length
     ? sections.join("\n\n")
-    : "No current lab formula is saved in this browser.";
+    : tr(locale, "assistant.state.noLab");
 }
 
 function readLearnHandoff(
@@ -184,7 +254,8 @@ function readLearnHandoff(
 }
 
 export default function AssistantTool() {
-  const [messages, setMessages] = useState<Message[]>([welcome]);
+  const { locale, t } = useT();
+  const [messages, setMessages] = useState<Message[]>(() => [welcomeMessage(locale)]);
   const [ready, setReady] = useState(false);
   const [input, setInput] = useState("");
   const [includeLab, setIncludeLab] = useState(true);
@@ -207,7 +278,7 @@ export default function AssistantTool() {
         const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
         if (Array.isArray(stored) && stored.every((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")) setMessages(stored.slice(-80));
       } catch {
-        setNotice("Saved conversation could not be read.");
+        setNotice("assistant.error.savedConversation");
       }
       try {
         const storedKey = JSON.parse(localStorage.getItem(USER_KEY_STORAGE) ?? "null");
@@ -221,12 +292,12 @@ export default function AssistantTool() {
           }
         }
       } catch {
-        setKeyError("Saved key could not be read from this device.");
+        setKeyError("assistant.error.savedKey");
       }
       readLearnHandoff(setLearnContext, setInput);
       setReady(true);
     });
-    void fetch("/api/assistant")
+    void fetch(`/${ASSISTANT_API_PATH}`)
       .then((response) => response.ok ? response.json() : null)
       .then((result: unknown) => {
         if (!active || typeof result !== "object" || result === null || !("siteKey" in result)) return;
@@ -243,7 +314,7 @@ export default function AssistantTool() {
   }, [messages, ready]);
 
   const saveUserKey = () => {
-    const validated = validateUserKey(provider, keyDraft);
+    const validated = validateUserKey(provider, keyDraft, locale);
     if ("error" in validated) {
       setKeyError(validated.error);
       return;
@@ -255,7 +326,7 @@ export default function AssistantTool() {
       setKeyDraft("");
       setKeyError("");
     } catch {
-      setKeyError("Could not save the key on this device. Check browser storage settings.");
+      setKeyError(t("assistant.error.saveKey"));
     }
   };
   const removeUserKey = () => {
@@ -265,14 +336,14 @@ export default function AssistantTool() {
       setKeyDraft("");
       setKeyError("");
     } catch {
-      setKeyError("Could not remove the saved key from this device.");
+      setKeyError(t("assistant.error.removeKey"));
     }
   };
   const keyStatus = userKey
-    ? `Using your ${userKey.provider === "anthropic" ? "Anthropic" : "OpenAI"} key`
+    ? t("assistant.keyUsing", { provider: userKey.provider === "anthropic" ? "Anthropic" : "OpenAI" })
     : siteKey
-      ? "Using the site's key"
-      : "Assistant is off. Add your own key to turn it on.";
+      ? t("assistant.keySite")
+      : t("assistant.keyOff");
 
   const sendMessage = async (content: string) => {
     const question = content.trim();
@@ -285,14 +356,15 @@ export default function AssistantTool() {
     try {
       const labState = [
         learnContext
-          ? `WHAT THE USER JUST MADE IN PLAY:\n${learnContext.context}`
+          ? `${tr(locale, "assistant.state.playContext")}\n${learnContext.context}`
           : "",
-        includeLab ? buildLabState() : "",
+        includeLab ? buildLabState(locale) : "",
       ].filter((section) => section.trim()).join("\n\n");
-      const response = await fetch("/api/assistant", {
+      const response = await fetch(`/${ASSISTANT_API_PATH}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
+          "x-lang": locale,
           ...(userKey
             ? { "x-user-api-key": userKey.apiKey, "x-user-provider": userKey.provider }
             : {}),
@@ -304,21 +376,21 @@ export default function AssistantTool() {
       });
       const result = await response.json();
       if (response.status === 503 && result.error === "no-key") {
-        setMessages([...conversation, { role: "assistant", content: "The assistant is off. Add your own Anthropic or OpenAI key in **Your AI key** (stays on this device), or the site owner can add one in Vercel." }]);
+        setMessages([...conversation, { role: "assistant", content: t("assistant.noKeyMessage") }]);
       } else if (response.status === 401 && result.error === "key-rejected") {
         const rejectionMessage = userKey
-          ? `Your key was rejected by ${userKey.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Check it, or remove it and paste a new one.`
-          : "The site's key was rejected. The site owner can update it, or you can add your own key.";
+          ? t("assistant.error.keyRejectedUser", { provider: userKey.provider === "anthropic" ? "Anthropic" : "OpenAI" })
+          : t("assistant.error.keyRejectedSite");
         setMessages([...conversation, { role: "assistant", content: rejectionMessage }]);
       } else if (response.status === 400 && result.error === "bad-key") {
-        setMessages([...conversation, { role: "assistant", content: typeof result.message === "string" ? result.message : "The supplied API key is invalid." }]);
+        setMessages([...conversation, { role: "assistant", content: typeof result.message === "string" ? result.message : t("assistant.error.invalidKey") }]);
       } else if (!response.ok) {
-        setMessages([...conversation, { role: "assistant", content: result.error ?? "I couldn’t reach the assistant just now. Please try again." }]);
+        setMessages([...conversation, { role: "assistant", content: t("assistant.error.unavailable") }]);
       } else {
         setMessages([...conversation, { role: "assistant", content: result.reply }]);
       }
     } catch {
-      setMessages([...conversation, { role: "assistant", content: "I couldn’t reach the assistant just now. Check your connection and try again." }]);
+      setMessages([...conversation, { role: "assistant", content: t("assistant.error.network") }]);
     } finally {
       setLoading(false);
     }
@@ -328,21 +400,21 @@ export default function AssistantTool() {
     void sendMessage(input);
   };
   const clearChat = () => {
-    setMessages([welcome]);
-    setNotice("Conversation cleared.");
+    setMessages([welcomeMessage(locale)]);
+    setNotice(t("assistant.clearNotice"));
   };
 
   return (
     <>
-      <PageIntro eyebrow="TOOL 05 / YOUR LAB PARTNER" title="Ask the lab assistant" description="A practical science partner for exploring questions, planning safe tests, and understanding what estimates can tell you." />
+      <PageIntro eyebrow="assistant.pageEyebrow" title="assistant.title" description="home.assistantCopy" />
       <div className="assistant-layout">
-        <Panel title="Conversation" subtitle="Replies are estimates and explanations—not proof that a material is safe or strong." className="chat-panel">
-          <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> Lab partner</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>Clear chat</button></div>
+        <Panel title="assistant.conversation" subtitle="assistant.conversationHint" className="chat-panel">
+          <div className="chat-heading"><span className="badge"><span className="status-dot" style={{ marginRight: 6 }} /> {t("assistant.partner")}</span><button className="button button-secondary button-small" type="button" onClick={clearChat}>{t("assistant.clear")}</button></div>
           <div className="divider" />
           <div className="chat-messages" aria-live="polite">
             {messages.map((message, index) => (
               <article className={`message message-${message.role}`} key={`${index}-${message.role}`}>
-                <span className="metric-label">{message.role === "user" ? "YOU" : "LAB ASSISTANT"}</span>
+                <span className="metric-label">{message.role === "user" ? t("assistant.you") : t("assistant.label")}</span>
                 <div style={{ marginTop: 5 }}>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
@@ -354,22 +426,22 @@ export default function AssistantTool() {
                       ),
                     }}
                   >
-                    {message.content}
+                    {message.role === "assistant" ? t(message.content) : message.content}
                   </ReactMarkdown>
                 </div>
               </article>
             ))}
-            {loading && <div className="message message-assistant"><span className="metric-label">LAB ASSISTANT</span><p style={{ margin: "6px 0 0" }}>Thinking through the chemistry…</p></div>}
+            {loading && <div className="message message-assistant"><span className="metric-label">{t("assistant.label")}</span><p style={{ margin: "6px 0 0" }}>{t("assistant.thinking")}</p></div>}
             <div ref={endRef} />
           </div>
-          <form className="chat-compose" onSubmit={submit}><textarea className="textarea" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about your formula…" aria-label="Your message" rows={2} /><button className="button button-primary" type="submit" disabled={loading || !input.trim()}>Send ↗</button></form>
+          <form className="chat-compose" onSubmit={submit}><textarea className="textarea" value={input} onChange={(event) => setInput(event.target.value)} placeholder={t("assistant.askFormula")} aria-label={t("assistant.yourMessage")} rows={2} /><button className="button button-primary" type="submit" disabled={loading || !input.trim()}>{t("assistant.send")}</button></form>
         </Panel>
         <aside className="assistant-side">
-          <Panel title="Your AI key">
+          <Panel title="assistant.keyTitle">
             <p className="small muted" role="status">{keyStatus}</p>
             <fieldset style={{ border: 0, margin: "12px 0 0", padding: 0 }}>
-              <legend className="field-label">Provider</legend>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 7 }}>
+              <legend className="field-label">{t("assistant.provider")}</legend>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                 {(["anthropic", "openai"] as const).map((option) => (
                   <label
                     key={option}
@@ -400,7 +472,7 @@ export default function AssistantTool() {
                 ))}
               </div>
             </fieldset>
-            <label className="field-label" htmlFor="assistant-user-key">API key</label>
+            <label className="field-label" htmlFor="assistant-user-key">{t("assistant.apiKey")}</label>
             <input
               id="assistant-user-key"
               className="input"
@@ -411,31 +483,31 @@ export default function AssistantTool() {
               value={keyDraft}
               onChange={(event) => setKeyDraft(event.target.value)}
             />
-            {keyError && <p className="small bad" role="alert">{keyError}</p>}
+            {keyError && <p className="small bad" role="alert">{t(keyError)}</p>}
             {userKey && (
               <p className="small muted" style={{ overflowWrap: "anywhere" }} role="status">
-                Saved on this device: <code>{maskKey(userKey.apiKey)}</code>
+                {t("assistant.savedDevice")} <code>{maskKey(userKey.apiKey)}</code>
               </p>
             )}
             <div className="button-row" style={{ marginTop: 10 }}>
-              <button className="button button-primary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={saveUserKey}>Save</button>
+              <button className="button button-primary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={saveUserKey}>{t("assistant.save")}</button>
               {userKey && (
-                <button className="button button-secondary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={removeUserKey}>Remove</button>
+                <button className="button button-secondary" type="button" style={{ minHeight: 44, flex: 1 }} onClick={removeUserKey}>{t("assistant.remove")}</button>
               )}
             </div>
             <p className="small muted" style={{ margin: "12px 0 0" }}>
-              Your key stays in this browser. It&apos;s sent with each message to this site&apos;s server, which passes it to Anthropic/OpenAI and doesn&apos;t save it. Remove it on shared devices.
+              {t("assistant.keyPrivacy")}
             </p>
             <div className="small" style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", marginTop: 7 }}>
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an Anthropic key</a>
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>Get an OpenAI key</a>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>{t("assistant.getAnthropic")}</a>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#9de7da", textDecoration: "underline", overflowWrap: "anywhere" }}>{t("assistant.getOpenai")}</a>
             </div>
           </Panel>
-          <Panel title="Context">
+          <Panel title="assistant.context">
             {learnContext && (
               <div className="chat-heading">
                 <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                  From Play: {learnContext.title}
+                  {t("assistant.fromPlay", { title: learnContext.title })}
                 </span>
                 <button
                   className="button button-secondary button-small"
@@ -443,23 +515,23 @@ export default function AssistantTool() {
                   style={{ minHeight: 44, flex: "0 0 auto" }}
                   onClick={() => setLearnContext(null)}
                 >
-                  Remove
+                  {t("assistant.remove")}
                 </button>
               </div>
             )}
-            <label className="toggle-row"><span>Include my current Bench mix and lab formula</span><input type="checkbox" checked={includeLab} onChange={(event) => setIncludeLab(event.target.checked)} /></label>
-            <p className="small muted">When enabled, the current Bench mix and Formula Lab analysis are sent with your latest question.</p>
-            <p className="small muted">Chat history is saved in this browser.</p>
+            <label className="toggle-row"><span>{t("assistant.includeLab")}</span><input type="checkbox" checked={includeLab} onChange={(event) => setIncludeLab(event.target.checked)} /></label>
+            <p className="small muted">{t("assistant.contextHint")}</p>
+            <p className="small muted">{t("assistant.historyHint")}</p>
           </Panel>
-          <Panel title="Try asking">
+          <Panel title="assistant.tryAsking">
             <div className="prompt-list">
-              {[...prompts, ...(learnContext ? ["Explain what I just made more deeply"] : [])].map((prompt) => (
-                <button className="chip" type="button" key={prompt} onClick={() => void sendMessage(prompt)} disabled={loading}>{prompt}</button>
+              {[...PROMPTS.slice(0, 5), ...(learnContext ? [PROMPTS[5]] : [])].map((prompt) => (
+                <button className="chip" type="button" key={prompt} onClick={() => void sendMessage(prompt)} disabled={loading}>{t(prompt)}</button>
               ))}
             </div>
           </Panel>
-          {notice && <p className="small muted" role="status">{notice}</p>}
-          <div className="notice">This is a learning tool. Never use its estimates as a substitute for testing, safety data, or professional advice.</div>
+          {notice && <p className="small muted" role="status">{t(notice)}</p>}
+          <div className="notice">{t("assistant.notice")}</div>
         </aside>
       </div>
     </>

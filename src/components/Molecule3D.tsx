@@ -5,8 +5,8 @@ import { angleAt, embed3D } from "@/lib/play/geometry3d";
 import type { Atom3D } from "@/lib/play/geometry3d";
 import type { AtomSymbol } from "@/lib/play/atoms";
 import type { MolBond, MolGraph } from "@/lib/play/molecule";
+import { useT } from "./LocaleProvider";
 import { useReducedMotion } from "./useReducedMotion";
-import { Term } from "./Term";
 
 const SCALE = 100;
 const INITIAL_YAW = -0.48;
@@ -82,6 +82,7 @@ function centerAngle(graph: MolGraph) {
 }
 
 export default function Molecule3D({ graph, label }: { graph: MolGraph; label: string }) {
+  const { locale, t } = useT();
   const embedded = useMemo(() => embed3D(graph), [graph]);
   const idPrefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const reducedMotion = useReducedMotion();
@@ -141,8 +142,8 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
   const measuredAngle = useMemo(() => {
     const center = centerAngle(graph);
     if (!center) return null;
-    return angleAt(embedded, center.centerId, center.aId, center.bId);
-  }, [embedded, graph]);
+    return angleAt(embedded, center.centerId, center.aId, center.bId, locale);
+  }, [embedded, graph, locale]);
 
   function rotateFromKeyboard(event: KeyboardEvent<SVGSVGElement>) {
     const turn = 0.14;
@@ -188,7 +189,7 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
         viewBox={`${minX} ${minY} ${viewWidth} ${viewHeight}`}
         role="img"
         tabIndex={0}
-        aria-label={`${label} Drag or use arrow keys to rotate`}
+        aria-label={t("ui.moleculeRotate", { label })}
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
@@ -258,17 +259,17 @@ export default function Molecule3D({ graph, label }: { graph: MolGraph; label: s
       </svg>
       <div className="molecule3d-controls">
         <button type="button" className="button button-secondary" aria-pressed={spinning} onClick={() => setSpinOverride(!spinning)}>
-          Spin
+          {t("play.spin")}
         </button>
         <button type="button" className="button button-secondary" onClick={() => {
           setYaw(INITIAL_YAW);
           setPitch(INITIAL_PITCH);
         }}>
-          Reset view
+          {t("play.resetView")}
         </button>
       </div>
       {measuredAngle !== null && (
-        <p className="molecule3d-angle">Measured <Term id="bond-angle">bond angle</Term> in the model: {measuredAngle.toFixed(1)}°</p>
+        <p className="molecule3d-angle">{t("ui.measuredBondAngle", { term: t("ui.bondAngle"), angle: measuredAngle.toFixed(1) })}</p>
       )}
     </div>
   );

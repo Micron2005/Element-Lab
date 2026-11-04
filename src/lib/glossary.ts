@@ -1,3 +1,6 @@
+import { GLOSSARY_ES } from "./i18n/data/es/glossary";
+import type { MessageKey } from "./i18n";
+
 export interface GlossaryEntry {
   term: string;
   plain: string;
@@ -194,6 +197,10 @@ export const GLOSSARY = {
 
 export type TermId = keyof typeof GLOSSARY;
 
+export function glossaryFor(locale: "en" | "es"): Record<TermId, GlossaryEntry> {
+  return locale === "es" ? GLOSSARY_ES : GLOSSARY;
+}
+
 export const GLOSSARY_GROUPS = {
   Bench: [
     "mpa",
@@ -241,3 +248,9 @@ export const GLOSSARY_GROUPS = {
   ],
   Play: ["molecule", "bond", "double-bond", "lone-pair", "valence", "bond-angle"],
 } as const satisfies Record<string, readonly TermId[]>;
+
+export const GLOSSARY_GROUP_LABEL_KEYS: Record<keyof typeof GLOSSARY_GROUPS, MessageKey> = {
+  Bench: "glossary.groupBench",
+  Elements: "glossary.groupElements",
+  Play: "glossary.groupPlay",
+};

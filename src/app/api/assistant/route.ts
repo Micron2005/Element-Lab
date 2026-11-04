@@ -22,7 +22,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const credentials = resolveCredentials(request.headers, process.env);
+  const locale = request.headers.get("x-lang") === "es" ? "es" : "en";
+  const credentials = resolveCredentials(request.headers, process.env, locale);
   if (!credentials) return Response.json({ error: "no-key" }, { status: 503 });
   if ("error" in credentials) {
     return Response.json({ error: "bad-key", message: credentials.error }, { status: 400 });
@@ -63,6 +64,9 @@ export async function POST(request: Request) {
   }
 
   const { provider, apiKey, source } = credentials;
+  const systemPrompt = locale === "es"
+    ? `${ASSISTANT_PROMPT}\n\nAlways reply in Spanish.`
+    : ASSISTANT_PROMPT;
   const model = provider === "anthropic"
     ? source === "user" ? "claude-sonnet-4-6" : process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6"
     : source === "user" ? "gpt-4.1-mini" : process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
       const response = await client.messages.create({
         model,
         max_tokens: 1500,
-        system: ASSISTANT_PROMPT,
+        system: systemPrompt,
         messages,
       });
       const reply = response.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model,
         max_tokens: 1500,
-        messages: [{ role: "system", content: ASSISTANT_PROMPT }, ...messages],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
       }),
       signal: AbortSignal.timeout(60_000),
     });

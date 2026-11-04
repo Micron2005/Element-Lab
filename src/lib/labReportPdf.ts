@@ -1,5 +1,6 @@
 import type { jsPDF } from "jspdf";
 import { pdfSafe, type LabReportDoc, type ReportSection } from "./labReport";
+import { tr } from "./i18n";
 
 type PdfDocument = jsPDF;
 
@@ -35,6 +36,7 @@ function sectionOpeningHeight(pdf: PdfDocument, section: ReportSection): number 
 
 export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Array> {
   const { jsPDF } = await import("jspdf");
+  const locale = doc.locale ?? "en";
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   let y = MARGIN;
 
@@ -56,7 +58,7 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
-  pdf.text("SCIENCE LAB · LAB REPORT", MARGIN, y);
+  pdf.text(tr(locale, "ui.reportHeader"), MARGIN, y);
   y += 27;
   pdf.setFontSize(20);
   const titleLines = wrapped(pdf, doc.title, CONTENT_WIDTH);
@@ -68,14 +70,19 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(BODY_SIZE);
-  pdf.text(`Name: ${pdfSafe(doc.student?.trim() || "____________________")}`, MARGIN, y);
+  pdf.text(`${pdfSafe(tr(locale, "ui.reportName"))} ${pdfSafe(doc.student?.trim() || "____________________")}`, MARGIN, y);
   pdf.text(
-    `Date: ${pdfSafe(doc.createdAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }))}`,
+    `${pdfSafe(tr(locale, "ui.reportDate"))} ${pdfSafe(doc.createdAt.toLocaleDateString(locale === "es" ? "es" : "en-US", { year: "numeric", month: "long", day: "numeric" }))}`,
     PAGE_WIDTH - MARGIN - 180,
     y,
   );
   y += LINE_HEIGHT;
-  pdf.text(`Type: ${pdfSafe(doc.kind)}`, MARGIN, y);
+  const kindKey = {
+    bench: "report.kind.bench",
+    elements: "report.kind.elements",
+    formula: "report.kind.formula",
+  } as const;
+  pdf.text(`${pdfSafe(tr(locale, "ui.reportType"))} ${pdfSafe(tr(locale, kindKey[doc.kind]))}`, MARGIN, y);
   y += 12;
   pdf.setDrawColor(160, 170, 170);
   pdf.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
@@ -178,7 +185,7 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
   }
 
   if (doc.shareUrl) {
-    const shareText = "Open this experiment in Science Lab";
+    const shareText = tr(locale, "report.openExperiment");
     ensureSpace(LINE_HEIGHT * 2 + 8);
     pdf.setTextColor(25, 95, 105);
     pdf.textWithLink(pdfSafe(shareText), MARGIN, y, { url: doc.shareUrl });
@@ -193,8 +200,8 @@ export async function renderLabReportBytes(doc: LabReportDoc): Promise<Uint8Arra
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.setTextColor(90, 100, 100);
-    pdf.text("Science Lab · model estimate, not a lab measurement", MARGIN, PAGE_HEIGHT - 27);
-    pdf.text(`Page ${page} of ${pageCount}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 27, { align: "right" });
+    pdf.text(tr(locale, "report.footer"), MARGIN, PAGE_HEIGHT - 27);
+    pdf.text(tr(locale, "report.page", { page, count: pageCount }), PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 27, { align: "right" });
   }
 
   return new Uint8Array(pdf.output("arraybuffer"));

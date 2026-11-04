@@ -1,3 +1,5 @@
+import { tr, type Locale } from "./i18n";
+
 export type Provider = "anthropic" | "openai";
 
 export interface Credentials {
@@ -11,22 +13,23 @@ export const USER_KEY_STORAGE = "elementlab.assistant.key";
 export function validateUserKey(
   provider: unknown,
   apiKey: unknown,
+  locale: Locale = "en",
 ): { provider: Provider; apiKey: string } | { error: string } {
   if (provider !== "anthropic" && provider !== "openai") {
-    return { error: "Choose Anthropic or OpenAI." };
+    return { error: tr(locale, "assistant.keyError.provider") };
   }
-  if (typeof apiKey !== "string") return { error: "Enter an API key." };
+  if (typeof apiKey !== "string") return { error: tr(locale, "assistant.keyError.required") };
 
   const trimmedKey = apiKey.trim();
   if (trimmedKey.length < 20 || trimmedKey.length > 300) {
-    return { error: "API keys must be 20–300 characters." };
+    return { error: tr(locale, "assistant.keyError.length") };
   }
-  if (/\s/.test(trimmedKey)) return { error: "API keys cannot contain internal whitespace." };
+  if (/\s/.test(trimmedKey)) return { error: tr(locale, "assistant.keyError.whitespace") };
   if (provider === "anthropic" && !trimmedKey.startsWith("sk-ant-")) {
-    return { error: "Anthropic API keys must start with sk-ant-." };
+    return { error: tr(locale, "assistant.keyError.anthropicPrefix") };
   }
   if (provider === "openai" && (!trimmedKey.startsWith("sk-") || trimmedKey.startsWith("sk-ant-"))) {
-    return { error: "OpenAI API keys must start with sk- and cannot start with sk-ant-." };
+    return { error: tr(locale, "assistant.keyError.openaiPrefix") };
   }
 
   return { provider, apiKey: trimmedKey };
@@ -39,11 +42,13 @@ export function resolveCredentials(
     OPENAI_API_KEY?: string;
     [key: string]: string | undefined;
   },
+  locale: Locale = "en",
 ): Credentials | { error: string } | null {
   if (headers.has("x-user-api-key")) {
     const userCredentials = validateUserKey(
       headers.get("x-user-provider"),
       headers.get("x-user-api-key"),
+      locale,
     );
     return "error" in userCredentials
       ? userCredentials

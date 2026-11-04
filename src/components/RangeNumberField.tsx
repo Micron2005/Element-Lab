@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useT } from "./LocaleProvider";
 
 export default function RangeNumberField({
   label,
@@ -17,6 +18,7 @@ export default function RangeNumberField({
   unit: string;
   onChange: (value: number) => void;
 }) {
+  const { t } = useT();
   const [draft, setDraft] = useState<string | null>(null);
   const clampValue = (next: number) => Math.max(min, Math.min(max, next));
   return (
@@ -24,7 +26,7 @@ export default function RangeNumberField({
       <span className="bench-field-label">{label}</span>
       <span className="bench-field-control">
         <input
-          aria-label={`${label} slider`}
+          aria-label={t("ui.sliderAria", { label })}
           type="range"
           min={min}
           max={max}

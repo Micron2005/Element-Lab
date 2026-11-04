@@ -66,6 +66,13 @@ describe("3D molecule geometry", () => {
     withinAngle(angleAt(embed3D(methane), "a1", "a2", "a3"), 109.5);
   });
 
+  it("localizes invalid angle errors", () => {
+    const water = embed3D(molecule("water").graph);
+    expect(() => angleAt(water, "missing", "a2", "a3", "es")).toThrow(
+      "angleAt requiere tres identificadores de átomo distintos en la molécula integrada",
+    );
+  });
+
   it("keeps carbon dioxide, hydrogen cyanide and acetylene linear", () => {
     const carbonDioxide = molecule("carbon-dioxide").graph;
     withinAngle(angleAt(embed3D(carbonDioxide), "a1", "a2", "a3"), 180);

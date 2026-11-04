@@ -1,11 +1,13 @@
-import { fmtTime, hazardWord } from "../formula";
+import { fmtTime } from "../formula";
 import { benchById } from "../bench/library";
-import type { Experiment, RunResult } from "../bench/types";
-import { analyzeNucleus } from "../nuclear";
-import { decayChain, neutronHit } from "../nuclearScene";
-import { prettyFormula, type KnownMolecule } from "./molecule";
-import type { AtomQuest, MixQuest } from "./quests";
+import type { Experiment, Product, RunResult } from "../bench/types";
+import { analyzeNucleus, localizeElementName } from "../nuclear";
+import { decayChain, neutronHit, type NuclearStepKind } from "../nuclearScene";
+import { localizeMolecule, prettyFormula, type KnownMolecule, type MoleculeId } from "./molecule";
+import { localizeQuest, type AtomQuest, type MixQuest } from "./quests";
 import { describeTargets } from "./templates";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
+import { MOLECULE_LESSONS_ES, QUEST_LESSONS_ES } from "../i18n/data/es/learn";
 
 export interface LearnSection {
   heading: string;
@@ -20,7 +22,7 @@ export interface LearnCard {
   context: string;
 }
 
-interface Lesson {
+export interface Lesson {
   whatItIs: string;
   whatItDoes: string;
   whyItMatters: string;
@@ -28,11 +30,11 @@ interface Lesson {
   askPrompt: string;
 }
 
-interface MoleculeLesson extends Omit<Lesson, "askPrompt"> {
+export interface MoleculeLesson extends Omit<Lesson, "askPrompt"> {
   whyShape: string;
 }
 
-export const MOLECULE_LESSONS: Record<string, MoleculeLesson> = {
+export const MOLECULE_LESSONS = {
   hydrogen: {
     whatItIs: "Hydrogen gas is H₂: two hydrogen atoms joined by a single covalent bond.",
     whyShape: "The atoms share one pair of electrons. With only two atoms there is no central bond angle, so the molecule is linear.",
@@ -201,9 +203,11 @@ export const MOLECULE_LESSONS: Record<string, MoleculeLesson> = {
     whyItMatters: "Its history includes medical use that ended because of serious risks, making it an example of why safety evidence matters.",
     usedFor: ["controlled laboratory solvent use", "specialized chemical manufacturing", "historical and chemical-safety education"],
   },
-};
+} satisfies Record<MoleculeId, MoleculeLesson>;
 
-export const QUEST_LESSONS: Record<string, Lesson> = {
+export type MoleculeLessonId = keyof typeof MOLECULE_LESSONS;
+
+export const QUEST_LESSONS = {
   "mix-fizz": {
     whatItIs: "A fizz is an acid–base reaction that makes carbon dioxide gas.",
     whatItDoes: "Bicarbonate (HCO₃⁻) takes a hydrogen ion from the acid and becomes carbonic acid, which breaks down into water and CO₂—the bubbles.",
@@ -274,13 +278,74 @@ export const QUEST_LESSONS: Record<string, Lesson> = {
     usedFor: ["research on superheavy-element synthesis", "testing nuclear shell theories", "extending the periodic table"],
     askPrompt: "What is the island of stability, and why could some superheavy nuclei last longer than their neighbors?",
   },
+} satisfies Record<string, Lesson>;
+
+export type QuestLessonId = keyof typeof QUEST_LESSONS;
+
+const PRODUCT_LABEL_KEYS: Record<Product, MessageKey> = {
+  nothing: "play.ui.product.nothing",
+  solution: "play.ui.product.solution",
+  gel: "play.ui.product.gel",
+  slime: "play.ui.product.slime",
+  fiber: "play.ui.product.fiber",
+  film: "play.ui.product.film",
+  adhesive: "play.ui.product.adhesive",
+  solid: "play.ui.product.solid",
+  clumps: "play.ui.product.clumps",
+  dangerous: "play.ui.product.dangerous",
 };
 
-function cardContext(title: string, sections: LearnSection[], usedFor: string[]) {
+const HAZARD_KEYS: MessageKey[] = [
+  "play.learn.hazard.safe",
+  "play.learn.hazard.mild",
+  "play.learn.hazard.harmful",
+  "play.learn.hazard.toxic",
+];
+
+const STEP_LABEL_KEYS: Partial<Record<NuclearStepKind, MessageKey>> = {
+  stable: "play.learn.nucleus.step.stable",
+  alpha: "play.learn.nucleus.step.alpha",
+  "beta-minus": "play.learn.nucleus.step.betaMinus",
+  "beta-plus": "play.learn.nucleus.step.betaPlus",
+  "neutron-drip": "play.learn.nucleus.step.neutronDrip",
+  "proton-drip": "play.learn.nucleus.step.protonDrip",
+  fission: "play.learn.nucleus.step.fission",
+};
+
+function localizedMoleculeLesson(id: MoleculeLessonId, locale: Locale): MoleculeLesson {
+  const lesson = MOLECULE_LESSONS[id];
+  return locale === "es" ? { ...lesson, ...MOLECULE_LESSONS_ES[id] } : lesson;
+}
+
+function localizedQuestLesson(id: string, locale: Locale): Lesson | undefined {
+  const lesson = (QUEST_LESSONS as Record<string, Lesson>)[id];
+  if (!lesson || locale !== "es") return lesson;
+  return { ...lesson, ...QUEST_LESSONS_ES[id as QuestLessonId] };
+}
+
+function formatNumber(value: number, locale: Locale, places: number): string {
+  return Number(value.toFixed(places)).toLocaleString(locale === "es" ? "es" : "en-US", {
+    minimumFractionDigits: places,
+    maximumFractionDigits: places,
+    useGrouping: false,
+  });
+}
+
+function stepLabel(kind: NuclearStepKind, locale: Locale): string {
+  const key = STEP_LABEL_KEYS[kind] ?? "play.learn.nucleus.step.other";
+  return tr(locale, key);
+}
+
+function cardContext(
+  title: string,
+  sections: LearnSection[],
+  usedFor: string[],
+  locale: Locale,
+) {
   return [
     title,
     ...sections.map((section) => `${section.heading}: ${section.body}`),
-    `Used for:\n${usedFor.map((use) => `- ${use}`).join("\n")}`,
+    `${tr(locale, "play.learn.context.usedFor")}\n${usedFor.map((use) => `- ${use}`).join("\n")}`,
   ].join("\n\n");
 }
 
@@ -289,58 +354,86 @@ function createCard(
   sections: LearnSection[],
   usedFor: string[],
   askPrompt: string,
+  locale: Locale,
 ): LearnCard {
   return {
     title,
     sections,
     usedFor,
     askPrompt,
-    context: cardContext(title, sections, usedFor),
+    context: cardContext(title, sections, usedFor, locale),
   };
 }
 
-export function moleculeCard(molecule: KnownMolecule): LearnCard {
-  const lesson = MOLECULE_LESSONS[molecule.id];
-  const spokenName = molecule.name.charAt(0).toLowerCase() + molecule.name.slice(1);
+export function moleculeCard(
+  molecule: KnownMolecule,
+  locale: Locale = DEFAULT_LOCALE,
+): LearnCard {
+  const localized = localizeMolecule(molecule, locale);
+  const lesson = localizedMoleculeLesson(localized.id, locale);
   const sections = [
-    { heading: "What it is", body: lesson.whatItIs },
-    { heading: "Why it's shaped like this", body: lesson.whyShape },
-    { heading: "What it does", body: lesson.whatItDoes },
+    { heading: tr(locale, "play.learn.heading.whatItIs"), body: lesson.whatItIs },
+    { heading: tr(locale, "play.learn.heading.whyShape"), body: lesson.whyShape },
+    { heading: tr(locale, "play.learn.heading.whatItDoes"), body: lesson.whatItDoes },
     {
-      heading: "Why it matters",
-      body: lesson.whyItMatters + (molecule.caution ? ` Safety note: ${molecule.caution}` : ""),
+      heading: tr(locale, "play.learn.heading.whyItMatters"),
+      body: lesson.whyItMatters + (localized.caution
+        ? ` ${tr(locale, "play.learn.safetyNote", { note: localized.caution })}`
+        : ""),
     },
   ];
+  const spokenName = localized.name.charAt(0).toLowerCase() + localized.name.slice(1);
   return createCard(
-    `${molecule.name} (${prettyFormula(molecule.formula)})`,
+    `${localized.name} (${prettyFormula(localized.formula)})`,
     sections,
     lesson.usedFor,
-    `How do ${spokenName}'s bonds and shape help explain what it does and where it is used?`,
+    tr(locale, "play.learn.molecule.ask", { name: spokenName }),
+    locale,
   );
 }
 
-function mixRunDetails(experiment: Experiment, result: RunResult): string {
+function mixRunDetails(experiment: Experiment, result: RunResult, locale: Locale): string {
   const ingredients = experiment.parts
     .filter((part) => part.pct > 0)
-    .map((part) => `${benchById[part.id]?.name ?? part.id} ${part.pct.toFixed(1)}%`)
+    .map((part) => `${benchById[part.id]?.name ?? part.id} ${formatNumber(part.pct, locale, 1)}%`)
     .join(", ");
   const events = result.events
     .filter((event) => event.status === "happened" || event.status === "partial")
-    .map((event) => `${event.name} (${event.status}): ${event.mechanism}`);
+    .map((event) => {
+      const status = tr(locale, event.status === "happened"
+        ? "play.ui.status.happened"
+        : "play.ui.status.partial");
+      return `${event.name} (${status}): ${event.mechanism}`;
+    });
   const lines = [
-    `Ingredients in this run: ${ingredients || "none listed"}.`,
-    `${result.productLabel}: ${result.summary}`,
-    ...(events.length ? events : ["No reaction events happened or were partial in this run."]),
-    `Effective pH: ${result.effectivePH.toFixed(1)}.`,
+    tr(locale, "play.learn.mix.ingredients", {
+      ingredients: ingredients || tr(locale, "play.learn.mix.none"),
+    }),
+    tr(locale, "play.learn.mix.result", {
+      product: tr(locale, PRODUCT_LABEL_KEYS[result.product]),
+      summary: result.summary,
+    }),
+    ...(events.length ? events : [tr(locale, "play.learn.mix.noEvents")]),
+    tr(locale, "play.learn.mix.ph", { value: formatNumber(result.effectivePH, locale, 1) }),
     result.setSeconds > 0
-      ? `Set time: ${fmtTime(result.setSeconds)}.`
-      : "It doesn't set on its own.",
+      ? tr(locale, "play.learn.mix.setTime", { time: fmtTime(result.setSeconds, locale) })
+      : tr(locale, "play.learn.mix.notSet"),
   ];
-  if (result.tensileMPa !== 0) lines.push(`Strength: ${result.tensileMPa.toFixed(1)} MPa tensile strength.`);
-  if (result.elongationPct !== 0) lines.push(`Stretch: ${result.elongationPct.toFixed(1)}% elongation.`);
-  if (result.tack !== 0) lines.push(`Stickiness: ${result.tack.toFixed(1)}/10 tack.`);
+  if (result.tensileMPa !== 0) {
+    lines.push(tr(locale, "play.learn.mix.strength", { value: formatNumber(result.tensileMPa, locale, 1) }));
+  }
+  if (result.elongationPct !== 0) {
+    lines.push(tr(locale, "play.learn.mix.stretch", { value: formatNumber(result.elongationPct, locale, 1) }));
+  }
+  if (result.tack !== 0) {
+    lines.push(tr(locale, "play.learn.mix.stickiness", { value: formatNumber(result.tack, locale, 1) }));
+  }
   lines.push(
-    `Safety: wet toxicity ${hazardWord(result.wetToxicity)}; cured toxicity ${hazardWord(result.curedToxicity)}; skin hazard ${hazardWord(result.skin)}.`,
+    tr(locale, "play.learn.mix.safety", {
+      wet: tr(locale, HAZARD_KEYS[result.wetToxicity]),
+      cured: tr(locale, HAZARD_KEYS[result.curedToxicity]),
+      skin: tr(locale, HAZARD_KEYS[result.skin]),
+    }),
   );
   return lines.join("\n");
 }
@@ -349,57 +442,79 @@ export function mixCard(
   quest: MixQuest,
   experiment: Experiment,
   result: RunResult,
+  locale: Locale = DEFAULT_LOCALE,
 ): LearnCard {
-  const lesson = QUEST_LESSONS[quest.id] ?? templateLesson(quest);
+  const localizedQuest = localizeQuest(quest, locale);
+  const lesson = localizedQuestLesson(quest.id, locale) ?? templateLesson(quest, locale);
   const sections = [
-    { heading: "What it is", body: lesson.whatItIs },
-    { heading: "What happened in your run", body: mixRunDetails(experiment, result) },
-    { heading: "What it does", body: lesson.whatItDoes },
-    { heading: "Why it matters", body: lesson.whyItMatters },
+    { heading: tr(locale, "play.learn.heading.whatItIs"), body: lesson.whatItIs },
+    { heading: tr(locale, "play.learn.heading.run"), body: mixRunDetails(experiment, result, locale) },
+    { heading: tr(locale, "play.learn.heading.whatItDoes"), body: lesson.whatItDoes },
+    { heading: tr(locale, "play.learn.heading.whyItMatters"), body: lesson.whyItMatters },
   ];
   return createCard(
-    quest.title,
+    localizedQuest.title,
     sections,
     lesson.usedFor,
     lesson.askPrompt,
+    locale,
   );
 }
 
-function nucleusCaveat(quest: AtomQuest): string {
+function nucleusCaveat(quest: AtomQuest, locale: Locale): string {
   return quest.id === "atom-new-element"
-    ? "Any calculated values are rough liquid-drop estimates, and a model nucleus is a prediction, not a real element."
-    : "Any calculated values are rough liquid-drop estimates, not measurements.";
+    ? tr(locale, "play.learn.nucleus.caveat.prediction")
+    : tr(locale, "play.learn.nucleus.caveat.measurement");
 }
 
 function nucleusRunDetails(
   quest: AtomQuest,
   z: number,
   n: number,
+  locale: Locale,
 ): string {
   if (!Number.isInteger(z) || !Number.isFinite(z) || z <= 0 ||
       !Number.isInteger(n) || !Number.isFinite(n) || n < 0) {
-    return `The nucleus model needs a whole-number proton count above zero and a nonnegative whole-number neutron count. ${nucleusCaveat(quest)}`;
+    return tr(locale, "play.learn.nucleus.invalid", { caveat: nucleusCaveat(quest, locale) });
   }
   try {
-    const report = analyzeNucleus(z, n);
+    const report = analyzeNucleus(z, n, locale);
     const lines = [
-      `${report.name} (${report.symbol}), Z=${z}, N=${n}, A=${report.a}: ${report.verdict}`,
-      `Estimated half-life: ${report.halfLife}.`,
-      `Binding energy per nucleon: ${report.perNucleonMeV.toFixed(2)} MeV.`,
-      `Modelled decay modes: ${report.modes.join("; ") || "none listed"}.`,
+      tr(locale, "play.learn.nucleus.result", {
+        name: report.name, symbol: report.symbol, z, n, a: report.a, verdict: report.verdict,
+      }),
+      tr(locale, "play.learn.nucleus.halfLife", { value: report.halfLife }),
+      tr(locale, "play.learn.nucleus.bindingEnergy", {
+        value: formatNumber(report.perNucleonMeV, locale, 2),
+      }),
+      tr(locale, "play.learn.nucleus.decayModes", {
+        modes: report.modes.join("; ") || tr(locale, "play.learn.mix.none"),
+      }),
     ];
     if (quest.id === "atom-split") {
       const hit = neutronHit(z, n);
-      lines.push(`Neutron hit (${hit.kind}): ${hit.caption}`);
-      lines.push(`Estimated energy from this event: ${hit.energyMeV.toFixed(2)} MeV.`);
+      lines.push(tr(locale, "play.learn.nucleus.neutronHit", {
+        kind: stepLabel(hit.kind, locale),
+        from: hit.from.name,
+        to: hit.to.map(({ name }) => name).join(" + "),
+      }));
+      lines.push(tr(locale, "play.learn.nucleus.energy", {
+        value: formatNumber(hit.energyMeV, locale, 2),
+      }));
     } else {
       const firstStep = decayChain(z, n, 1)[0];
-      if (firstStep) lines.push(`First decay step: ${firstStep.caption}`);
+      if (firstStep) {
+        lines.push(tr(locale, "play.learn.nucleus.firstStep", {
+          kind: stepLabel(firstStep.kind, locale),
+          from: firstStep.from.name,
+          to: firstStep.to.map(({ name }) => name).join(" + "),
+        }));
+      }
     }
-    lines.push(nucleusCaveat(quest));
+    lines.push(nucleusCaveat(quest, locale));
     return lines.join("\n");
   } catch {
-    return `The nucleus model could not calculate this input; check the proton and neutron counts. ${nucleusCaveat(quest)}`;
+    return tr(locale, "play.learn.nucleus.failed", { caveat: nucleusCaveat(quest, locale) });
   }
 }
 
@@ -407,29 +522,35 @@ export function atomCard(
   quest: AtomQuest,
   z: number,
   n: number,
+  locale: Locale = DEFAULT_LOCALE,
 ): LearnCard {
-  const lesson = QUEST_LESSONS[quest.id] ?? templateLesson(quest);
+  const localizedQuest = localizeQuest(quest, locale);
+  const lesson = localizedQuestLesson(quest.id, locale) ?? templateLesson(quest, locale);
   const sections = [
-    { heading: "What it is", body: lesson.whatItIs },
-    { heading: "What happened in your run", body: nucleusRunDetails(quest, z, n) },
-    { heading: "What it does", body: lesson.whatItDoes },
-    { heading: "Why it matters", body: lesson.whyItMatters },
+    { heading: tr(locale, "play.learn.heading.whatItIs"), body: lesson.whatItIs },
+    { heading: tr(locale, "play.learn.heading.run"), body: nucleusRunDetails(quest, z, n, locale) },
+    { heading: tr(locale, "play.learn.heading.whatItDoes"), body: lesson.whatItDoes },
+    { heading: tr(locale, "play.learn.heading.whyItMatters"), body: lesson.whyItMatters },
   ];
   return createCard(
-    quest.title,
+    `${localizedQuest.title} — ${localizeElementName(quest.reference.z, locale)}`,
     sections,
     lesson.usedFor,
     lesson.askPrompt,
+    locale,
   );
 }
 
-function templateLesson(quest: MixQuest | AtomQuest): Lesson {
-  const goals = quest.template ? describeTargets(quest.template) : [quest.goal];
+function templateLesson(quest: MixQuest | AtomQuest, locale: Locale): Lesson {
+  const goals = quest.template ? describeTargets(quest.template, locale) : [quest.goal];
   return {
-    whatItIs: "This generated quest is a checklist evaluated by the same model used in the lab.",
-    whatItDoes: `The quest checks these goals: ${goals.join("; ")}.`,
-    whyItMatters: "Changing one ingredient or condition at a time helps show which modeled goal changed.",
-    usedFor: ["exploring model-based material and nucleus targets", "comparing different experimental choices"],
-    askPrompt: "Which change in your run helped meet a goal, and what evidence supports your answer?",
+    whatItIs: tr(locale, "play.learn.generated.whatItIs"),
+    whatItDoes: tr(locale, "play.learn.generated.whatItDoes", { goals: goals.join("; ") }),
+    whyItMatters: tr(locale, "play.learn.generated.whyItMatters"),
+    usedFor: [
+      tr(locale, "play.learn.generated.usedFor.materials"),
+      tr(locale, "play.learn.generated.usedFor.choices"),
+    ],
+    askPrompt: tr(locale, "play.learn.generated.askPrompt"),
   };
 }

@@ -1,3 +1,6 @@
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
+import { ATOM_NAMES_ES } from "../i18n/data/es/atoms";
+
 export type AtomSymbol = "H" | "C" | "N" | "O" | "F" | "Cl" | "S" | "P";
 
 export interface AtomInfo {
@@ -84,3 +87,7 @@ export const ATOMS: Record<AtomSymbol, AtomInfo> = {
     electronegativity: 2.19,
   },
 };
+
+export function localizeAtom(atom: AtomInfo, locale: Locale = DEFAULT_LOCALE): AtomInfo {
+  return locale === "es" ? { ...atom, name: ATOM_NAMES_ES[atom.symbol] } : atom;
+}

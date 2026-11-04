@@ -13,9 +13,16 @@ import type {
   StretchReport,
   StretchSetup,
 } from "@/lib/bench/materialTests";
+import {
+  DISSOLVE_LIQUID_LABEL_KEYS,
+  DROP_FLOOR_LABEL_KEYS,
+  STICK_SURFACE_LABEL_KEYS,
+} from "@/lib/bench/materialTests";
+import { BENCH_VIEWER_TEST_LABEL_KEYS } from "@/lib/bench/displayLabels";
 import { wrapCaption } from "@/lib/bench/svgText";
 import { usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
+import { useT } from "./LocaleProvider";
 
 export type TestViewerData =
   | { type: "stretch"; setup: StretchSetup; report: StretchReport }
@@ -71,6 +78,7 @@ function StretchScene({
   progress: number;
   data: Extract<TestViewerData, { type: "stretch" }>;
 }) {
+  const { t } = useT();
   const flow = data.report.flows;
   const snap = !flow && progress >= 0.78;
   const distance = 50 * (1 + 3 * Math.min(1, progress * 1.35));
@@ -89,7 +97,7 @@ function StretchScene({
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
-      <Caption x={16} y={20} fill="#a9c0c4" text="STRETCH RIG" />
+      <Caption x={16} y={20} fill="#a9c0c4" text={t("bench.viewer.stretchRig")} />
       <rect x={left - 12} y="48" width="12" height="48" rx="3" fill="#71878a" />
       <rect x={right} y="48" width="12" height="48" rx="3" fill="#71878a" />
       <path
@@ -110,7 +118,7 @@ function StretchScene({
         x={16}
         y={116}
         fill="#d7e3e4"
-        text={flow ? "Slow pull: thinning flow" : snap ? "Strand snapped" : "Pulling"}
+        text={flow ? t("bench.viewer.slowPull") : snap ? t("bench.viewer.strandSnapped") : t("bench.viewer.pulling")}
       />
       <path d="M 22 168 H 298 M 22 130 V 168" stroke="#53676c" strokeWidth="1" />
       <path
@@ -121,7 +129,7 @@ function StretchScene({
         strokeDasharray="360"
         strokeDashoffset={360 * (1 - progress)}
       />
-      <Caption x={25} y={126} fill="#93a8ad" fontSize={9} text="Stress–strain" />
+      <Caption x={25} y={126} fill="#93a8ad" fontSize={9} text={t("bench.viewer.stressStrain")} />
     </>
   );
 }
@@ -133,6 +141,7 @@ function HeatScene({
   progress: number;
   data: Extract<TestViewerData, { type: "heat" }>;
 }) {
+  const { t } = useT();
   const temperature = Math.round(data.setup.maxTempC * progress);
   const current = data.report.events
     .filter((event) => event.tempC <= temperature)
@@ -154,7 +163,7 @@ function HeatScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={`HEAT TEST · ${temperature} °C`}
+        text={t("bench.viewer.heatTest", { temperature })}
       />
       <rect x="62" y="126" width="174" height="12" rx="3" fill="#43575b" />
       <rect x="78" y="138" width="142" height="8" rx="3" fill="#26373b" />
@@ -193,7 +202,7 @@ function HeatScene({
         x={16}
         y={151}
         fill="#c5d4d5"
-        text={current?.text ?? "Warming the sample"}
+        text={current?.text ?? t("bench.viewer.warmingSample")}
         lineHeight={12}
       />
     </>
@@ -207,6 +216,7 @@ function DissolveScene({
   progress: number;
   data: Extract<TestViewerData, { type: "dissolve" }>;
 }) {
+  const { t } = useT();
   const { report, setup } = data;
   const colors = {
     water: "#4c9bb2",
@@ -223,7 +233,7 @@ function DissolveScene({
       : 34;
   const elapsed = (report.timeSeconds ?? 0) * progress;
   const elapsedText =
-    elapsed > 7 * 24 * 60 * 60 ? "more than a week" : fmtTime(elapsed);
+    elapsed > 7 * 24 * 60 * 60 ? t("bench.viewer.moreThanWeek") : fmtTime(elapsed);
   return (
     <>
       <rect x="0" y="0" width="320" height="180" rx="12" fill="#0a1519" />
@@ -231,7 +241,7 @@ function DissolveScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={`DISSOLVE · ${setup.liquid.replace("-", " ")}`}
+        text={t("bench.viewer.dissolveTest", { liquid: t(DISSOLVE_LIQUID_LABEL_KEYS[setup.liquid]) })}
       />
       <path d="M 92 44 H 228 M 106 44 V 146 Q 106 160 120 160 H 200 Q 214 160 214 146 V 44" fill="none" stroke="#91afb4" strokeWidth="4" strokeLinejoin="round" />
       <path d="M 110 90 H 210 V 146 Q 210 156 198 156 H 122 Q 110 156 110 146 Z" fill={colors[setup.liquid]} opacity="0.46" />
@@ -256,13 +266,13 @@ function DissolveScene({
         x={16}
         y={36}
         fill="#d7e3e4"
-        text={`${setup.tempC} °C · ${setup.stirred ? "stirred" : "still"}`}
+        text={`${setup.tempC} °C · ${setup.stirred ? t("bench.viewer.stirred") : t("bench.viewer.still")}`}
       />
       <Caption
         x={16}
         y={174}
         fill="#c5d4d5"
-        text={report.timeSeconds === null ? "No change" : `Elapsed: ${elapsedText}`}
+        text={report.timeSeconds === null ? t("bench.viewer.noChange") : t("bench.viewer.sampleElapsed", { value: elapsedText })}
       />
       <Caption
         x={240}
@@ -270,7 +280,7 @@ function DissolveScene({
         fill="#b7cacc"
         fontSize={9}
         maxChars={12}
-        text={dissolves ? "dissolving" : swells ? "swelling" : "unchanged"}
+        text={dissolves ? t("bench.viewer.dissolving") : swells ? t("bench.viewer.swelling") : t("bench.viewer.unchanged")}
       />
     </>
   );
@@ -283,6 +293,7 @@ function StickScene({
   progress: number;
   data: Extract<TestViewerData, { type: "stick" }>;
 }) {
+  const { t } = useT();
   const detaches = data.report.verdict === "weak" || data.report.verdict === "no-stick";
   const dropProgress = Math.min(1, progress / 0.3);
   const easedDrop = 1 - (1 - dropProgress) ** 3;
@@ -303,13 +314,13 @@ function StickScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={`STICK TEST · ${data.setup.surface.toUpperCase()}`}
+        text={t("bench.viewer.stickTest", { surface: t(STICK_SURFACE_LABEL_KEYS[data.setup.surface]) })}
       />
       <Caption
         x={16}
         y={34}
         fill="#c5d4d5"
-        text={detaches ? "Bond releases" : split ? "Tears inside the sample" : "Pulling on the bond"}
+        text={detaches ? t("bench.viewer.bondReleases") : split ? t("bench.viewer.tearsSample") : t("bench.viewer.pullingBond")}
       />
       <rect x="42" y="75" width="236" height="15" rx="4" fill={surface} />
       <rect x="105" y="63" width="110" height="13" rx="4" fill="#5fd4c4" />
@@ -338,6 +349,7 @@ function DropScene({
   progress: number;
   data: Extract<TestViewerData, { type: "drop" }>;
 }) {
+  const { t } = useT();
   const floorY = 140;
   const impactAt = 0.62;
   const falling = Math.min(1, progress / impactAt);
@@ -356,7 +368,7 @@ function DropScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={`DROP · ${data.setup.heightM} m · ${data.setup.floor.toUpperCase()} FLOOR`}
+        text={t("bench.viewer.dropTest", { height: data.setup.heightM, floor: t(DROP_FLOOR_LABEL_KEYS[data.setup.floor]) })}
       />
       <rect x="40" y={floorY} width="240" height="9" rx="3" fill={data.setup.floor === "hard" ? "#71878a" : "#496b58"} />
       {broken && progress > impactAt ? (
@@ -383,7 +395,7 @@ function DropScene({
         x={16}
         y={153}
         fill="#c5d4d5"
-        text={progress <= impactAt ? "Falling" : data.report.headline}
+        text={progress <= impactAt ? t("bench.viewer.falling") : data.report.headline}
         lineHeight={12}
       />
     </>
@@ -391,6 +403,7 @@ function DropScene({
 }
 
 export default function TestViewer({ data }: { data: TestViewerData }) {
+  const { t } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(2.5, true, reducedMotion);
 
@@ -405,9 +418,9 @@ export default function TestViewer({ data }: { data: TestViewerData }) {
         className="bench-test-visual"
         viewBox="0 0 320 180"
         role="img"
-        aria-label={`${data.type} test animation`}
+        aria-label={t("viewer.testAnimation", { type: t(BENCH_VIEWER_TEST_LABEL_KEYS[data.type]) })}
       >
-        <title>{data.type} test model visual</title>
+        <title>{t("bench.viewer.testModelVisual", { type: t(BENCH_VIEWER_TEST_LABEL_KEYS[data.type]) })}</title>
         {data.type === "stretch" && <StretchScene progress={playback.t} data={data} />}
         {data.type === "heat" && <HeatScene progress={playback.t} data={data} />}
         {data.type === "dissolve" && <DissolveScene progress={playback.t} data={data} />}
@@ -416,9 +429,9 @@ export default function TestViewer({ data }: { data: TestViewerData }) {
       </svg>
       <div className="bench-test-viewer-controls">
         <button type="button" className="button button-secondary" onClick={replay}>
-          Replay
+          {t("bench.viewer.replay")}
         </button>
-        <span aria-live="polite">{reducedMotion ? "End state shown" : playback.playing ? "Playing" : "Animation complete"}</span>
+        <span aria-live="polite">{reducedMotion ? t("viewer.endState") : playback.playing ? t("viewer.playing") : t("viewer.animationComplete")}</span>
       </div>
     </div>
   );

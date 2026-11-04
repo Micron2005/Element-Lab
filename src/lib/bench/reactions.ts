@@ -1,5 +1,8 @@
 import { benchById } from "./library";
 import { CUSTOM_PREFIX } from "./custom";
+import type { Locale } from "../i18n";
+import { tr, trText } from "../i18n";
+import { REACTION_TEXT_ES } from "../i18n/data/es/benchReactions";
 import type {
   BenchIngredient,
   EventStatus,
@@ -15,6 +18,14 @@ export interface ReactionContext {
   waterPct: number;
   amount: (id: string) => number;
   ingredient: (id: string) => BenchIngredient | undefined;
+}
+
+function reasonNumber(value: number): string {
+  return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+
+function reasonPH(value: number): string {
+  return value.toFixed(1);
 }
 
 export interface ReactionEffects {
@@ -82,21 +93,23 @@ export function enzymeActivity(
   ctx: ReactionContext,
 ): { activity: number; reasons: string[] } {
   const enzyme = ingredient.enzyme;
-  if (!enzyme) return { activity: 0, reasons: ["enzyme parameters are not defined"] };
+  if (!enzyme) {
+    return { activity: 0, reasons: [tr("en", "bench.reaction.reason.enzymeParameters")] };
+  }
   const reasons: string[] = [];
   const temp = ctx.experiment.conditions.tempC;
   let temperatureFactor = 0;
   if (temp < enzyme.minT) {
-    reasons.push(`below minimum temperature (${enzyme.minT} °C)`);
+    reasons.push(tr("en", "bench.reaction.reason.minimumTemperature", { min: enzyme.minT }));
   } else if (temp >= enzyme.denatureT) {
-    reasons.push(`denatured at ${temp} °C`);
+    reasons.push(tr("en", "bench.reaction.reason.denatured", { temperature: temp }));
   } else if (temp <= enzyme.optT) {
     temperatureFactor =
       enzyme.optT === enzyme.minT
         ? 1
         : (temp - enzyme.minT) / (enzyme.optT - enzyme.minT);
     if (temperatureFactor < 1) {
-      reasons.push(`temperature ${temp} °C is below the enzyme optimum of ${enzyme.optT} °C`);
+      reasons.push(tr("en", "bench.reaction.reason.belowOptimum", { temperature: temp, optimum: enzyme.optT }));
     }
   } else {
     temperatureFactor =
@@ -104,27 +117,31 @@ export function enzymeActivity(
         ? 0
         : (enzyme.denatureT - temp) / (enzyme.denatureT - enzyme.optT);
     if (temperatureFactor > 0) {
-      reasons.push(`temperature ${temp} °C is above the enzyme optimum of ${enzyme.optT} °C`);
+      reasons.push(tr("en", "bench.reaction.reason.aboveOptimum", { temperature: temp, optimum: enzyme.optT }));
     }
   }
 
   const phFactor = pHActivity(ctx.effectivePH, enzyme.pHRange, enzyme.optPH);
   if (phFactor === 0) {
-    reasons.push(`pH outside enzyme range ${enzyme.pHRange[0]}–${enzyme.pHRange[1]}`);
+    reasons.push(tr("en", "bench.reaction.reason.phRange", {
+      min: reasonNumber(enzyme.pHRange[0]),
+      max: reasonNumber(enzyme.pHRange[1]),
+    }));
   } else if (phFactor < 1) {
-    reasons.push(
-      `effective pH ${ctx.effectivePH.toFixed(1)} is away from the enzyme optimum of ${enzyme.optPH}`,
-    );
+    reasons.push(tr("en", "bench.reaction.reason.phOptimum", {
+      ph: reasonPH(ctx.effectivePH),
+      optimum: reasonNumber(enzyme.optPH),
+    }));
   }
   let oxygenFactor = 1;
   if (enzyme.needsO2 && ctx.experiment.conditions.atmosphere !== "air") {
     oxygenFactor = 0;
-    reasons.push("needs oxygen; atmosphere is not air");
+    reasons.push(tr("en", "bench.reaction.reason.needsOxygen"));
   }
   let waterFactor = 1;
   if (ctx.waterPct < 30) {
     waterFactor = 0.2;
-    reasons.push("too dry for the enzyme");
+    reasons.push(tr("en", "bench.reaction.reason.tooDry"));
   }
 
   return {
@@ -171,7 +188,7 @@ function enzymeFit(
   const best = candidates[0];
   return best
     ? { activity: best.activity, reasons: best.reasons, selected: best.id }
-    : { activity: 0, reasons: ["required enzyme is missing"] };
+    : { activity: 0, reasons: [tr("en", "bench.reaction.reason.requiredEnzyme")] };
 }
 
 function crosslinkProteinFactor(ctx: ReactionContext): number {
@@ -225,17 +242,17 @@ export const REACTIONS: Reaction[] = [
       let activity = calciumAvailable ? ph : 0;
       const reasons: string[] = [];
       if (calciumCarbonateOnly && ctx.effectivePH >= 6) {
-        reasons.push("calcium carbonate supplies modeled calcium only below pH 6");
+        reasons.push(tr("en", "bench.reaction.reason.calciumCarbonate"));
       }
-      if (ph === 0) reasons.push("pH outside the alginate crosslink window");
+      if (ph === 0) reasons.push(tr("en", "bench.reaction.reason.alginateWindow"));
       else if (ph < 1) {
-        reasons.push(
-          `effective pH ${ctx.effectivePH.toFixed(1)} is near the edge of the pH 4–10 alginate crosslink window`,
-        );
+        reasons.push(tr("en", "bench.reaction.reason.alginatePhEdge", {
+          ph: reasonPH(ctx.effectivePH),
+        }));
       }
       if (ctx.present.has("sodium-citrate")) {
         activity *= 0.2;
-        reasons.push("citrate pulls the calcium back out");
+        reasons.push(tr("en", "bench.reaction.reason.citrate"));
       }
       return { activity, reasons };
     },
@@ -252,9 +269,11 @@ export const REACTIONS: Reaction[] = [
     fit: (ctx) => {
       const ph = windowActivity(ctx.effectivePH, 4, 10, 1);
       const reasons = ph === 0
-        ? ["pH outside the alginate crosslink window"]
+        ? [tr("en", "bench.reaction.reason.alginateWindow")]
         : ph < 1
-          ? [`effective pH ${ctx.effectivePH.toFixed(1)} is near the edge of the pH 4–10 alginate crosslink window`]
+          ? [tr("en", "bench.reaction.reason.alginatePhEdge", {
+              ph: reasonPH(ctx.effectivePH),
+            })]
           : [];
       return { activity: ph, reasons };
     },
@@ -283,10 +302,12 @@ export const REACTIONS: Reaction[] = [
       return {
         activity: phFactor,
         reasons: phFactor === 0
-          ? ["effective pH must reach 8; activity falls to zero at pH 7"]
+          ? [tr("en", "bench.reaction.reason.boraxThreshold")]
           : phFactor < 1
             ? [
-                `pH ${ctx.effectivePH.toFixed(1)} is below 8, so only part of the borate is in its active borate-ion form, which means fewer crosslinks. Raise the pH to ≥8 for full strength.`,
+                tr("en", "bench.reaction.reason.boraxPhLow", {
+                  ph: reasonPH(ctx.effectivePH),
+                }),
               ]
             : [],
       };
@@ -317,8 +338,8 @@ export const REACTIONS: Reaction[] = [
       const target = crosslinkProteinFactor(ctx);
       const activity = enzyme.activity * target;
       const reasons = [...enzyme.reasons];
-      if (target === 0) reasons.push("no compatible lysine-glutamine protein is present");
-      if (target < 1 && target > 0) reasons.push("protein-specific crosslink activity is reduced");
+      if (target === 0) reasons.push(tr("en", "bench.reaction.reason.transglutaminaseTarget"));
+      if (target < 1 && target > 0) reasons.push(tr("en", "bench.reaction.reason.reducedProteinCrosslink"));
       return { activity, reasons };
     },
     network: 0.6,
@@ -336,8 +357,8 @@ export const REACTIONS: Reaction[] = [
       const target = oxidaseTargetFactor(ctx);
       const activity = enzyme.activity * target;
       const reasons = [...enzyme.reasons];
-      if (target === 0) reasons.push("no compatible phenol, catechol, or tyrosine group is present");
-      if (target < 1 && target > 0) reasons.push("gelatin crosslink contribution is reduced");
+      if (target === 0) reasons.push(tr("en", "bench.reaction.reason.oxidaseTarget"));
+      if (target < 1 && target > 0) reasons.push(tr("en", "bench.reaction.reason.reducedGelatinCrosslink"));
       return { activity, reasons };
     },
     network: 0.5,
@@ -359,14 +380,14 @@ export const REACTIONS: Reaction[] = [
       let peroxideFactor = 1;
       if (peroxide < 0.05) {
         peroxideFactor = 0;
-        reasons.push("hydrogen peroxide must be at least 0.05% of the mix");
+        reasons.push(tr("en", "bench.reaction.reason.peroxideMinimum"));
       } else if (peroxide > 1) {
         peroxideFactor = 0.3;
-        reasons.push("too much peroxide inactivates the enzyme");
+        reasons.push(tr("en", "bench.reaction.reason.peroxideExcess"));
       }
       const target = oxidaseTargetFactor(ctx);
-      if (target === 0) reasons.push("no compatible phenol or tyrosine group is present");
-      if (target > 0 && target < 1) reasons.push("gelatin is a weaker oxidase target, so crosslink activity is reduced");
+      if (target === 0) reasons.push(tr("en", "bench.reaction.reason.phenolTarget"));
+      if (target > 0 && target < 1) reasons.push(tr("en", "bench.reaction.reason.weakGelatinTarget"));
       return { activity: enzyme.activity * peroxideFactor * target, reasons };
     },
     network: 0.55,
@@ -383,11 +404,11 @@ export const REACTIONS: Reaction[] = [
       let activity = 1;
       if (ctx.effectivePH < 7.5) {
         activity = 0;
-        reasons.push("effective pH must be at least 7.5");
+        reasons.push(tr("en", "bench.reaction.reason.catecholPHMinimum"));
       }
       if (ctx.experiment.conditions.atmosphere !== "air") {
         activity = 0;
-        reasons.push("catechol oxidation needs oxygen; atmosphere is not air");
+        reasons.push(tr("en", "bench.reaction.reason.catecholOxygen"));
       }
       return { activity, reasons };
     },
@@ -405,16 +426,18 @@ export const REACTIONS: Reaction[] = [
       if (ctx.effectivePH < 7.5) {
         return {
           activity: 0.4,
-          reasons: ["lower pH favors weaker mono/bis coordination (activity ×0.4)"],
+          reasons: [tr("en", "bench.reaction.reason.weakIronCoordination")],
         };
       }
       const factor = windowActivity(ctx.effectivePH, 7.5, 9, 1);
       return {
         activity: factor,
         reasons: factor === 0
-          ? ["outside the pH 7.5–9 coordination window"]
+          ? [tr("en", "bench.reaction.reason.coordinationWindow")]
           : factor < 1
-            ? [`effective pH ${ctx.effectivePH.toFixed(1)} is near the edge of the pH 7.5–9 coordination window`]
+            ? [tr("en", "bench.reaction.reason.catecholPhEdge", {
+                ph: reasonPH(ctx.effectivePH),
+              })]
             : [],
       };
     },
@@ -433,9 +456,9 @@ export const REACTIONS: Reaction[] = [
       return {
         activity: factor,
         reasons: factor === 0
-          ? ["genipin crosslinking is modeled at 20–45 °C"]
+          ? [tr("en", "bench.reaction.reason.genipinRange")]
           : factor < 1
-            ? [`temperature ${temp} °C is near the edge of genipin's 20–45 °C crosslinking range`]
+            ? [tr("en", "bench.reaction.reason.genipinTempEdge", { temperature: temp })]
             : [],
       };
     },
@@ -463,7 +486,7 @@ export const REACTIONS: Reaction[] = [
       if (ctx.effectivePH > 6.5) {
         return {
           activity: 0,
-          reasons: ["chitosan does not dissolve above pH 6.5; add acetic acid to dissolve it"],
+          reasons: [tr("en", "bench.reaction.reason.chitosanPH")],
         };
       }
       if (ctx.present.has("alginate")) return { activity: 1, reasons: [] };
@@ -471,9 +494,9 @@ export const REACTIONS: Reaction[] = [
         ctx.present.has("sodium-citrate") &&
         ctx.experiment.conditions.forming === "extrude-bath"
       ) {
-        return { activity: 1, reasons: ["sodium citrate bath forms the modeled chitosan fiber network"] };
+        return { activity: 1, reasons: [tr("en", "bench.reaction.reason.citrateBath")] };
       }
-      return { activity: 0, reasons: ["chitosan is dissolved; no alginate or ionic bath partner is present"] };
+      return { activity: 0, reasons: [tr("en", "bench.reaction.reason.chitosanPartner")] };
     },
     network: 0.4,
     setSeconds: 60,
@@ -493,15 +516,15 @@ export const REACTIONS: Reaction[] = [
           ctx.experiment.conditions.tempC <= 45) ||
         ctx.present.has("glutaraldehyde");
       const temp = ctx.experiment.conditions.tempC;
-      if (temp < 25) return { activity: 1, reasons: ["cooling below 25 °C forms the gel"] };
+      if (temp < 25) return { activity: 1, reasons: [tr("en", "bench.reaction.reason.coolingGel")] };
       if (temp > 35 && !covalentlyCrosslinked) {
         return {
           activity: 0,
-          reasons: ["above 35 °C gelatin is liquid unless covalently crosslinked"],
+          reasons: [tr("en", "bench.reaction.reason.hotGelatin")],
         };
       }
-      if (temp > 35) return { activity: 1, reasons: ["covalent crosslinks keep the gel set"] };
-      return { activity: (35 - temp) / 10, reasons: ["gel strength increases as it cools below 35 °C"] };
+      if (temp > 35) return { activity: 1, reasons: [tr("en", "bench.reaction.reason.gelCrosslinks")] };
+      return { activity: (35 - temp) / 10, reasons: [tr("en", "bench.reaction.reason.gelCooling")] };
     },
     network: 0,
     setSeconds: 0,
@@ -523,8 +546,8 @@ export const REACTIONS: Reaction[] = [
         ctx.effectivePH < 5 ||
         ctx.present.has("kcl");
       return triggered
-        ? { activity: 1, reasons: ["shear, solvent exchange, low pH, or potassium chloride triggers β-sheets"] }
-        : { activity: 0, reasons: ["no β-sheet trigger; silk stays a weak solution or gel"] };
+        ? { activity: 1, reasons: [tr("en", "bench.reaction.reason.silkTrigger")] }
+        : { activity: 0, reasons: [tr("en", "bench.reaction.reason.silkNoTrigger")] };
     },
     network: 0.8,
     setSeconds: 0,
@@ -539,18 +562,18 @@ export const REACTIONS: Reaction[] = [
       if (ctx.waterPct > 0 || hasAny(ctx.present, ["acetic-acid", "formic-acid"])) {
         return {
           activity: 1,
-          reasons: ["water or aqueous ingredient starts curing inside the mix or cartridge"],
+          reasons: [tr("en", "bench.reaction.reason.cyanoWater")],
         };
       }
       if (
         ctx.experiment.conditions.atmosphere === "air" &&
         ctx.experiment.conditions.humidityPct >= 20
       ) {
-        return { activity: 1, reasons: ["humidity in air starts the cure on exposure"] };
+        return { activity: 1, reasons: [tr("en", "bench.reaction.reason.cyanoAir")] };
       }
       return {
         activity: 0,
-        reasons: ["dry nitrogen or vacuum prevents the humidity-triggered cure"],
+        reasons: [tr("en", "bench.reaction.reason.cyanoDry")],
       };
     },
     network: 0,
@@ -567,16 +590,16 @@ export const REACTIONS: Reaction[] = [
         ? Math.min(5, ctx.experiment.conditions.humidityPct)
         : ctx.experiment.conditions.humidityPct;
       if (ctx.experiment.conditions.atmosphere === "vacuum") {
-        return { activity: 0, reasons: ["vacuum disables moisture curing"] };
+        return { activity: 0, reasons: [tr("en", "bench.reaction.reason.vacuumMoisture")] };
       }
       if (ctx.experiment.conditions.atmosphere !== "air" || humidity < 30) {
-        return { activity: 0, reasons: ["moisture cure needs air and at least 30% humidity"] };
+        return { activity: 0, reasons: [tr("en", "bench.reaction.reason.moistureAir")] };
       }
       const activity = clamp01((humidity - 20) / 50);
       return {
         activity,
         reasons: activity < 1
-          ? [`humidity ${humidity}% gives partial moisture-cure activity; 70% is needed for full modeled activity`]
+          ? [tr("en", "bench.reaction.reason.humidityPartial", { humidity })]
           : [],
       };
     },
@@ -594,17 +617,17 @@ export const REACTIONS: Reaction[] = [
       if (ctx.present.has("sulfur")) {
         const threshold = ctx.present.has("zno") ? 120 : 140;
         if (conditions.tempC >= threshold && conditions.cureMinutes >= 10) {
-          return { activity: 1, reasons: ["heat and cure time enable sulfur vulcanization"] };
+          return { activity: 1, reasons: [tr("en", "bench.reaction.reason.latexSulfur")] };
         }
         return {
           activity: 0,
-          reasons: ["nothing happens until heated; sulfur needs the cure temperature and 10 minutes"],
+          reasons: [tr("en", "bench.reaction.reason.latexHeat")],
         };
       }
       if (ctx.effectivePH < 5 || ctx.present.has("cacl2") || ctx.present.has("caco3")) {
-        return { activity: 1, reasons: ["acid or calcium ions coagulate the latex"] };
+        return { activity: 1, reasons: [tr("en", "bench.reaction.reason.latexCoagulation")] };
       }
-      return { activity: 0, reasons: ["no acid, calcium ion, or heated sulfur cure is present"] };
+      return { activity: 0, reasons: [tr("en", "bench.reaction.reason.latexNoCure")] };
     },
     network: 0.3,
     networkFor: (ctx) => {
@@ -630,9 +653,9 @@ export const REACTIONS: Reaction[] = [
       const enzyme = enzymeFit(ctx, ["trypsin", "papain", "proteinase-k"]);
       const target = proteinaseTargetFactor(ctx);
       const reasons = [...enzyme.reasons];
-      if (target === 0) reasons.push("no protein or other enzyme is present");
+      if (target === 0) reasons.push(tr("en", "bench.reaction.reason.noProtein"));
       if (enzyme.activity > 0 && target > 0) {
-        reasons.push("protease digests the proteins (and the other enzymes)");
+        reasons.push(tr("en", "bench.reaction.reason.proteaseDigestion"));
       }
       return { activity: enzyme.activity * target, reasons };
     },
@@ -647,7 +670,7 @@ export const REACTIONS: Reaction[] = [
     needs: (_exp, present) =>
       present.has("sodium-metal") &&
       hasAny(present, ["water", "acetic-acid", "formic-acid", "citric-acid"]),
-    fit: () => ({ activity: 1, reasons: ["violent reaction; hydrogen fire risk"] }),
+    fit: () => ({ activity: 1, reasons: [tr("en", "bench.reaction.reason.sodiumDanger")] }),
     network: 0,
     setSeconds: 0,
     effects: { wetToxicity: 3, skin: 3, product: "dangerous" },
@@ -658,7 +681,7 @@ export const REACTIONS: Reaction[] = [
     name: "Acid and bicarbonate bubbling",
     needs: (_exp, present) =>
       present.has("sodium-bicarbonate") && hasAny(present, acidIds),
-    fit: () => ({ activity: 1, reasons: ["carbon dioxide bubbles can leave defects"] }),
+    fit: () => ({ activity: 1, reasons: [tr("en", "bench.reaction.reason.carbonDioxideDefects")] }),
     network: 0,
     setSeconds: 0,
     effects: { tensileMultiplier: 0.8 },
@@ -675,7 +698,7 @@ export const REACTIONS: Reaction[] = [
       (present.has("iron-powder") && hasAny(present, acidIds)),
     fit: (ctx) =>
       ctx.present.has("iron-powder") && hasAny(ctx.present, acidIds)
-        ? { activity: 1, reasons: ["iron can release hydrogen gas in acid"] }
+        ? { activity: 1, reasons: [tr("en", "bench.reaction.reason.ironHydrogen")] }
         : { activity: 1, reasons: [] },
     network: 0,
     setSeconds: 0,
@@ -684,6 +707,90 @@ export const REACTIONS: Reaction[] = [
       "Dispersed fillers reinforce a matrix until agglomeration dominates; iron powder can release hydrogen gas in acid.",
   }),
 ];
+
+export function localizeReaction(reaction: Reaction, locale: Locale): Reaction {
+  if (locale !== "es") return reaction;
+  const overlay = REACTION_TEXT_ES[reaction.id];
+  if (!overlay) return reaction;
+  return {
+    ...reaction,
+    ...overlay,
+    effects: { ...reaction.effects, ...overlay.effects },
+  };
+}
+
+function localizeReactionReason(reason: string, locale: Locale): string {
+  const number = (value: string, decimal = false) =>
+    Number(value).toLocaleString(locale === "es" ? "es" : "en-US", {
+      minimumFractionDigits: decimal ? 1 : 0,
+      maximumFractionDigits: 1,
+    });
+  let match = reason.match(/^below minimum temperature \(([\d.]+) °C\)$/);
+  if (match) return tr(locale, "bench.reaction.reason.minimumTemperature", { min: number(match[1]) });
+  match = reason.match(/^denatured at ([\d.]+) °C$/);
+  if (match) return tr(locale, "bench.reaction.reason.denatured", { temperature: number(match[1]) });
+  match = reason.match(/^temperature ([\d.]+) °C is below the enzyme optimum of ([\d.]+) °C$/);
+  if (match) {
+    return tr(locale, "bench.reaction.reason.belowOptimum", {
+      temperature: number(match[1]),
+      optimum: number(match[2]),
+    });
+  }
+  match = reason.match(/^temperature ([\d.]+) °C is above the enzyme optimum of ([\d.]+) °C$/);
+  if (match) {
+    return tr(locale, "bench.reaction.reason.aboveOptimum", {
+      temperature: number(match[1]),
+      optimum: number(match[2]),
+    });
+  }
+  match = reason.match(/^pH outside enzyme range ([\d.]+)–([\d.]+)$/);
+  if (match) {
+    return tr(locale, "bench.reaction.reason.phRange", {
+      min: number(match[1]),
+      max: number(match[2]),
+    });
+  }
+  match = reason.match(/^effective pH ([\d.]+) is away from the enzyme optimum of ([\d.]+)$/);
+  if (match) {
+    return tr(locale, "bench.reaction.reason.phOptimum", {
+      ph: number(match[1], true),
+      optimum: number(match[2]),
+    });
+  }
+  match = reason.match(/^effective pH ([\d.]+) is near the edge of the pH 4–10 alginate crosslink window$/);
+  if (match) return tr(locale, "bench.reaction.reason.alginatePhEdge", { ph: number(match[1], true) });
+  match = reason.match(/^pH ([\d.]+) is below 8, so only part of the borate is in its active borate-ion form/);
+  if (match) return tr(locale, "bench.reaction.reason.boraxPhLow", { ph: number(match[1], true) });
+  match = reason.match(/^effective pH ([\d.]+) is near the edge of the pH 7\.5–9 coordination window$/);
+  if (match) return tr(locale, "bench.reaction.reason.catecholPhEdge", { ph: number(match[1], true) });
+  match = reason.match(/^temperature ([\d.]+) °C is near the edge of genipin's 20–45 °C crosslinking range$/);
+  if (match) return tr(locale, "bench.reaction.reason.genipinTempEdge", { temperature: number(match[1]) });
+  match = reason.match(/^humidity ([\d.]+)% gives partial moisture-cure activity/);
+  if (match) return tr(locale, "bench.reaction.reason.humidityPartial", { humidity: number(match[1]) });
+  return trText(locale, reason);
+}
+
+export function localizeReactionEvent<T extends {
+  id: string;
+  name: string;
+  mechanism: string;
+  reasons: string[];
+}>(event: T, locale: Locale): T {
+  if (locale !== "es") return event;
+  const source = REACTIONS.find((reaction) => reaction.id === event.id);
+  const overlay = REACTION_TEXT_ES[event.id];
+  const note = source?.effects.note;
+  return {
+    ...event,
+    name: event.name === source?.name ? overlay?.name ?? event.name : trText(locale, event.name),
+    mechanism: event.mechanism === source?.mechanism
+      ? overlay?.mechanism ?? event.mechanism
+      : trText(locale, event.mechanism),
+    reasons: event.reasons.map((reason) =>
+      reason === note ? overlay?.effects?.note ?? reason : localizeReactionReason(reason, locale),
+    ),
+  } as T;
+}
 
 export function statusForActivity(activity: number): EventStatus {
   if (activity <= 0) return "blocked";

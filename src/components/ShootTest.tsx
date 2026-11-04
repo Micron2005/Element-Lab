@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fmtTime } from "@/lib/formula";
-import { allBenchIngredients, benchById } from "@/lib/bench/library";
+import { allBenchIngredients, benchById, localizeBenchIngredient } from "@/lib/bench/library";
+import { localizeReactionEvent } from "@/lib/bench/reactions";
 import {
   DEFAULT_SHOT,
   fluidFromMix,
@@ -19,6 +20,8 @@ import {
   type TwoPartSetup,
 } from "@/lib/bench/twoPart";
 import type { Experiment, Part, RunResult } from "@/lib/bench/types";
+import { useT } from "./LocaleProvider";
+import { BENCH_TEST_STATUS_LABEL_KEYS } from "@/lib/bench/displayLabels";
 import type { TestSummary } from "@/lib/labReport";
 import JetViewer from "./JetViewer";
 import RangeNumberField from "./RangeNumberField";
@@ -31,11 +34,11 @@ const controls: {
   max: number;
   step: number;
 }[] = [
-  { key: "nozzleMm", label: "Nozzle diameter", unit: "mm", min: 0.05, max: 10, step: 0.05 },
-  { key: "speedMs", label: "Exit speed", unit: "m/s", min: 0.5, max: 200, step: 0.5 },
-  { key: "distanceM", label: "Target distance", unit: "m", min: 0.5, max: 100, step: 0.5 },
-  { key: "nozzleLengthMm", label: "Nozzle length", unit: "mm", min: 0.5, max: 100, step: 0.5 },
-  { key: "cartridgeMl", label: "Cartridge", unit: "mL", min: 1, max: 1000, step: 1 },
+  { key: "nozzleMm", label: "bench.test.nozzleDiameter", unit: "mm", min: 0.05, max: 10, step: 0.05 },
+  { key: "speedMs", label: "bench.test.exitSpeed", unit: "m/s", min: 0.5, max: 200, step: 0.5 },
+  { key: "distanceM", label: "bench.test.targetDistance", unit: "m", min: 0.5, max: 100, step: 0.5 },
+  { key: "nozzleLengthMm", label: "bench.test.nozzleLength", unit: "mm", min: 0.5, max: 100, step: 0.5 },
+  { key: "cartridgeMl", label: "bench.test.cartridge", unit: "mL", min: 1, max: 1000, step: 1 },
 ];
 
 function formatNumber(value: number, digits = 2) {
@@ -50,10 +53,10 @@ function formatViscosity(value: number) {
 }
 
 function viscosityLabel(value: number) {
-  if (value < 0.005) return "watery";
-  if (value < 0.5) return "like syrup";
-  if (value < 50) return "like honey";
-  return "like putty";
+  if (value < 0.005) return "bench.test.water";
+  if (value < 0.5) return "bench.test.likeSyrup";
+  if (value < 50) return "bench.test.likeHoney";
+  return "bench.test.likePutty";
 }
 
 function verdictTone(verdict: ReturnType<typeof shootTest>["verdict"]) {
@@ -89,6 +92,7 @@ export default function ShootTest({
   result: RunResult;
   onTestSummary?: (summary: TestSummary | null) => void;
 }) {
+  const { locale, t } = useT();
   const [setup, setSetup] = useState<ShotSetup>(DEFAULT_SHOT);
   const [mode, setMode] = useState<ShotMode>("single");
   const [ratio, setRatio] = useState<TwoPartSetup>(DEFAULT_RATIO);
@@ -99,12 +103,12 @@ export default function ShootTest({
   );
   const ingredients = allBenchIngredients();
   const singleReport = useMemo(
-    () => shootTest(experiment, result, setup),
-    [experiment, result, setup],
+    () => shootTest(experiment, result, setup, locale),
+    [experiment, result, setup, locale],
   );
   const twoPartReport = useMemo(
-    () => twoPartShoot(experiment, bParts, ratio, setup),
-    [experiment, bParts, ratio, setup],
+    () => twoPartShoot(experiment, bParts, ratio, setup, locale),
+    [experiment, bParts, ratio, setup, locale],
   );
   const combinedFluid = useMemo(
     () =>
@@ -145,50 +149,56 @@ export default function ShootTest({
     : null;
   const testSummary = useMemo<TestSummary>(() => {
     const shot = mode === "single" ? singleReport : twoPartReport.shot;
+    const ingredientSummary = (parts: Part[]) =>
+      parts.map((part) => {
+        const ingredient = ingredients.find((item) => item.id === part.id);
+        const name = ingredient ? localizeBenchIngredient(ingredient, locale).name : part.id;
+        return `${name} ${part.pct}%`;
+      }).join(", ") || t("bench.test.none");
     const setupRows: TestSummary["setup"] = [
-      ["Mode", mode === "single" ? "One cartridge" : "Two-part"],
+      [t("bench.test.mode"), mode === "single" ? t("bench.test.oneCartridge") : t("bench.test.twoPart")],
       ...controls.map(({ key, label, unit }) => [
-        label,
+        t(label),
         `${setup[key]} ${unit}`,
       ] as [string, string]),
     ];
     if (mode === "single") {
       setupRows.push([
-        "Cartridge A ingredients",
-        experiment.parts.map((part) => `${ingredients.find((item) => item.id === part.id)?.name ?? part.id} ${part.pct}%`).join(", ") || "None",
+        t("bench.test.cartridgeAIngredients"),
+        ingredientSummary(experiment.parts),
       ]);
     } else {
       setupRows.push(
         [
-          "Cartridge A ingredients",
-          experiment.parts.map((part) => `${ingredients.find((item) => item.id === part.id)?.name ?? part.id} ${part.pct}%`).join(", ") || "None",
+          t("bench.test.cartridgeAIngredients"),
+          ingredientSummary(experiment.parts),
         ],
         [
-          "Cartridge B ingredients",
-          bParts.map((part) => `${ingredients.find((item) => item.id === part.id)?.name ?? part.id} ${part.pct}%`).join(", ") || "None",
+          t("bench.test.cartridgeBIngredients"),
+          ingredientSummary(bParts),
         ],
-        ["Cartridge ratio A:B", `${ratio.ratioA}:${ratio.ratioB}`],
+        [t("bench.test.cartridgeRatio"), `${ratio.ratioA}:${ratio.ratioB}`],
       );
     }
     const metrics = [
       ...(shot?.jet
         ? [
-            { label: "Pressure", value: `${formatBar(shot.jet.pressureBar)} bar` },
-            { label: "Flight time", value: `${formatNumber(shot.jet.flightS, 3)} s` },
-            { label: "Fluid / test", value: `${formatNumber(shot.jet.volumeMl, 3)} mL` },
+            { label: t("bench.test.pressure"), value: `${formatBar(shot.jet.pressureBar)} bar` },
+            { label: t("bench.test.flightTime"), value: `${formatNumber(shot.jet.flightS, 3)} s` },
+            { label: t("bench.test.fluidTest"), value: `${formatNumber(shot.jet.volumeMl, 3)} mL` },
           ]
         : []),
-      { label: "Verdict", value: shot?.verdict ?? "No extrusion predicted" },
-      { label: "Holds", value: shot?.holdsKg === null || shot?.holdsKg === undefined ? "—" : `${formatNumber(shot.holdsKg, 2)} kg` },
+      { label: t("bench.test.verdict"), value: shot ? t(BENCH_TEST_STATUS_LABEL_KEYS[shot.verdict]) : t("bench.test.noExtrusionPredicted") },
+      { label: t("bench.test.holds"), value: shot?.holdsKg === null || shot?.holdsKg === undefined ? "—" : `${formatNumber(shot.holdsKg, 2)} kg` },
     ];
     return {
-      name: "Nozzle test",
+      name: t("bench.test.nozzle"),
       setup: setupRows,
       headline: mode === "single" ? singleReport.headline : twoPartReport.headline,
       metrics,
       notes: mode === "single" ? singleReport.notes : twoPartReport.shot?.notes ?? [],
     };
-  }, [mode, setup, experiment.parts, bParts, ratio, ingredients, singleReport, twoPartReport]);
+  }, [mode, setup, experiment.parts, bParts, ratio, ingredients, singleReport, twoPartReport, locale, t]);
 
   useEffect(() => {
     onTestSummary?.(testSummary);
@@ -203,7 +213,7 @@ export default function ShootTest({
         if (raw !== null) {
           const stored: unknown = JSON.parse(raw);
           if (!isRecord(stored) || !Array.isArray(stored.parts)) {
-            throw new Error("Malformed cartridge storage");
+            throw new Error(t("bench.test.malformedStorage"));
           }
           if (stored.mode === "single" || stored.mode === "two-part") {
             setMode(stored.mode);
@@ -223,7 +233,7 @@ export default function ShootTest({
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -258,20 +268,20 @@ export default function ShootTest({
     <article className="bench-shoot-card">
       <div className="bench-shoot-heading">
         <div>
-          <span className="bench-kicker">NOZZLE TEST</span>
-          <h4>Nozzle test</h4>
+        <span className="bench-kicker">{t("bench.test.nozzleKicker")}</span>
+        <h4>{t("bench.test.nozzle")}</h4>
         </div>
-        <span className="bench-shoot-label">Setup controls only</span>
+        <span className="bench-shoot-label">{t("bench.test.setupOnly")}</span>
       </div>
 
-      <div className="bench-shot-mode" role="group" aria-label="Extrusion mode">
+      <div className="bench-shot-mode" role="group" aria-label={t("bench.test.extrusionMode")}>
         <button
           className="button button-secondary"
           type="button"
           aria-pressed={mode === "single"}
           onClick={() => setMode("single")}
         >
-          One cartridge
+          {t("bench.test.oneCartridge")}
         </button>
         <button
           className="button button-secondary"
@@ -279,27 +289,27 @@ export default function ShootTest({
           aria-pressed={mode === "two-part"}
           onClick={() => setMode("two-part")}
         >
-          Two-part (A + B)
+          {t("bench.test.twoPart")}
         </button>
       </div>
 
       {mode === "two-part" && (
         <div className="bench-two-part-content">
           <div className="bench-two-part-grid">
-            <section className="bench-cartridge-card" aria-label="Cartridge A">
-              <h5>Cartridge A</h5>
-              <p>Your Bench mix</p>
+            <section className="bench-cartridge-card" aria-label={t("bench.test.cartridgeA")}>
+              <h5>{t("bench.test.cartridgeA")}</h5>
+              <p>{t("bench.test.yourBenchMix")}</p>
               <ul className="bench-cartridge-parts">
                 {experiment.parts.map((part, index) => (
                   <li
                     className="bench-cartridge-summary-row"
                     key={`${part.id}-${index}`}
                   >
-                    <span>{benchById[part.id]?.name ?? "Deleted ingredient"}</span>
+                    <span>{benchById[part.id] ? localizeBenchIngredient(benchById[part.id], locale).name : t("bench.ui.deletedIngredient")}</span>
                     <strong>{formatNumber(part.pct, 1)}%</strong>
                   </li>
                 ))}
-                {experiment.parts.length === 0 && <li>No ingredients in the Bench mix.</li>}
+                {experiment.parts.length === 0 && <li>{t("bench.test.noBenchIngredients")}</li>}
               </ul>
               <p
                 className={`bench-cartridge-message${twoPartReport.a.issue ? " is-warning" : ""}`}
@@ -309,11 +319,11 @@ export default function ShootTest({
               </p>
             </section>
 
-            <section className="bench-cartridge-card" aria-label="Cartridge B">
-              <h5>Cartridge B</h5>
+            <section className="bench-cartridge-card" aria-label={t("bench.test.cartridgeB")}>
+              <h5>{t("bench.test.cartridgeB")}</h5>
               <div className="bench-cartridge-add">
                 <label className="bench-field">
-                  <span className="bench-field-label">Ingredient</span>
+                  <span className="bench-field-label">{t("bench.test.ingredient")}</span>
                   <select
                     className="select"
                     value={selectedBId}
@@ -321,7 +331,7 @@ export default function ShootTest({
                   >
                     {ingredients.map((ingredient) => (
                       <option key={ingredient.id} value={ingredient.id}>
-                        {ingredient.name}
+                        {localizeBenchIngredient(ingredient, locale).name}
                       </option>
                     ))}
                   </select>
@@ -332,7 +342,7 @@ export default function ShootTest({
                   disabled={!selectedBId || bParts.some((part) => part.id === selectedBId)}
                   onClick={addBIngredient}
                 >
-                  Add
+                  {t("bench.test.add")}
                 </button>
               </div>
               <button
@@ -345,16 +355,16 @@ export default function ShootTest({
                   ])
                 }
               >
-                Try an example: calcium chloride solution
+                {t("bench.test.tryCalciumChloride")}
               </button>
               <ul className="bench-cartridge-parts">
                 {bParts.map((part, index) => {
-                  const name = benchById[part.id]?.name ?? "Deleted ingredient";
+                  const name = benchById[part.id] ? localizeBenchIngredient(benchById[part.id], locale).name : t("bench.ui.deletedIngredient");
                   return (
                     <li className="bench-cartridge-part" key={`${part.id}-${index}`}>
                       <strong>{name}</strong>
                       <RangeNumberField
-                        label={`${name} in cartridge B`}
+                        label={t("bench.test.cartridgeBPart", { name })}
                         value={part.pct}
                         min={0}
                         max={100}
@@ -365,19 +375,19 @@ export default function ShootTest({
                       <button
                         className="button button-secondary"
                         type="button"
-                        aria-label={`Remove ${name} from cartridge B`}
+                        aria-label={t("bench.test.removeFromCartridgeB", { name })}
                         onClick={() =>
                           setBParts((current) =>
                             current.filter((_, partIndex) => partIndex !== index),
                           )
                         }
                       >
-                        Remove
+                        {t("bench.test.remove")}
                       </button>
                     </li>
                   );
                 })}
-                {bParts.length === 0 && <li>Add ingredients to cartridge B.</li>}
+                {bParts.length === 0 && <li>{t("bench.test.addIngredientsCartridgeB")}</li>}
               </ul>
               <p
                 className={`bench-cartridge-message${twoPartReport.b.issue ? " is-warning" : ""}`}
@@ -388,27 +398,27 @@ export default function ShootTest({
             </section>
           </div>
 
-          <section className="bench-cartridge-card bench-ratio-card" aria-label="Cartridge ratio">
-            <h5>Ratio</h5>
+          <section className="bench-cartridge-card bench-ratio-card" aria-label={t("bench.test.ratioAria")}>
+            <h5>{t("bench.test.ratio")}</h5>
             <div className="bench-shot-controls">
               <RangeNumberField
-                label="A parts"
+                label={t("bench.test.aParts")}
                 value={ratio.ratioA}
                 min={1}
                 max={10}
                 step={1}
-                unit="parts"
+                unit={t("bench.test.partsUnit")}
                 onChange={(value) =>
                   setRatio((current) => ({ ...current, ratioA: value }))
                 }
               />
               <RangeNumberField
-                label="B parts"
+                label={t("bench.test.bParts")}
                 value={ratio.ratioB}
                 min={1}
                 max={10}
                 step={1}
-                unit="parts"
+                unit={t("bench.test.partsUnit")}
                 onChange={(value) =>
                   setRatio((current) => ({ ...current, ratioB: value }))
                 }
@@ -416,45 +426,49 @@ export default function ShootTest({
             </div>
           </section>
 
-          <section className="bench-cartridge-card bench-tip-card" aria-label="At the tip">
-            <h5>At the tip</h5>
+          <section className="bench-cartridge-card bench-tip-card" aria-label={t("bench.test.atTip")}>
+            <h5>{t("bench.test.atTip")}</h5>
             {twoPartReport.combined ? (
               <>
                 <p className="bench-tip-product">
-                  {tipOutcome(twoPartReport.combined.result)}
+                  {tipOutcome(twoPartReport.combined.result, locale)}
                 </p>
                 <dl className="bench-tip-metrics">
                   <div>
-                    <dt>Set time</dt>
+                    <dt>{t("bench.test.setTime")}</dt>
                     <dd>
                       {twoPartReport.combined.result.setSeconds > 0
                         ? fmtTime(twoPartReport.combined.result.setSeconds)
-                        : "Doesn't set on its own"}
+                        : t("bench.test.doesNotSet")}
                     </dd>
                   </div>
                   <div>
-                    <dt>Confidence</dt>
+                    <dt>{t("bench.test.confidence")}</dt>
                     <dd>
                       {Math.round(twoPartReport.combined.result.confidence * 100)}%
                     </dd>
                   </div>
                 </dl>
                 <div className="bench-tip-events">
-                  <span>Active reactions</span>
+                  <span>{t("bench.test.activeReactions")}</span>
                   {twoPartReport.combined.result.events.filter((event) => event.activity > 0)
                     .length > 0 ? (
                     <ul>
                       {twoPartReport.combined.result.events
                         .filter((event) => event.activity > 0)
-                        .map((event) => <li key={event.id}>{event.name}</li>)}
+                        .map((event) => (
+                          <li key={event.id}>
+                            {localizeReactionEvent(event, locale).name}
+                          </li>
+                        ))}
                     </ul>
                   ) : (
-                    <p>No active modeled reactions.</p>
+                    <p>{t("bench.test.noActiveReactions")}</p>
                   )}
                 </div>
               </>
             ) : (
-              <p>Combine A and B at the tip when both cartridges are ready.</p>
+              <p>{t("bench.test.readyCartridges")}</p>
             )}
           </section>
         </div>
@@ -464,7 +478,7 @@ export default function ShootTest({
         {controls.map((control) => (
           <RangeNumberField
             key={control.key}
-            label={control.label}
+        label={t(control.label)}
             value={setup[control.key]}
             min={control.min}
             max={control.max}
@@ -480,42 +494,42 @@ export default function ShootTest({
           className="bench-fluid-summary"
           aria-label={
             mode === "single"
-              ? "Fluid properties from your mix"
-              : "Fluid properties from the combined mix"
+              ? t("bench.test.fluidFromMix")
+              : t("bench.test.fluidFromCombined")
           }
         >
-          <h5>{mode === "single" ? "From your mix" : "Combined mix"}</h5>
+          <h5>{mode === "single" ? t("bench.test.fromMix") : t("bench.test.combinedMix")}</h5>
           <dl>
             <div>
-              <dt>Density</dt>
+              <dt>{t("bench.test.density")}</dt>
               <dd>{formatNumber(fluid.densityKgM3, 0)} kg/m³</dd>
             </div>
             <div>
-              <dt>Viscosity</dt>
+              <dt>{t("bench.test.viscosity")}</dt>
               <dd>
                 {fluid.viscosityPas === null
-                  ? "No flowing liquid"
-                  : `${formatViscosity(fluid.viscosityPas)} Pa·s · ${viscosityLabel(fluid.viscosityPas)}`}
+                  ? t("bench.test.noFlowingLiquid")
+                  : `${formatViscosity(fluid.viscosityPas)} Pa·s · ${t(viscosityLabel(fluid.viscosityPas))}`}
               </dd>
             </div>
             <div>
-              <dt>Surface tension</dt>
+              <dt>{t("bench.test.surfaceTension")}</dt>
               <dd>{formatNumber(fluid.surfaceTensionNm, 3)} N/m</dd>
             </div>
             <div>
-              <dt>Solids</dt>
+              <dt>{t("bench.test.solids")}</dt>
               <dd>{formatNumber(fluid.solidsFraction * 100, 1)}%</dd>
             </div>
             <div>
-              <dt>Set time</dt>
-              <dd>{fluid.setSeconds > 0 ? fmtTime(fluid.setSeconds) : "Doesn't set on its own"}</dd>
+              <dt>{t("bench.test.setTime")}</dt>
+              <dd>{fluid.setSeconds > 0 ? fmtTime(fluid.setSeconds, locale) : t("bench.test.doesNotSet")}</dd>
             </div>
           </dl>
         </section>
       ) : mode === "two-part" ? (
-        <section className="bench-fluid-summary" aria-label="Combined fluid properties">
-          <h5>Combined mix</h5>
-          <p>Fluid properties appear when both cartridges are ready.</p>
+        <section className="bench-fluid-summary" aria-label={t("bench.test.fluidFromCombined")}>
+          <h5>{t("bench.test.combinedMix")}</h5>
+          <p>{t("bench.test.fluidReady")}</p>
         </section>
       ) : null}
 
@@ -545,11 +559,11 @@ export default function ShootTest({
 
       {isFiring && jetResult && (
         <div className="bench-shot-tiles">
-          <Metric label="Flight time" value={`${formatNumber(jetResult.flightS, 3)} s`} />
-          <Metric label="Sag" value={`${formatNumber(jetResult.dropM, 3)} m`} />
-          <Metric label="Fluid / test" value={`${formatNumber(jetResult.volumeMl, 3)} mL`} />
+          <Metric label={t("bench.test.flightTime")} value={`${formatNumber(jetResult.flightS, 3)} s`} />
+          <Metric label={t("bench.test.sag")} value={`${formatNumber(jetResult.dropM, 3)} m`} />
+          <Metric label={t("bench.test.fluidTest")} value={`${formatNumber(jetResult.volumeMl, 3)} mL`} />
           <Metric
-            label={mode === "single" ? "Shots / cartridge" : "Shots per refill"}
+            label={mode === "single" ? t("bench.test.shotsCartridge") : t("bench.test.shotsRefill")}
             value={formatNumber(
               mode === "single"
                 ? jetResult.shots
@@ -558,21 +572,21 @@ export default function ShootTest({
             )}
           />
           <Metric
-            label="Pressure"
+            label={t("bench.test.pressure")}
             value={`${mode === "two-part" ? formatBar(jetResult.pressureBar) : formatNumber(jetResult.pressureBar, 2)} bar`}
           />
-          <Metric label="Recoil" value={`${formatNumber(jetResult.recoilN, 3)} N`} />
-          <Metric label="Dried strand" value={`${formatNumber(jetResult.dryDiameterMm, 3)} mm`} />
+          <Metric label={t("bench.test.recoil")} value={`${formatNumber(jetResult.recoilN, 3)} N`} />
+          <Metric label={t("bench.test.driedStrand")} value={`${formatNumber(jetResult.dryDiameterMm, 3)} mm`} />
           <Metric
-            label="Breakup length"
+            label={t("bench.test.breakupLength")}
             value={
               jetResult.breakupM > 1000
-                ? "> 1 km (stays whole)"
+                ? t("bench.test.staysWhole")
                 : `${formatNumber(jetResult.breakupM, 2)} m`
             }
           />
           <Metric
-            label="Holds"
+            label={t("bench.test.holds")}
             value={holdsKg === null ? "—" : `${formatNumber(holdsKg, 2)} kg`}
           />
         </div>

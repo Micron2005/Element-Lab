@@ -1,5 +1,6 @@
 import type { AtomSymbol } from "./atoms";
 import type { MolBond, MolGraph } from "./molecule";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
 
 export interface Atom3D {
   id: string;
@@ -454,13 +455,19 @@ export function embed3D(graph: MolGraph): Embed3D {
   };
 }
 
-export function angleAt(embed: Embed3D, centerId: string, aId: string, bId: string): number {
+export function angleAt(
+  embed: Embed3D,
+  centerId: string,
+  aId: string,
+  bId: string,
+  locale: Locale = DEFAULT_LOCALE,
+): number {
   const byId = new Map(embed.atoms.map((atom) => [atom.id, atom]));
   const centerAtom = byId.get(centerId);
   const atomA = byId.get(aId);
   const atomB = byId.get(bId);
   if (!centerAtom || !atomA || !atomB || centerId === aId || centerId === bId) {
-    throw new Error("angleAt requires three distinct atom ids in the embedded molecule");
+    throw new Error(tr(locale, "play.geometry.invalidAngle"));
   }
   const vectorA = normalize(subtract(atomA, centerAtom));
   const vectorB = normalize(subtract(atomB, centerAtom));

@@ -3,6 +3,7 @@ import { benchPresets } from "./presets";
 import { simulate } from "./simulate";
 import { compareRuns, type CompareInput } from "./compare";
 import { DEFAULT_CONDITIONS } from "./conditions";
+import { tr } from "../i18n";
 import type { Experiment, RunResult } from "./types";
 
 const alginate = benchPresets.find(({ id }) => id === "alginate-fiber")!.experiment;
@@ -43,6 +44,31 @@ function measure(result: ReturnType<typeof compareRuns>, label: string) {
 }
 
 describe("bench run comparison", () => {
+  it("localizes comparison explanations to Spanish", () => {
+    const withoutBath: Experiment = {
+      parts: alginate.parts,
+      conditions: { ...alginate.conditions, forming: "beaker", bathId: undefined },
+    };
+    const comparison = compareRuns([
+      run("Con baño", alginate),
+      run("Sin baño", withoutBath),
+    ], "es");
+    expect(comparison.why.join(" ")).toContain("pasó de ocurrió a");
+  });
+
+  it("localizes hazard levels in safety comparison values", () => {
+    const result = resultWith({ wetToxicity: 2, curedToxicity: 1, skin: 1 });
+    const comparison = compareRuns([
+      run("A", alginate, result),
+      run("B", alginate, result),
+    ], "es");
+    const safety = comparison.measures.find(
+      ({ label }) => label === tr("es", "bench.model.compare.measure.safety"),
+    )!;
+    expect(safety.values.join(" ")).toContain("Nocivo");
+    expect(safety.values.join(" ")).toContain("Leve");
+  });
+
   it("explains the alginate-calcium change when removing the bath", () => {
     const withoutBath: Experiment = {
       parts: alginate.parts,

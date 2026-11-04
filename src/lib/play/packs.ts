@@ -1,7 +1,7 @@
 import { benchLibrary } from "../bench/library";
 import { REACTIONS } from "../bench/reactions";
 import type { Hazard, Product } from "../bench/types";
-import { KNOWN_MOLECULES } from "./molecule";
+import { KNOWN_MOLECULES, type MoleculeId } from "./molecule";
 import type { MixTargets, NucleusTargets, QuestTemplate } from "./templates";
 
 export interface QuestPack {
@@ -23,7 +23,7 @@ export const PACKS_CHANGE_EVENT = "elementlab-packs-change";
 export const MAX_PACKS = 30;
 const MAX_QUESTS = 10;
 const INGREDIENT_IDS = new Set(benchLibrary.map(({ id }) => id));
-const MOLECULE_IDS = new Set(KNOWN_MOLECULES.map(({ id }) => id));
+const MOLECULE_IDS = new Set<string>(KNOWN_MOLECULES.map(({ id }) => id));
 const EVENT_IDS = new Set(REACTIONS.map(({ id }) => id));
 const PRODUCTS = new Set<Product>([
   "nothing", "solution", "gel", "slime", "fiber", "film", "adhesive", "solid", "clumps", "dangerous",
@@ -123,7 +123,7 @@ export function sanitizeQuestTemplate(raw: unknown, dropped = new Set<string>())
     const title = cleanText(raw.title, 80);
     return {
       type: "molecule",
-      moleculeId: raw.moleculeId,
+      moleculeId: raw.moleculeId as MoleculeId,
       ...fields,
       ...(title ? { title } : {}),
     };

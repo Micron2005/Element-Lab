@@ -54,6 +54,13 @@ describe("material bench tests", () => {
     expect(metricNumber(report, "Holds")).toBeCloseTo(expectedHolds, 2);
   });
 
+  it("localizes material test metrics to Spanish", () => {
+    const sample = run(preset("vulcanized-latex"));
+    const report = stretchTest(sample.experiment, sample.result, DEFAULT_STRETCH, "es");
+    expect(report.metrics[0]?.label).toBe("Fuerza de rotura");
+    expect(report.headline).toContain("Se rompe");
+  });
+
   it("changes slime response with pull speed", () => {
     const sample = run(preset("borax-slime"));
     const fast = stretchTest(sample.experiment, sample.result, {

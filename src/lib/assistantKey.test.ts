@@ -28,6 +28,12 @@ describe("validateUserKey", () => {
     expect("error" in validateUserKey("anthropic", openaiKey)).toBe(true);
   });
 
+  it("localizes validation errors", () => {
+    expect(validateUserKey("other", anthropicKey, "es")).toEqual({
+      error: "Elige Anthropic u OpenAI.",
+    });
+  });
+
   it("rejects short keys, internal whitespace, and unknown providers", () => {
     expect("error" in validateUserKey("anthropic", "sk-ant-too-short")).toBe(true);
     expect("error" in validateUserKey("anthropic", `${anthropicKey.slice(0, 12)} ${anthropicKey.slice(12)}`)).toBe(true);
@@ -54,6 +60,16 @@ describe("resolveCredentials", () => {
     });
     expect(resolveCredentials(headers, { ANTHROPIC_API_KEY: "site-key" })).toEqual({
       error: "API keys must be 20–300 characters.",
+    });
+  });
+
+  it("returns a localized user-key validation error", () => {
+    const headers = new Headers({
+      "x-user-api-key": "not-a-valid-key",
+      "x-user-provider": "anthropic",
+    });
+    expect(resolveCredentials(headers, { ANTHROPIC_API_KEY: "site-key" }, "es")).toEqual({
+      error: "Las claves de API deben tener entre 20 y 300 caracteres.",
     });
   });
 

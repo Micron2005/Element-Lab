@@ -5,6 +5,7 @@ import type { jet } from "@/lib/physics";
 import type { ShotSetup } from "@/lib/bench/shootTest";
 import { PlaybackControls, prepareCanvas, useCanvasWidth, usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
+import { useT } from "./LocaleProvider";
 import "./viewer.css";
 
 type JetResult = ReturnType<typeof jet>;
@@ -20,6 +21,7 @@ function drawShot(
   result: JetResult,
   setSeconds: number,
   progress: number,
+  labels: { target: string; nozzle: string },
   twoPart?: { ratioA: number; ratioB: number },
 ) {
   const left = 26;
@@ -64,7 +66,7 @@ function drawShot(
   ctx.fillStyle = "#c6d5d2";
   ctx.font = "11px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("Target", targetX, groundY - 1.5 * scale - 8);
+  ctx.fillText(labels.target, targetX, groundY - 1.5 * scale - 8);
 
   ctx.fillStyle = "#9aaeb0";
   ctx.fillRect(nozzleX - 15, nozzleY - 5, 18, 10);
@@ -72,7 +74,7 @@ function drawShot(
   ctx.fillRect(nozzleX, nozzleY - 2, 12, 4);
   ctx.font = "11px Arial";
   ctx.textAlign = "left";
-  ctx.fillText("nozzle", nozzleX - 12, nozzleY - 12);
+  ctx.fillText(labels.nozzle, nozzleX - 12, nozzleY - 12);
 
   ctx.lineCap = "round";
   let strandStart = 0;
@@ -195,6 +197,7 @@ export default function JetViewer({
   setSeconds: number;
   twoPart?: { ratioA: number; ratioB: number };
 }) {
+  const { t } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(4, true, reducedMotion);
   const { ref, width } = useCanvasWidth();
@@ -210,10 +213,11 @@ export default function JetViewer({
         result,
         setSeconds,
         playback.t,
+        { target: t("bench.test.targetDistance"), nozzle: t("bench.test.nozzle") },
         twoPart,
       );
     }
-  }, [playback.t, ref, result, setSeconds, setup, twoPart, width]);
+  }, [playback.t, ref, result, setSeconds, setup, twoPart, width, t]);
 
   const groundDistance =
     result.dropM > NOZZLE_HEIGHT_M
@@ -224,22 +228,22 @@ export default function JetViewer({
   return (
     <div className="viewer">
       <div className="viewer-stage">
-        <canvas ref={ref} role="img" aria-label="Nozzle shot trajectory with sag and breakup" />
+        <canvas ref={ref} role="img" aria-label={t("viewer.nozzleTrajectory")} />
         <div className="viewer-hud">
           <div>
-            <strong>Shot path</strong>
-            Gravity bends the strand downward
-            {twoPart && <span className="viewer-two-part-label">A + B mix at tip</span>}
+            <strong>{t("viewer.shotPath")}</strong>
+            {t("bench.viewer.gravityBends")}
+            {twoPart && <span className="viewer-two-part-label">{t("viewer.twoPartMix")}</span>}
           </div>
           <div className="viewer-clock">
-            <strong>Real time</strong>
+            <strong>{t("viewer.realTime")}</strong>
             {realTime.toFixed(2)} s / {result.flightS.toFixed(2)} s
           </div>
         </div>
       </div>
-      <PlaybackControls playback={playback} label="Shot" />
+      <PlaybackControls playback={playback} label={t("viewer.shotPath")} />
       {groundDistance !== null && (
-        <p className="viewer-caption">Hits the ground at {groundDistance.toFixed(1)} m.</p>
+        <p className="viewer-caption">{t("bench.viewer.groundImpact", { distance: groundDistance.toFixed(1) })}</p>
       )}
     </div>
   );

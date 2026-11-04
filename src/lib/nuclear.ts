@@ -1,4 +1,7 @@
 // Semi-empirical (liquid-drop) mass formula, coefficients in MeV (Krane).
+import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
+import { ELEMENT_NAMES_EN } from "./i18n/data/en/elements";
+import { ELEMENT_NAMES_ES } from "./i18n/data/es/elements";
 const aV = 15.75, aS = 17.8, aC = 0.711, aA = 23.7, aP = 11.18;
 const MAGIC = [2, 8, 20, 28, 50, 82, 126, 184];
 
@@ -6,9 +9,7 @@ export const SYMBOLS = (
   "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og"
 ).split(" ");
 
-export const NAMES = (
-  "Hydrogen Helium Lithium Beryllium Boron Carbon Nitrogen Oxygen Fluorine Neon Sodium Magnesium Aluminium Silicon Phosphorus Sulfur Chlorine Argon Potassium Calcium Scandium Titanium Vanadium Chromium Manganese Iron Cobalt Nickel Copper Zinc Gallium Germanium Arsenic Selenium Bromine Krypton Rubidium Strontium Yttrium Zirconium Niobium Molybdenum Technetium Ruthenium Rhodium Palladium Silver Cadmium Indium Tin Antimony Tellurium Iodine Xenon Caesium Barium Lanthanum Cerium Praseodymium Neodymium Promethium Samarium Europium Gadolinium Terbium Dysprosium Holmium Erbium Thulium Ytterbium Lutetium Hafnium Tantalum Tungsten Rhenium Osmium Iridium Platinum Gold Mercury Thallium Lead Bismuth Polonium Astatine Radon Francium Radium Actinium Thorium Protactinium Uranium Neptunium Plutonium Americium Curium Berkelium Californium Einsteinium Fermium Mendelevium Nobelium Lawrencium Rutherfordium Dubnium Seaborgium Bohrium Hassium Meitnerium Darmstadtium Roentgenium Copernicium Nihonium Flerovium Moscovium Livermorium Tennessine Oganesson"
-).split(" ");
+export const NAMES = ELEMENT_NAMES_EN;
 
 const ROOTS = ["nil", "un", "bi", "tri", "quad", "pent", "hex", "sept", "oct", "enn"];
 
@@ -23,6 +24,13 @@ export function elementName(z: number) {
     symbol: symbol[0].toUpperCase() + symbol.slice(1),
     known: false,
   };
+}
+
+export function localizeElementName(z: number, locale: Locale = DEFAULT_LOCALE): string {
+  const english = elementName(z).name;
+  if (locale !== "es") return english;
+  if (z >= 1 && z <= ELEMENT_NAMES_EN.length) return ELEMENT_NAMES_ES[z];
+  return english.replace(/ium$/i, "io");
 }
 
 export function bindingEnergy(z: number, n: number) {
@@ -65,23 +73,35 @@ export interface NucleusReport {
   magicN: boolean;
   bound: boolean;
   modes: string[];
+  modeIds: NuclearModeId[];
   verdict: string;
   halfLife: string;
   halfLifeSeconds: number;
 }
 
-function fmtSeconds(s: number) {
-  if (!isFinite(s)) return "Stable (no decay predicted)";
-  if (s < 1e-21) return "< 10^-21 s (falls apart instantly)";
+type NuclearModeId =
+  | "neutron-drip"
+  | "proton-drip"
+  | "instant-fission"
+  | "spontaneous-fission"
+  | "alpha"
+  | "beta-minus"
+  | "beta-plus";
+
+function fmtSeconds(s: number, locale: Locale = DEFAULT_LOCALE) {
+  if (!isFinite(s)) return tr(locale, "elements.time.stable");
+  if (s < 1e-21) return tr(locale, "elements.time.instant");
   if (s < 1e-6) return `~${s.toExponential(0)} s`;
   if (s < 1) return `~${(s * 1000).toPrecision(2)} ms`;
   if (s < 3600) return `~${s.toPrecision(2)} s`;
-  if (s < 86400 * 365) return `~${(s / 3600).toPrecision(2)} hours`;
+  if (s < 86400 * 365) return `~${(s / 3600).toPrecision(2)} ${tr(locale, "elements.time.hours")}`;
   const y = s / (86400 * 365.25);
-  return y > 1e9 ? `~${y.toExponential(1)} years` : `~${y.toPrecision(2)} years`;
+  return y > 1e9
+    ? `~${y.toExponential(1)} ${tr(locale, "elements.time.years")}`
+    : `~${y.toPrecision(2)} ${tr(locale, "elements.time.years")}`;
 }
 
-export function analyzeNucleus(z: number, n: number): NucleusReport {
+export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LOCALE): NucleusReport {
   const a = z + n;
   const B = bindingEnergy(z, n);
   const el = elementName(z);
@@ -94,13 +114,27 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
   const fissility = (z * z) / a / 50.9;
   const bound = sn > 0 && sp > 0 && B > 0;
 
-  const modes: string[] = [];
-  if (!bound) modes.push(sn <= 0 ? "Neutron drips off" : "Proton drips off");
-  if (fissility >= 1) modes.push("Splits in two instantly (fission)");
-  else if (fissility > 0.75) modes.push("Spontaneous fission");
-  if (qAlpha > 0 && a > 100) modes.push(`Alpha decay (Q ≈ ${qAlpha.toFixed(1)} MeV)`);
-  if (qBetaMinus > 0) modes.push("Beta-minus (neutron → proton)");
-  if (qBetaPlus > 0) modes.push("Beta-plus / electron capture (proton → neutron)");
+  const modeIds: NuclearModeId[] = [];
+  if (!bound) modeIds.push(sn <= 0 ? "neutron-drip" : "proton-drip");
+  if (fissility >= 1) modeIds.push("instant-fission");
+  else if (fissility > 0.75) modeIds.push("spontaneous-fission");
+  if (qAlpha > 0 && a > 100) modeIds.push("alpha");
+  if (qBetaMinus > 0) modeIds.push("beta-minus");
+  if (qBetaPlus > 0) modeIds.push("beta-plus");
+  const modeMessageKeys = {
+    "neutron-drip": "elements.mode.neutronDrip",
+    "proton-drip": "elements.mode.protonDrip",
+    "instant-fission": "elements.mode.instantFission",
+    "spontaneous-fission": "elements.mode.spontaneousFission",
+    alpha: "elements.mode.alpha",
+    "beta-minus": "elements.mode.betaMinus",
+    "beta-plus": "elements.mode.betaPlus",
+  } as const;
+  const modes = modeIds.map((id) => tr(
+    locale,
+    modeMessageKeys[id],
+    id === "alpha" ? { q: qAlpha.toFixed(1) } : undefined,
+  ));
 
   let halfS = Infinity;
   if (!bound || fissility >= 1) halfS = 1e-22;
@@ -122,20 +156,24 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
   const sz = stableZ(a);
   const stableN = Math.round(a - sz);
   const nearIsland = z >= 112 && z <= 126 && n >= 176 && n <= 190;
-  let verdict: string;
-  if (!bound) verdict = "Can't exist: the nucleus isn't bound, a nucleon flies off immediately.";
-  else if (fissility >= 1) verdict = "Can't exist: electric repulsion between protons beats the nuclear glue.";
-  else if (!isFinite(halfS) || halfS > 3e16) verdict = "Stable or practically stable.";
-  else if (halfS > 1) verdict = "Radioactive but would last long enough to study.";
-  else if (halfS > 1e-6) verdict = "Super short-lived: it would be made one atom at a time in an accelerator.";
-  else verdict = "Exists for a blink: gone before it can form chemistry.";
-  if (nearIsland) verdict += " This is near the predicted 'island of stability' (Z≈114-126, N≈184), where extra shell stability could make it last much longer than this model says.";
+  const verdictKey = !bound
+    ? "elements.verdict.unbound"
+    : fissility >= 1
+      ? "elements.verdict.repulsion"
+      : !isFinite(halfS) || halfS > 3e16
+        ? "elements.verdict.stable"
+        : halfS > 1
+          ? "elements.verdict.study"
+          : halfS > 1e-6
+            ? "elements.verdict.shortLived"
+            : "elements.verdict.instant";
+  const verdict = `${tr(locale, verdictKey)}${nearIsland ? ` ${tr(locale, "elements.verdict.island")}` : ""}`;
 
   return {
     z,
     n,
     a,
-    name: el.name,
+    name: localizeElementName(z, locale),
     symbol: el.symbol,
     known: el.known,
     bindingMeV: B,
@@ -151,8 +189,9 @@ export function analyzeNucleus(z: number, n: number): NucleusReport {
     magicN: MAGIC.includes(n),
     bound,
     modes,
+    modeIds,
     verdict,
-    halfLife: fmtSeconds(halfS),
+    halfLife: fmtSeconds(halfS, locale),
     halfLifeSeconds: halfS,
   };
 }

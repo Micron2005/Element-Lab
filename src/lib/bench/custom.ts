@@ -1,4 +1,5 @@
 import type { BenchIngredient, Category, Hazard, WaterBehavior } from "./types";
+import { tr, type Locale, type MessageKey } from "../i18n";
 
 export const CUSTOM_STORAGE = "elementlab.bench.custom";
 export const CUSTOM_PREFIX = "custom-";
@@ -125,30 +126,35 @@ type DraftValidation =
   | { ingredient: BenchIngredient }
   | { errors: Partial<Record<keyof CustomDraft, string>> };
 
-export function validateCustomDraft(draft: CustomDraft, id: string): DraftValidation {
+export function validateCustomDraft(
+  draft: CustomDraft,
+  id: string,
+  locale: Locale = "en",
+): DraftValidation {
+  const message = (key: MessageKey) => tr(locale, key);
   const errors: Partial<Record<keyof CustomDraft, string>> = {};
   const name = typeof draft.name === "string" ? draft.name.trim() : "";
   const formula = typeof draft.formula === "string" ? draft.formula.trim() : "";
   const notes = typeof draft.notes === "string" ? draft.notes.trim() : "";
 
-  if (name.length === 0) errors.name = "Enter a name.";
-  else if (name.length > 40) errors.name = "Name must be 40 characters or fewer.";
-  if (!isCategory(draft.category)) errors.category = "Choose a type.";
-  if (formula.length > 30) errors.formula = "Formula must be 30 characters or fewer.";
-  if (notes.length > 300) errors.notes = "Notes must be 300 characters or fewer.";
+  if (name.length === 0) errors.name = message("bench.custom.validation.nameRequired");
+  else if (name.length > 40) errors.name = message("bench.custom.validation.nameLength");
+  if (!isCategory(draft.category)) errors.category = message("bench.custom.validation.category");
+  if (formula.length > 30) errors.formula = message("bench.custom.validation.formulaLength");
+  if (notes.length > 300) errors.notes = message("bench.custom.validation.notesLength");
   if (!Array.isArray(draft.traits) || draft.traits.some((trait) => !isCustomTrait(trait))) {
-    errors.traits = "Choose valid traits.";
+    errors.traits = message("bench.custom.validation.traits");
   }
-  if (!isHazard(draft.toxicity)) errors.toxicity = "Choose a toxicity level from 0–3.";
-  if (!isHazard(draft.skin)) errors.skin = "Choose a skin hazard level from 0–3.";
-  if (!waterBehaviors.includes(draft.water)) errors.water = "Choose how it behaves in water.";
-  if (typeof draft.liquid !== "boolean") errors.liquid = "Choose whether it is a liquid.";
-  if (typeof draft.edible !== "boolean") errors.edible = "Choose whether it is edible.";
+  if (!isHazard(draft.toxicity)) errors.toxicity = message("bench.custom.validation.toxicity");
+  if (!isHazard(draft.skin)) errors.skin = message("bench.custom.validation.skin");
+  if (!waterBehaviors.includes(draft.water)) errors.water = message("bench.custom.validation.water");
+  if (typeof draft.liquid !== "boolean") errors.liquid = message("bench.custom.validation.liquid");
+  if (typeof draft.edible !== "boolean") errors.edible = message("bench.custom.validation.edible");
   if (typeof draft.biodegradable !== "boolean") {
-    errors.biodegradable = "Choose whether it is biodegradable.";
+    errors.biodegradable = message("bench.custom.validation.biodegradable");
   }
   if (!["neutral", "acid", "base"].includes(draft.acidBase)) {
-    errors.acidBase = "Choose neutral, acid, or base.";
+    errors.acidBase = message("bench.custom.validation.acidBase");
   }
 
   const readNumber = (
@@ -177,22 +183,22 @@ export function validateCustomDraft(draft: CustomDraft, id: string): DraftValida
     draft.tensileMPa,
     0,
     1500,
-    "Strength must be 0–1500 MPa.",
+    message("bench.custom.validation.strength"),
   );
   const elongationPct = readNumber(
     "elongationPct",
     draft.elongationPct,
     0,
     2000,
-    "Stretch must be 0–2000%.",
+    message("bench.custom.validation.stretch"),
   );
-  const tack = readNumber("tack", draft.tack, 0, 10, "Stickiness must be 0–10.") ?? 0;
+  const tack = readNumber("tack", draft.tack, 0, 10, message("bench.custom.validation.stickiness")) ?? 0;
   const density = readNumber(
     "density",
     draft.density,
     0.05,
     25,
-    "Enter a density from 0.05–25 g/cm³.",
+    message("bench.custom.validation.density"),
     true,
   );
   const viscosityPas = draft.liquid
@@ -201,30 +207,30 @@ export function validateCustomDraft(draft: CustomDraft, id: string): DraftValida
         draft.viscosityPas,
         0.0001,
         1_000_000,
-        "Enter a thickness from 0.0001–1,000,000 Pa·s.",
+        message("bench.custom.validation.thickness"),
         true,
       )
     : undefined;
   const boilC = draft.category === "solvent"
-    ? readNumber("boilC", draft.boilC, -270, 1000, "Boiling point must be -270–1000 °C.")
+    ? readNumber("boilC", draft.boilC, -270, 1000, message("bench.custom.validation.boilingPoint"))
     : undefined;
   const costPerKg = readNumber(
     "costPerKg",
     draft.costPerKg,
     0,
     100_000,
-    "Cost must be 0–100,000 $/kg.",
+    message("bench.custom.validation.cost"),
   ) ?? 0;
 
   let acidBase: BenchIngredient["acidBase"];
   if (draft.acidBase !== "neutral") {
-    const pKa = readNumber("pKa", draft.pKa, 0, 14, "pKa must be 0–14.", true);
+    const pKa = readNumber("pKa", draft.pKa, 0, 14, message("bench.custom.validation.pKa"), true);
     const molarMass = readNumber(
       "molarMass",
       draft.molarMass,
       1,
       1_000_000,
-      "Enter a molar mass from 1–1,000,000 g/mol.",
+      message("bench.custom.validation.molarMass"),
       true,
     );
     if (pKa !== undefined && molarMass !== undefined) {
@@ -259,8 +265,8 @@ export function validateCustomDraft(draft: CustomDraft, id: string): DraftValida
     surfaceTensionNm: undefined,
     volatile: draft.category === "solvent",
     boilC,
-    notes: notes || "Custom ingredient you defined.",
-    bonding: "You defined this ingredient; its molecular bonding isn't predicted.",
+    notes: notes || tr(locale, "bench.custom.notesDefault"),
+    bonding: tr(locale, "bench.custom.bondingDefault"),
   };
   return { ingredient };
 }

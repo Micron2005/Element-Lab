@@ -9,6 +9,7 @@ import {
 } from "./shootTest";
 import { simulate } from "./simulate";
 import type { Conditions, Experiment, Part, RunResult } from "./types";
+import { DEFAULT_LOCALE, tr, type Locale } from "../i18n";
 
 export interface TwoPartSetup {
   ratioA: number;
@@ -124,21 +125,25 @@ function hasFastNetworkFormation(result: RunResult): boolean {
   });
 }
 
-export function tipOutcome(result: RunResult): string {
+export function tipOutcome(
+  result: RunResult,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (
     (result.product === "solution" || result.product === "nothing") &&
     result.setSeconds > 0 &&
     hasFastNetworkFormation(result)
   ) {
-    return "Gels after it leaves the nozzle";
+    return tr(locale, "bench.model.twoPart.tipOutcome");
   }
   return result.productLabel;
 }
 
-export function checkCartridge(
+function checkCartridgeCore(
   label: "A" | "B",
   parts: Part[],
   conditions: Conditions,
+  locale: Locale,
 ): CartridgeCheck {
   const positiveParts = parts.filter(
     (part) => Number.isFinite(part.pct) && part.pct > 0,
@@ -147,7 +152,7 @@ export function checkCartridge(
     return {
       label,
       issue: "empty",
-      message: `Add ingredients to cartridge ${label}.`,
+      message: tr(locale, "bench.model.twoPart.addIngredients", { label }),
       result: null,
       viscosityPas: null,
     };
@@ -157,8 +162,8 @@ export function checkCartridge(
     parts: positiveParts,
     conditions: { ...conditions, forming: "beaker" },
   };
-  const result = simulate(experiment);
-  const viscosityPas = fluidFromMix(experiment, result).viscosityPas;
+  const result = simulate(experiment, locale);
+  const viscosityPas = fluidFromMix(experiment, result, locale).viscosityPas;
   const check = (
     issue: CartridgeIssue,
     message: string,
@@ -171,10 +176,10 @@ export function checkCartridge(
   });
 
   if (result.product === "dangerous") {
-    return check("unsafe", `Cartridge ${label} is unsafe to extrude.`);
+    return check("unsafe", tr(locale, "bench.model.twoPart.unsafe", { label }));
   }
   if (viscosityPas === null) {
-    return check("no-liquid", `Cartridge ${label} has no flowing liquid.`);
+    return check("no-liquid", tr(locale, "bench.model.twoPart.noLiquid", { label }));
   }
 
   const fastSettingProduct = ["gel", "solid", "clumps", "slime"].includes(
@@ -188,14 +193,28 @@ export function checkCartridge(
   ) {
     return check(
       "sets-in-cartridge",
-      `Cartridge ${label} sets in about ${fmtTime(result.setSeconds)} on its own and would clog. Move the setting agent to the other cartridge.`,
+      tr(locale, "bench.model.twoPart.clogs", {
+        label,
+        time: fmtTime(result.setSeconds, locale),
+      }),
     );
   }
 
   return check(
     null,
-    `Stays liquid (${viscosityText(viscosityPas)} Pa·s).`,
+    tr(locale, "bench.model.twoPart.staysLiquid", {
+      viscosity: viscosityText(viscosityPas),
+    }),
   );
+}
+
+export function checkCartridge(
+  label: "A" | "B",
+  parts: Part[],
+  conditions: Conditions,
+  locale: Locale = DEFAULT_LOCALE,
+): CartridgeCheck {
+  return checkCartridgeCore(label, parts, conditions, locale);
 }
 
 export function clogsAtTip(
@@ -208,14 +227,15 @@ export function clogsAtTip(
   return setSeconds <= residenceSeconds;
 }
 
-export function twoPartShoot(
+function twoPartShootCore(
   a: Experiment,
   bParts: Part[],
   ratio: TwoPartSetup,
   setup: ShotSetup,
+  locale: Locale,
 ): TwoPartReport {
-  const aCheck = checkCartridge("A", a.parts, a.conditions);
-  const bCheck = checkCartridge("B", bParts, a.conditions);
+  const aCheck = checkCartridge("A", a.parts, a.conditions, locale);
+  const bCheck = checkCartridge("B", bParts, a.conditions, locale);
   if (aCheck.issue || bCheck.issue) {
     return {
       a: aCheck,
@@ -229,10 +249,10 @@ export function twoPartShoot(
   }
 
   const experiment = combineAtTip(a, bParts, ratio);
-  const result = simulate(experiment);
+  const result = simulate(experiment, locale);
   const combined = { experiment, result };
   const clogsNozzle = clogsAtTip(result.setSeconds, setup);
-  const predictedShot = shootTest(experiment, result, setup);
+  const predictedShot = shootTest(experiment, result, setup, locale);
   const shot = clogsNozzle ? null : predictedShot;
   const volumeMl = predictedShot.jet?.volumeMl;
   const [shareA, shareB] = ratioShares(ratio);
@@ -252,14 +272,18 @@ export function twoPartShoot(
       clogsNozzle,
       shot,
       shotsPerCartridge,
-      headline: `Sets inside the nozzle (in ${fmtTime(result.setSeconds)}) and clogs the tip.`,
+      headline: tr(locale, "bench.model.twoPart.nozzleClog", {
+        time: fmtTime(result.setSeconds, locale),
+      }),
     };
   }
 
   const combinationHeadline =
     result.setSeconds > 0
-      ? `A and B combine at the tip and set in ${fmtTime(result.setSeconds)}.`
-      : "A and B combine at the tip; the combined mix doesn't set on its own.";
+      ? tr(locale, "bench.model.twoPart.combinesSets", {
+          time: fmtTime(result.setSeconds, locale),
+        })
+      : tr(locale, "bench.model.twoPart.combinesNoSet");
   return {
     a: aCheck,
     b: bCheck,
@@ -269,6 +293,16 @@ export function twoPartShoot(
     shotsPerCartridge,
     headline: `${combinationHeadline} ${predictedShot.headline}`,
   };
+}
+
+export function twoPartShoot(
+  a: Experiment,
+  bParts: Part[],
+  ratio: TwoPartSetup,
+  setup: ShotSetup,
+  locale: Locale = DEFAULT_LOCALE,
+): TwoPartReport {
+  return twoPartShootCore(a, bParts, ratio, setup, locale);
 }
 
 export function parseStoredCartridgeB(raw: unknown): Part[] {

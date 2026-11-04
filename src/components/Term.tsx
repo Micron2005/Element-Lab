@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { GLOSSARY, type GlossaryEntry, type TermId } from "@/lib/glossary";
+import { glossaryFor, type GlossaryEntry, type TermId } from "@/lib/glossary";
 import { usePrefs } from "./usePrefs";
+import { useT } from "./LocaleProvider";
 
 const OPEN_TERM_EVENT = "elementlab:term-open";
 
 export function Term({ id, children }: { id: TermId; children: ReactNode }) {
   const prefs = usePrefs();
+  const { locale, t } = useT();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ left: 8, top: 8, width: 280 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLSpanElement>(null);
   const popoverId = useId();
   const titleId = useId();
-  const entry: GlossaryEntry = GLOSSARY[id];
+  const entry: GlossaryEntry = glossaryFor(locale)[id];
 
   useEffect(() => {
     const closeOther = (event: Event) => {
@@ -92,7 +94,7 @@ export function Term({ id, children }: { id: TermId; children: ReactNode }) {
         <span>{entry.plain}</span>
         {entry.example && <span className="term-example">{entry.example}</span>}
         <Link href={`/glossary#${id}`} onClick={() => setOpen(false)}>
-          More in the glossary
+          {t("glossary.more")}
         </Link>
       </span>
     </span>

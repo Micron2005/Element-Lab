@@ -12,10 +12,11 @@ import {
   type FusionRecipe,
   type Projectile,
 } from "@/lib/nuclearFusion";
-import { analyzeNucleus, elementName } from "@/lib/nuclear";
+import { analyzeNucleus, elementName, localizeElementName } from "@/lib/nuclear";
 import NucleusViewer from "./NucleusViewer";
 import { Panel } from "./shared";
 import { Term } from "./Term";
+import { useT } from "./LocaleProvider";
 
 const MIN_BEAM_MEV = 0.001;
 const MAX_BEAM_MEV = 2000;
@@ -25,9 +26,9 @@ function projectileFromId(id: string): Projectile {
   return PROJECTILES.find((item) => item.id === id) ?? PROJECTILES[0];
 }
 
-function projectileName(projectile: Projectile): string {
+function projectileName(projectile: Projectile, locale: "en" | "es"): string {
   const element = elementName(projectile.z);
-  return `${element.name}-${projectile.z + projectile.n} (${element.symbol}-${projectile.z + projectile.n})`;
+  return `${localizeElementName(projectile.z, locale)}-${projectile.z + projectile.n} (${element.symbol}-${projectile.z + projectile.n})`;
 }
 
 function recipeBeam(recipe: FusionRecipe, projectile: Projectile): number {
@@ -36,8 +37,8 @@ function recipeBeam(recipe: FusionRecipe, projectile: Projectile): number {
     : beamForBarrier(projectile, recipe.target, recipe.beam.barrierFactor);
 }
 
-function particleSummary(emitted: { type: string; count: number }[]): string {
-  if (emitted.length === 0) return "None";
+function particleSummary(emitted: { type: string; count: number }[], noneLabel: string): string {
+  if (emitted.length === 0) return noneLabel;
   return emitted
     .map(({ type, count }) => {
       const name =
@@ -55,10 +56,10 @@ function particleSummary(emitted: { type: string; count: number }[]): string {
     .join(", ");
 }
 
-function formatAtomsPerDay(value: number): string {
+function formatAtomsPerDay(value: number, locale: string): string {
   if (value === 0) return "0";
   if (value < 0.01) return value.toExponential(2);
-  return new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(value);
+  return new Intl.NumberFormat(locale === "es" ? "es" : "en-US", { maximumSignificantDigits: 3 }).format(value);
 }
 
 function resultTone(dominant: string): "good" | "warn" | "bad" {
@@ -67,9 +68,13 @@ function resultTone(dominant: string): "good" | "warn" | "bad" {
   return "bad";
 }
 
-function displayHalfLife(value: string | undefined, fallback: string): string {
-  if (value === "stable") return "Stable (measured)";
-  if (value !== undefined) return `${value} (measured)`;
+function displayHalfLife(
+  value: string | undefined,
+  fallback: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  if (value === "stable") return t("fusion.stableMeasured");
+  if (value !== undefined) return t("fusion.measuredHalfLife", { value });
   return fallback;
 }
 
@@ -92,11 +97,12 @@ export default function FusionPanel({
   onTarget: (z: number, n: number) => void;
   onExplore: (z: number, n: number) => void;
 }) {
+  const { locale, t } = useT();
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   const projectile = projectileFromId(projectileId);
   const report = useMemo(
-    () => fuse(projectile, { z, n }, beamLabMeV),
-    [projectile, z, n, beamLabMeV],
+    () => fuse(projectile, { z, n }, beamLabMeV, locale),
+    [projectile, z, n, beamLabMeV, locale],
   );
   const activeRecipe = FUSION_RECIPES.find((item) => item.id === activeRecipeId);
   const activeRecipeProjectile = activeRecipe
@@ -118,10 +124,10 @@ export default function FusionPanel({
   const residueName = report.residue.length === 1 ? report.residue[0].name : "";
   const singleResidue = report.residue.length === 1 ? report.residue[0] : undefined;
   const singleResidueMeasuredHalfLife = singleResidue
-    ? measuredHalfLife(singleResidue.z, singleResidue.n)
+    ? measuredHalfLife(singleResidue.z, singleResidue.n, locale)
     : undefined;
   const singleResidueHalfLife = singleResidue
-    ? displayHalfLife(singleResidueMeasuredHalfLife, report.residueReport?.halfLife ?? "")
+    ? displayHalfLife(singleResidueMeasuredHalfLife, report.residueReport?.halfLife ?? "", t)
     : "";
   const reactionKey = `${z}-${n}-${projectileId}-${beamLabMeV.toPrecision(8)}-${report.reaction}`;
   const beamSliderValue =
@@ -146,15 +152,15 @@ export default function FusionPanel({
 
   return (
     <Panel
-      title="Fusion: smash two nuclei together"
-      subtitle="Your nucleus above is the target. Pick what to fire at it."
+      title={t("fusion.title")}
+      subtitle={t("fusion.subtitle")}
     >
       <div className="fusion-content">
         <section className="fusion-recipes" aria-labelledby="fusion-recipes-title">
           <h3 id="fusion-recipes-title" className="section-label">
-            Real experiments
+            {t("fusion.realExperiments")}
           </h3>
-          <div className="fusion-recipe-list" role="group" aria-label="Real experiments">
+          <div className="fusion-recipe-list" role="group" aria-label={t("fusion.realExperiments")}>
             {FUSION_RECIPES.map((recipe) => (
               <button
                 key={recipe.id}
@@ -163,21 +169,24 @@ export default function FusionPanel({
                 aria-pressed={recipe.id === activeRecipeId}
                 onClick={() => chooseRecipe(recipe)}
               >
-                {recipe.label}
+                {t(recipe.labelKey)}
               </button>
             ))}
           </div>
           {recipeMatches && (
             <p className="fusion-real-note" role="note">
-              {activeRecipe.realNote}
+              {t(activeRecipe.realNoteKey)}
             </p>
           )}
+          <p className="fusion-real-note" role="note">
+            {t("elements.caveat.prediction")} {t("elements.caveat.hypothetical")} {t("elements.caveat.fewAtoms")}
+          </p>
         </section>
 
         <div className="fusion-controls">
           <div>
             <label className="field-label" htmlFor="fusion-projectile">
-              Projectile
+              {t("fusion.projectile")}
             </label>
             <select
               className="select fusion-control"
@@ -190,14 +199,14 @@ export default function FusionPanel({
             >
               {PROJECTILES.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {projectileName(item)}
+                  {projectileName(item, locale)}
                 </option>
               ))}
             </select>
           </div>
           <div>
             <label className="field-label" htmlFor="fusion-beam-number">
-              Beam energy (lab, MeV)
+              {t("fusion.beamEnergy")}
             </label>
             <input
               className="input fusion-control"
@@ -212,7 +221,7 @@ export default function FusionPanel({
           </div>
           <div className="fusion-slider-field">
             <label className="field-label" htmlFor="fusion-beam-slider">
-              Beam energy scale: 0.001–2000 MeV
+              {t("fusion.beamScale")}
             </label>
             <input
               className="fusion-range"
@@ -233,7 +242,7 @@ export default function FusionPanel({
             type="button"
             onClick={setJustOverBarrier}
           >
-            Just over the barrier
+            {t("fusion.justOverBarrier")}
           </button>
         </div>
 
@@ -242,32 +251,32 @@ export default function FusionPanel({
           <p className="fusion-reaction">{report.reaction}</p>
           <div className="fusion-metrics">
             <div className="metric-card">
-              <span className="metric-label"><Term id="coulomb-barrier">Coulomb barrier</Term> (CM)</span>
+              <span className="metric-label"><Term id="coulomb-barrier">{t("elements.metric.coulombBarrier")}</Term> (CM)</span>
               <p className="metric-value">{report.barrierMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Collision energy (CM)</span>
+              <span className="metric-label">{t("fusion.collisionEnergy")}</span>
               <p className="metric-value">{report.ecmMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Q value</span>
+              <span className="metric-label">{t("fusion.qValue")}</span>
               <p className="metric-value">{report.qMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Excitation</span>
+              <span className="metric-label">{t("fusion.excitation")}</span>
               <p className="metric-value">{report.excitationMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Particles off</span>
-              <p className="metric-value">{particleSummary(report.emitted)}</p>
+              <span className="metric-label">{t("fusion.particlesOff")}</span>
+              <p className="metric-value">{particleSummary(report.emitted, t("elements.fusion.none"))}</p>
             </div>
             <div className="metric-card">
               <span className="metric-label">
                 {report.residue.length === 0
-                  ? "Energy released"
+                  ? t("fusion.energyReleased")
                   : report.energyReleasedMeV < 0
-                    ? "Energy cost"
-                    : "Energy released"}
+                    ? t("fusion.energyCost")
+                    : t("fusion.energyReleased")}
               </span>
               <p className="metric-value">
                 {report.residue.length === 0
@@ -276,40 +285,40 @@ export default function FusionPanel({
               </p>
             </div>
             <div className="metric-card">
-              <span className="metric-label">Chance per hit</span>
-              <p className="metric-value">{fmtOneIn(report.chancePerCollision)}</p>
+              <span className="metric-label">{t("fusion.chancePerHit")}</span>
+              <p className="metric-value">{fmtOneIn(report.chancePerCollision, locale)}</p>
             </div>
             {report.light ? (
               <div className="metric-card">
-                <span className="metric-label">Plasma temperature</span>
-                <p className="metric-value">{report.plasmaMillionC?.toFixed(2)} million °C</p>
+                <span className="metric-label">{t("fusion.plasmaTemperature")}</span>
+                <p className="metric-value">{report.plasmaMillionC?.toFixed(2)} {t("elements.metric.millionCelsius")}</p>
               </div>
             ) : (
               <>
                 <div className="metric-card">
-                  <span className="metric-label"><Term id="cross-section">Cross-section</Term></span>
-                  <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0)}</p>
+                  <span className="metric-label"><Term id="cross-section">{t("elements.label.crossSection")}</Term></span>
+                  <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0, locale)}</p>
                 </div>
                 <div className="metric-card">
-                  <span className="metric-label">Atoms/day</span>
-                  <p className="metric-value">{formatAtomsPerDay(report.atomsPerDay ?? 0)}</p>
+                  <span className="metric-label">{t("fusion.atomsPerDay")}</span>
+                  <p className="metric-value">{formatAtomsPerDay(report.atomsPerDay ?? 0, locale)}</p>
                 </div>
               </>
             )}
           </div>
 
           <div className="fusion-residue">
-            <p className="section-label">{report.residue.length === 1 ? "Residue" : "Products"}</p>
+            <p className="section-label">{report.residue.length === 1 ? t("fusion.residue") : t("fusion.products")}</p>
             {report.residue.length === 1 && report.residueReport ? (
               <>
                 <div className="fusion-residue-heading">
                   <strong>{report.residue[0].name}</strong>
                   <span className={`badge ${report.residueReport.known ? "badge-good" : "badge-warn"}`}>
-                    {report.residueReport.known ? "Known" : "Hypothetical"}
+                    {report.residueReport.known ? t("fusion.known") : t("fusion.hypothetical")}
                   </span>
                 </div>
                 <p className="fusion-half-life">
-                  Half-life: {singleResidueHalfLife}
+                  {t("fusion.halfLife", { value: singleResidueHalfLife })}
                 </p>
                 {singleResidueMeasuredHalfLife === undefined ? (
                   <p className={`fusion-verdict ${report.residueReport.bound ? "good" : "bad"}`}>
@@ -318,9 +327,9 @@ export default function FusionPanel({
                 ) : (
                   <>
                     {singleResidueMeasuredHalfLife !== "stable" && (
-                      <p className="fusion-verdict">Radioactive (measured half-life)</p>
+                    <p className="fusion-verdict">{t("fusion.radioactiveMeasured")}</p>
                     )}
-                    <span className="badge badge-neutral">Measured</span>
+                    <span className="badge badge-neutral">{t("fusion.measured")}</span>
                   </>
                 )}
                 <button
@@ -328,25 +337,25 @@ export default function FusionPanel({
                   type="button"
                   onClick={() => onExplore(report.residue[0].z, report.residue[0].n)}
                 >
-                  Explore {residueName}
+                  {t("fusion.explore", { name: residueName })}
                 </button>
               </>
             ) : report.residue.length > 1 ? (
               <div className="fusion-products">
                 {report.residue.map((item, index) => {
                   const element = elementName(item.z);
-                  const analysis = analyzeNucleus(item.z, item.n);
-                  const measured = measuredHalfLife(item.z, item.n);
+                  const analysis = analyzeNucleus(item.z, item.n, locale);
+                  const measured = measuredHalfLife(item.z, item.n, locale);
                   return (
                     <span className="fusion-product" key={`${item.z}-${item.n}-${index}`}>
                       <span className="fusion-product-heading">
-                        <strong>{item.name}</strong>
+                      <strong>{`${localizeElementName(item.z, locale)}-${item.z + item.n}`}</strong>
                         <span className={`badge ${element.known ? "badge-good" : "badge-warn"}`}>
-                          {element.known ? "Known" : "Hypothetical"}
+                          {element.known ? t("fusion.known") : t("fusion.hypothetical")}
                         </span>
                       </span>
                       <span className="fusion-half-life">
-                        Half-life: {displayHalfLife(measured, analysis.halfLife)}
+                        {t("fusion.halfLife", { value: displayHalfLife(measured, analysis.halfLife, t) })}
                       </span>
                       {measured === undefined ? (
                         <span className={`fusion-verdict ${analysis.bound ? "good" : "bad"}`}>
@@ -355,9 +364,9 @@ export default function FusionPanel({
                       ) : (
                         <>
                           {measured !== "stable" && (
-                            <span className="fusion-verdict">Radioactive (measured half-life)</span>
+                            <span className="fusion-verdict">{t("fusion.radioactiveMeasured")}</span>
                           )}
-                          <span className="badge badge-neutral">Measured</span>
+                          <span className="badge badge-neutral">{t("fusion.measured")}</span>
                         </>
                       )}
                     </span>
@@ -365,7 +374,7 @@ export default function FusionPanel({
                 })}
               </div>
             ) : (
-              <p className="muted small">No residue forms on this path.</p>
+              <p className="muted small">{t("fusion.noResidue")}</p>
             )}
           </div>
 
