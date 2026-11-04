@@ -58,6 +58,10 @@ describe("PubChem GHS Spanish display mappings", () => {
       "Reported as not meeting GHS hazard criteria by 1866 of 1876 companies (only 0.5% companies provided GHS information). For more detailed information, please visit ECHA C&L website.",
       "es",
     )).toBe("No cumple los criterios de peligro del SGA según 1866 de 1876 empresas (solo el 0.5% de las empresas proporcionó información del SGA). Para más información, visita el sitio web de clasificación y etiquetado de la ECHA.");
+    expect(localizeGhsHazardStatement(
+      "Reported as not meeting GHS hazard criteria by 1 of 1 companies. For more detailed information, please visit ECHA C&L website.",
+      "es",
+    )).toContain("1 de 1 empresa");
     expect(localizeGhsClassificationNote(
       "Reported as not meeting GHS hazard criteria by 1 of 1 companies. For more detailed information, please visit ECHA C&L website.",
       "es",

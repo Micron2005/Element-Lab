@@ -130,7 +130,7 @@ export function localizeGhsHazardStatement(value: string, locale: Locale): strin
   if (locale !== "es") return value;
   if (value === tr("en", "chem.ghsNotClassified")) return tr(locale, "chem.ghsNotClassified");
   const match = value.match(/^(H\d{3})([^:]*):\s*(.*)$/i);
-  if (!match) return value;
+  if (!match) return localizeGhsClassificationNote(value, locale);
   const [, code, qualifier] = match;
   const spanish = GHS_HAZARD_STATEMENTS_ES[code.toUpperCase()];
   return spanish ? `${code}${qualifier}: ${spanish}` : value;
