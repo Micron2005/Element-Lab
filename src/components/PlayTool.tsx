@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { PageIntro } from "./shared";
 import MoleculeBoard from "./MoleculeBoard";
@@ -23,14 +24,23 @@ import {
   type Stars,
 } from "@/lib/play/quests";
 import { isUnlocked, totalStars } from "@/lib/play/progress";
+import { parseGradeLevel, saveGradeLevel, splitQuestsByLevel, QUEST_MIN_LEVEL, type GradeLevel } from "@/lib/play/levels";
+import { enableBeginnerDefaultIfUnset } from "@/lib/prefs";
 import {
   awardDaily,
+  awardWeekly,
   awardStars,
   useDailyProgress,
   usePlayProgress,
+  useWeeklyProgress,
 } from "./usePlayProgress";
 import { dailyFor, dailyKey, streak } from "@/lib/play/daily";
+import { hasPlayedPack, isoWeekKey, rewardChange, weeklyFor, xpFor, type RewardState } from "@/lib/play/rewards";
 import { Term } from "./Term";
+import { BetaOnly, useBeta } from "./BetaProvider";
+import GradeLevelPicker from "./GradeLevelPicker";
+import { useGradeLevel } from "./useGradeLevel";
+import RewardsPanel from "./RewardsPanel";
 import { KNOWN_MOLECULES } from "@/lib/play/molecule";
 import { compileTemplate, describeTargets, type MixTargets, type QuestTemplate } from "@/lib/play/templates";
 import {
@@ -502,9 +512,22 @@ function PackQuestEditor({
 
 export default function PlayTool() {
   const { locale, t } = useT();
+  const { isOn } = useBeta();
+  const levelFeatureOn = isOn("grade-levels");
+  const rewardsOn = isOn("rewards");
+  const gradeLevel = useGradeLevel();
+  const searchParams = useSearchParams();
+  const requestedLevel = parseGradeLevel(searchParams.get("level"));
   const progress = usePlayProgress();
   const dailyProgress = useDailyProgress();
+  const weeklyProgress = useWeeklyProgress();
   const today = useSyncExternalStore(subscribeToToday, todaySnapshot, () => "");
+  const todayKey = today || dailyKey();
+  const weekKey = isoWeekKey(new Date());
+  const weeklyChallenges = useMemo(
+    () => weeklyFor(weekKey, todayKey).map(({ id, template }) => ({ id, quest: compileTemplate(id, template, locale) })),
+    [weekKey, todayKey, locale],
+  );
   const packsStorage = useSyncExternalStore(
     subscribeToPacks,
     () => localStorage.getItem(PACKS_KEY) ?? "",
@@ -515,6 +538,7 @@ export default function PlayTool() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [packTitle, setPackTitle] = useState("");
   const [packAuthor, setPackAuthor] = useState("");
+  const [packLevel, setPackLevel] = useState<GradeLevel | "">("");
   const [packEditorOpen, setPackEditorOpen] = useState(false);
   const [drafts, setDrafts] = useState<QuestTemplate[]>([
     { type: "molecule", moleculeId: KNOWN_MOLECULES[0].id },
@@ -522,6 +546,15 @@ export default function PlayTool() {
   const [packMessage, setPackMessage] = useState("");
   const [openedPackId, setOpenedPackId] = useState<string | null>(null);
   const [shareNotice, setShareNotice] = useState<{ invalid?: boolean; message?: string } | null>(null);
+  const [rewardToast, setRewardToast] = useState("");
+
+  useEffect(() => {
+    if (levelFeatureOn && requestedLevel) saveGradeLevel(requestedLevel);
+  }, [levelFeatureOn, requestedLevel]);
+
+  useEffect(() => {
+    if (levelFeatureOn && gradeLevel === "middle") enableBeginnerDefaultIfUnset();
+  }, [gradeLevel, levelFeatureOn]);
 
   useEffect(() => {
     function openPackLink() {
@@ -550,14 +583,22 @@ export default function PlayTool() {
     return () => window.removeEventListener("hashchange", openPackLink);
   }, [t]);
 
-  const activeSource = activeId ? questById(activeId, locale) : undefined;
+  useEffect(() => {
+    const openedPack = packs.find(({ id }) => id === openedPackId);
+    if (levelFeatureOn && openedPack?.level) saveGradeLevel(openedPack.level);
+  }, [openedPackId, packs, levelFeatureOn]);
+
+  const activeSource = activeId
+    ? weeklyChallenges.find(({ id }) => id === activeId)?.quest ?? questById(activeId, locale)
+    : undefined;
   const active = activeSource ? localizeQuest(activeSource, locale) : undefined;
   const chapterQuests = active ? questsIn(active.chapter, locale) : [];
+  const activeSequence = levelFeatureOn ? splitQuestsByLevel(chapterQuests, gradeLevel).visible : chapterQuests;
   const builtInActive = active ? QUESTS.some((quest) => quest.id === active.id) : false;
   const nextIndex = active && builtInActive
-    ? chapterQuests.findIndex((quest) => quest.id === active.id) + 1
+    ? activeSequence.findIndex((quest) => quest.id === active.id) + 1
     : -1;
-  const nextQuest = nextIndex >= 0 ? chapterQuests[nextIndex] : undefined;
+  const nextQuest = nextIndex > 0 ? activeSequence[nextIndex] : undefined;
   const maxStars = QUESTS.length * 3;
   const todayDaily = today ? dailyFor(today, locale) : null;
   const dailyQuest = todayDaily ? compileTemplate(todayDaily.id, todayDaily.template, locale) : null;
@@ -567,18 +608,47 @@ export default function PlayTool() {
   const activeBest = active
     ? activeDailyKey
       ? dailyProgress.done[activeDailyKey] ?? 0
-      : progress.stars[active.id] ?? 0
+      : active.id.startsWith("weekly:")
+        ? weeklyProgress.done[active.id] ?? 0
+        : progress.stars[active.id] ?? 0
     : 0;
+  const rewardState: RewardState = {
+    progress,
+    daily: dailyProgress,
+    weekly: weeklyProgress,
+    today: todayKey,
+    playedPack: hasPlayedPack(progress),
+  };
+  const weeklyDone = weeklyChallenges.filter(({ id }) => (weeklyProgress.done[id] ?? 0) > 0).length;
+  const currentXp = xpFor(progress, dailyProgress, weeklyProgress);
   const normalizedDraft = sanitizePackContents({
     title: packTitle,
     ...(packAuthor.trim() ? { author: packAuthor } : {}),
+    ...(packLevel ? { level: packLevel } : {}),
     quests: drafts,
   });
   const canSave = normalizedDraft !== null;
 
   function award(questId: string, stars: Stars) {
-    if (questId.startsWith("daily:")) awardDaily(questId.slice("daily:".length), stars);
-    else awardStars(questId, stars);
+    const before = rewardState;
+    let after: RewardState = before;
+    if (questId.startsWith("daily:")) {
+      const id = questId.slice("daily:".length);
+      awardDaily(id, stars);
+      after = { ...before, daily: { done: { ...before.daily.done, [id]: Math.max(before.daily.done[id] ?? 0, stars) as Stars } } };
+    } else if (questId.startsWith("weekly:")) {
+      awardWeekly(questId, stars);
+      after = { ...before, weekly: { done: { ...before.weekly.done, [questId]: Math.max(before.weekly.done[questId] ?? 0, stars) as Stars } } };
+    } else {
+      awardStars(questId, stars);
+      after = { ...before, progress: { stars: { ...before.progress.stars, [questId]: Math.max(before.progress.stars[questId] ?? 0, stars) as Stars } } };
+    }
+    const change = rewardChange(before, after);
+    if (change.rankUp) {
+      setRewardToast(t("play.reward.rankUp"));
+    } else if (change.newBadge) {
+      setRewardToast(t("play.reward.badgeEarned", { badge: t(change.newBadge.titleKey) }));
+    }
   }
 
   function openTab(next: Tab) {
@@ -594,6 +664,7 @@ export default function PlayTool() {
     setPackEditorOpen(false);
     setPackTitle("");
     setPackAuthor("");
+    setPackLevel("");
     setDrafts([{ type: "molecule", moleculeId: KNOWN_MOLECULES[0].id }]);
     setPackMessage("");
   }
@@ -626,6 +697,34 @@ export default function PlayTool() {
         title={t("play.ui.pageTitle")}
         description={t("play.ui.pageDescription")}
       />
+      <BetaOnly feature="grade-levels">
+        <GradeLevelPicker />
+      </BetaOnly>
+      {rewardsOn && (
+        <BetaOnly feature="rewards">
+          <RewardsPanel xp={currentXp} state={rewardState} />
+          <section className="weekly-card" aria-labelledby="weekly-title">
+            <div className="weekly-card-heading">
+              <h2 id="weekly-title">{t("play.reward.weekly")}</h2>
+              <span>{t("play.reward.weekProgress", { done: weeklyDone })}</span>
+            </div>
+            <ol>
+              {weeklyChallenges.map(({ id, quest }) => (
+                <li key={id}>
+                  <button type="button" className="weekly-challenge" onClick={() => {
+                    setTab(quest.chapter);
+                    setActiveId(id);
+                  }}>
+                    <span><strong>{quest.title}</strong><small>{quest.goal}</small></span>
+                    <StarRow stars={weeklyProgress.done[id] ?? 0} />
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+          {rewardToast && <p className="reward-toast" role="status">{rewardToast}</p>}
+        </BetaOnly>
+      )}
       {shareNotice && (
         <ShareNotice
           invalid={shareNotice.invalid}
@@ -709,14 +808,16 @@ export default function PlayTool() {
       {tab !== "free" && !active && (
         <>
           <p className="play-blurb">{CHAPTERS.find((chapter) => chapter.id === tab) ? localizeChapter(CHAPTERS.find((chapter) => chapter.id === tab)!, locale).blurb : ""}</p>
-          <ol className="play-quest-list">
-            {questsIn(tab, locale).map((sourceQuest, index) => {
-              const quest = sourceQuest;
-              const unlocked = isUnlocked(quest.id, progress);
+          {(() => {
+            const allQuests = questsIn(tab, locale);
+            const groups = levelFeatureOn ? splitQuestsByLevel(allQuests, gradeLevel) : { visible: allQuests, higher: [] };
+            const renderItems = (items: typeof allQuests, sequence: typeof allQuests) => items.map((quest, index) => {
+              const unlocked = isUnlocked(quest.id, progress, sequence);
+              const sequenceIndex = sequence.findIndex(({ id }) => id === quest.id);
               return (
                 <li key={quest.id}>
                   <button type="button" className="play-quest-item" disabled={!unlocked} onClick={() => setActiveId(quest.id)}>
-                    <span className="play-quest-num">{index + 1}</span>
+                    <span className="play-quest-num">{sequenceIndex >= 0 ? sequenceIndex + 1 : index + 1}</span>
                     <span className="play-quest-text">
                       <strong>{quest.title}</strong>
                       <span>{unlocked ? quest.goal : t("ui.playLocked")}</span>
@@ -725,8 +826,23 @@ export default function PlayTool() {
                   </button>
                 </li>
               );
-            })}
-          </ol>
+            });
+            return (
+              <>
+                <ol className="play-quest-list">{renderItems(groups.visible, groups.visible)}</ol>
+                {groups.higher.length > 0 && (
+                  <details className="play-higher-quests">
+                    <summary>{t("play.level.moreAt", {
+                      levels: [...new Set(groups.higher.map(({ id }) => QUEST_MIN_LEVEL[id as keyof typeof QUEST_MIN_LEVEL]))]
+                        .map((level) => t(level === "high" ? "play.level.high" : "play.level.college"))
+                        .join(" / "),
+                    })}</summary>
+                    <ol className="play-quest-list">{renderItems(groups.higher, allQuests)}</ol>
+                  </details>
+                )}
+              </>
+            );
+          })()}
         </>
       )}
 
@@ -750,7 +866,10 @@ export default function PlayTool() {
                   className="saved-pack"
                   key={pack.id}
                   open={openedPackId === pack.id}
-                  onToggle={(event) => setOpenedPackId(event.currentTarget.open ? pack.id : null)}
+                  onToggle={(event) => {
+                    if (levelFeatureOn && event.currentTarget.open && pack.level) saveGradeLevel(pack.level);
+                    setOpenedPackId(event.currentTarget.open ? pack.id : null);
+                  }}
                   id={`quest-pack-${pack.id}`}
                 >
                   <summary>
@@ -791,7 +910,7 @@ export default function PlayTool() {
                         build={() => ({
                           v: 1,
                           kind: "pack",
-                          pack: { title: pack.title, ...(pack.author ? { author: pack.author } : {}), quests: pack.quests },
+                          pack: { title: pack.title, ...(pack.author ? { author: pack.author } : {}), ...(pack.level ? { level: pack.level } : {}), quests: pack.quests },
                         })}
                       />
                       <button
@@ -848,6 +967,17 @@ export default function PlayTool() {
               <span>{t("play.ui.authorOptional")}</span>
               <input className="input" maxLength={40} value={packAuthor} onChange={(event) => setPackAuthor(event.target.value)} />
             </label>
+            {levelFeatureOn && (
+              <label className="pack-field">
+                <span>{t("play.level.packLevel")}</span>
+                <select className="input" value={packLevel} onChange={(event) => setPackLevel(event.target.value as GradeLevel | "")}>
+                  <option value="">{t("play.level.packNoLevel")}</option>
+                  <option value="middle">{t("play.level.middle")}</option>
+                  <option value="high">{t("play.level.high")}</option>
+                  <option value="college">{t("play.level.college")}</option>
+                </select>
+              </label>
+            )}
           </div>
           <div className="pack-editor-list">
             {drafts.map((draft, index) => (

@@ -6,9 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { LOCALE_COOKIE, type Locale } from "@/lib/i18n";
 import { BETA_FEATURES } from "@/lib/beta";
 import { savePrefs } from "@/lib/prefs";
-import { useBeta } from "./BetaProvider";
+import { BetaOnly, useBeta } from "./BetaProvider";
 import { useT } from "./LocaleProvider";
 import { usePrefs } from "./usePrefs";
+import GradeLevelPicker from "./GradeLevelPicker";
 
 function setLocaleCookie(next: Locale) {
   document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
@@ -121,6 +122,9 @@ export default function DisplaySettings() {
             checked={prefs.beginner}
             onChange={() => update({ beginner: !prefs.beginner })}
           />
+          <BetaOnly feature="grade-levels">
+            <GradeLevelPicker />
+          </BetaOnly>
           <Switch
             id="display-contrast-label"
             label={t("display.contrast")}

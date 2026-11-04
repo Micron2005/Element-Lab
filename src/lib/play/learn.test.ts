@@ -4,11 +4,13 @@ import { KNOWN_MOLECULES } from "./molecule";
 import { QUESTS } from "./quests";
 import {
   MOLECULE_LESSONS,
+  LESSON_DEPTH,
   QUEST_LESSONS,
   atomCard,
   mixCard,
   moleculeCard,
 } from "./learn";
+import { LESSON_DEPTH_ES, MOLECULE_LESSONS_ES, QUEST_LESSONS_ES } from "../i18n/data/es/learn";
 import { benchPresets } from "../bench/presets";
 import { compileTemplate } from "./templates";
 
@@ -33,6 +35,35 @@ describe("learning cards", () => {
           expect(value.trim().length).toBeGreaterThan(0);
         }
       }
+    }
+  });
+
+  it("has authored, unique depth for every lesson in English and Spanish", () => {
+    const ids = [...Object.keys(MOLECULE_LESSONS), ...Object.keys(QUEST_LESSONS)].sort();
+    expect(Object.keys(LESSON_DEPTH).sort()).toEqual(ids);
+    expect(Object.keys(LESSON_DEPTH_ES).sort()).toEqual(ids);
+    const englishDeeper = Object.values(LESSON_DEPTH).map(({ deeper }) => deeper);
+    const spanishDeeper = Object.values(LESSON_DEPTH_ES).map(({ deeper }) => deeper);
+    expect(new Set(englishDeeper).size).toBe(ids.length);
+    expect(new Set(spanishDeeper).size).toBe(ids.length);
+    for (const id of Object.keys(MOLECULE_LESSONS) as (keyof typeof MOLECULE_LESSONS)[]) {
+      const enFirst = MOLECULE_LESSONS[id].whatItIs.trim().split(/(?<=[.!?])\s+/)[0];
+      const esFirst = MOLECULE_LESSONS_ES[id].whatItIs.trim().split(/(?<=[.!?])\s+/)[0];
+      expect(LESSON_DEPTH[id].simple).not.toBe(enFirst);
+      expect(LESSON_DEPTH_ES[id].simple).not.toBe(esFirst);
+    }
+    for (const id of Object.keys(QUEST_LESSONS) as (keyof typeof QUEST_LESSONS)[]) {
+      const enFirst = QUEST_LESSONS[id].whatItIs.trim().split(/(?<=[.!?])\s+/)[0];
+      const esFirst = QUEST_LESSONS_ES[id].whatItIs.trim().split(/(?<=[.!?])\s+/)[0];
+      expect(LESSON_DEPTH[id].simple).not.toBe(enFirst);
+      expect(LESSON_DEPTH_ES[id].simple).not.toBe(esFirst);
+    }
+    for (const depth of [...Object.values(LESSON_DEPTH), ...Object.values(LESSON_DEPTH_ES)]) {
+      expect(depth.simple.trim()).not.toBe("");
+      expect(depth.deeper.trim()).not.toBe("");
+      expect(depth.simple.split(/(?<=[.!?])\s+/).length).toBeLessThanOrEqual(2);
+      expect(depth.deeper.split(/(?<=[.!?])\s+/).length).toBeGreaterThanOrEqual(2);
+      expect(depth.deeper.split(/(?<=[.!?])\s+/).length).toBeLessThanOrEqual(4);
     }
   });
 

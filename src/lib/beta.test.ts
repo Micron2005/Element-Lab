@@ -22,10 +22,12 @@ describe("beta features", () => {
   });
 
   it("enables registered features by default and preserves stored toggles", () => {
-    expect(defaultBetaFeatureSettings()).toEqual({ "report-problem": true });
-    expect(parseBetaFeatureSettings('{"report-problem":false,"unknown":false}')).toEqual({
+    expect(defaultBetaFeatureSettings()).toEqual({ "report-problem": true, "grade-levels": true, rewards: true });
+    expect(parseBetaFeatureSettings('{"report-problem":false,"grade-levels":false,"unknown":false}')).toEqual({
       "report-problem": false,
+      "grade-levels": false,
+      rewards: true,
     });
-    expect(parseBetaFeatureSettings("{")).toEqual({ "report-problem": true });
+    expect(parseBetaFeatureSettings("{")).toEqual({ "report-problem": true, "grade-levels": true, rewards: true });
   });
 });

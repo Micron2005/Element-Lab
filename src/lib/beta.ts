@@ -4,7 +4,7 @@ export const BETA_COOKIE = "beta";
 export const BETA_FEATURE_STORAGE_KEY = "elementlab.betaFeatures";
 export const BETA_FEATURES_CHANGE_EVENT = "elementlab:beta-features";
 
-export type BetaFeatureId = "report-problem";
+export type BetaFeatureId = "report-problem" | "grade-levels" | "rewards";
 export type BetaFeatureSettings = Record<BetaFeatureId, boolean>;
 
 export const BETA_FEATURES: readonly {
@@ -16,6 +16,16 @@ export const BETA_FEATURES: readonly {
     id: "report-problem",
     titleKey: "beta.feature.reportProblem.title",
     descKey: "beta.feature.reportProblem.description",
+  },
+  {
+    id: "grade-levels",
+    titleKey: "beta.feature.gradeLevels.title",
+    descKey: "beta.feature.gradeLevels.description",
+  },
+  {
+    id: "rewards",
+    titleKey: "beta.feature.rewards.title",
+    descKey: "beta.feature.rewards.description",
   },
 ];
 

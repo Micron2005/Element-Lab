@@ -64,4 +64,11 @@ describe("quest packs", () => {
     storage.setItem(PACKS_KEY, JSON.stringify([pack, { ...pack, id: "wrong" }, null]));
     expect(loadPacks()).toEqual([pack]);
   });
+
+  it("accepts optional grade levels while rejecting invalid levels and preserving old packs", () => {
+    const oldPack = sanitizePackContents(contents);
+    expect(oldPack?.pack.level).toBeUndefined();
+    expect(sanitizePackContents({ ...contents, level: "middle" })?.pack.level).toBe("middle");
+    expect(sanitizePackContents({ ...contents, level: "graduate" })).toBeNull();
+  });
 });

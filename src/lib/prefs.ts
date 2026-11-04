@@ -55,4 +55,22 @@ export function savePrefs(prefs: Prefs): void {
   window.dispatchEvent(new Event(PREFS_CHANGE_EVENT));
 }
 
+export function enableBeginnerDefaultIfUnset(): void {
+  if (typeof window === "undefined") return;
+  let explicit = false;
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    if (raw) {
+      const stored: unknown = JSON.parse(raw);
+      explicit = Boolean(
+        stored && typeof stored === "object" && !Array.isArray(stored) &&
+        typeof (stored as Record<string, unknown>).beginner === "boolean",
+      );
+    }
+  } catch {
+    explicit = false;
+  }
+  if (!explicit) savePrefs({ ...loadPrefs(), beginner: true });
+}
+
 export const PREFS_SCRIPT = `(function(){var d=document.documentElement.dataset;try{var p=JSON.parse(localStorage.getItem("${PREFS_KEY}")||"null");p=p&&typeof p==="object"&&!Array.isArray(p)?p:{};d.beginner=p.beginner===true?"1":"0";d.contrast=p.contrast===true?"1":"0";d.motion=p.motion==="reduce"||p.motion==="system"?p.motion:"system"}catch(e){d.beginner="0";d.contrast="0";d.motion="system"}})()`;

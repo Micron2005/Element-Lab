@@ -55,10 +55,16 @@ export function recordStars(questId: string, stars: Stars): PlayProgress {
   return next;
 }
 
-export function isUnlocked(questId: string, progress: PlayProgress): boolean {
+export function isUnlocked(
+  questId: string,
+  progress: PlayProgress,
+  visibleSequence?: readonly { id: string }[],
+): boolean {
   const quest = QUESTS.find((item) => item.id === questId);
   if (!quest) return false;
-  const chapterQuests = questsIn(quest.chapter);
+  const chapterQuests = visibleSequence
+    ? visibleSequence.filter((item) => QUESTS.find((builtin) => builtin.id === item.id)?.chapter === quest.chapter)
+    : questsIn(quest.chapter);
   const index = chapterQuests.findIndex((item) => item.id === questId);
   return index === 0 || (index > 0 && (progress.stars[chapterQuests[index - 1].id] ?? 0) >= 1);
 }

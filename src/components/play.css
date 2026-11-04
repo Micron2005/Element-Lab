@@ -1,4 +1,11 @@
 .play-page { display: grid; gap: 16px; }
+.grade-level-picker { border: 0; padding: 0; margin: 0; }
+.grade-level-picker legend { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.grade-level-picker [role="group"] { display: flex; flex-wrap: wrap; gap: 6px; }
+.grade-level-picker button { min-height: 40px; border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; background: var(--surface); color: var(--text); }
+.grade-level-picker button.is-active { border-color: var(--accent); background: var(--accent-soft); }
+.play-higher-quests { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.play-higher-quests summary { cursor: pointer; font-weight: 650; }
 .play-score { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
 .play-score strong { color: var(--text); }
 .play-stars { display: inline-flex; gap: 2px; font-size: 16px; line-height: 1; color: #8a9998; }
@@ -78,6 +85,21 @@
 .mol-palette-text strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .mol-palette-text span { color: var(--muted); font-size: 11px; }
 .mol-stage { overflow: hidden; border: 1px solid #24403b; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #11262a, #080e10 75%); }
+.mol-stage-bg-grid { background-image: linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg, #ffffff12 1px, transparent 1px), radial-gradient(circle at 50% 40%, #11262a, #080e10 75%); background-size: 24px 24px, 24px 24px, auto; }
+.mol-stage-bg-dots { background-image: radial-gradient(#b9d9df60 1px, transparent 1.5px), radial-gradient(circle at 50% 40%, #11262a, #080e10 75%); background-size: 18px 18px, auto; }
+.mol-stage-bg-blueprint { background-color: #0b2340; background-image: linear-gradient(#92cfff2b 1px, transparent 1px), linear-gradient(90deg, #92cfff2b 1px, transparent 1px); background-size: 20px 20px; }
+.mol-stage-bg-space { background: radial-gradient(circle at 26% 22%, #f1d9a24d 1px, transparent 2px), radial-gradient(circle at 78% 69%, #c5d6ff66 1px, transparent 2px), radial-gradient(circle at 50% 40%, #1c1b40, #080e10 75%); background-size: 72px 68px, 96px 92px, auto; }
+.weekly-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface); }
+.weekly-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.weekly-card-heading h2 { margin: 0; }
+.weekly-card-heading span { color: var(--muted); font-size: 13px; }
+.weekly-card ol { display: grid; gap: 8px; padding-left: 22px; }
+.weekly-challenge { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--text); text-align: left; }
+.weekly-challenge span:first-child { display: grid; gap: 4px; }
+.weekly-challenge small { color: var(--muted); }
+.reward-toast { margin: 0; border-radius: 10px; padding: 10px 14px; background: var(--accent-soft); color: var(--text); font-weight: 650; }
+@media (prefers-reduced-motion: no-preference) { .reward-toast { animation: reward-toast-in .3s ease-out; } }
+@keyframes reward-toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .mol-svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
 .mol-drawing { display: block; width: 100%; max-height: 140px; }
 .mol-bond { stroke: #d7e3e1; stroke-width: 3; stroke-linecap: round; }

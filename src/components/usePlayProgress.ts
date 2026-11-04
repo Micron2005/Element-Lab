@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useSyncExternalStore } from "react";
 import { PROGRESS_KEY, loadProgress, recordStars, type PlayProgress } from "@/lib/play/progress";
 import { DAILY_PROGRESS_KEY, loadDailyProgress, recordDaily, type DailyProgress } from "@/lib/play/daily";
+import { WEEKLY_CHANGE_EVENT, WEEKLY_PROGRESS_KEY, loadWeeklyProgress, recordWeekly, type WeeklyProgress } from "@/lib/play/rewards";
 import { PACKS_CHANGE_EVENT, PACKS_KEY } from "@/lib/play/packs";
 import type { Stars } from "@/lib/play/quests";
 
@@ -30,6 +31,15 @@ function subscribeDaily(onChange: () => void) {
   };
 }
 
+function subscribeWeekly(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(WEEKLY_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(WEEKLY_CHANGE_EVENT, onChange);
+  };
+}
+
 export function usePlayProgress(): PlayProgress {
   const raw = useSyncExternalStore(
     subscribe,
@@ -48,6 +58,15 @@ export function useDailyProgress(): DailyProgress {
   return useMemo(() => (raw ? loadDailyProgress() : { done: {} }), [raw]);
 }
 
+export function useWeeklyProgress(): WeeklyProgress {
+  const raw = useSyncExternalStore(
+    subscribeWeekly,
+    () => localStorage.getItem(WEEKLY_PROGRESS_KEY) ?? "",
+    () => "",
+  );
+  return useMemo(() => (raw ? loadWeeklyProgress() : { done: {} }), [raw]);
+}
+
 export function awardStars(questId: string, stars: Stars) {
   recordStars(questId, stars);
   window.dispatchEvent(new Event(CHANGE_EVENT));
@@ -56,6 +75,10 @@ export function awardStars(questId: string, stars: Stars) {
 export function awardDaily(key: string, stars: Stars) {
   recordDaily(key, stars);
   window.dispatchEvent(new Event(DAILY_CHANGE_EVENT));
+}
+
+export function awardWeekly(key: string, stars: Stars) {
+  recordWeekly(key, stars);
 }
 
 export function useQuestParam(): string | null {
