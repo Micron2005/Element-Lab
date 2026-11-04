@@ -1,3 +1,6 @@
+import type { Locale } from "./i18n";
+import { INGREDIENT_TEXT_ES } from "./i18n/data/es/ingredients";
+
 export type Role =
   | "polymer"
   | "crosslinker"
@@ -550,3 +553,9 @@ export const INGREDIENTS: Ingredient[] = [
 ];
 
 export const byId = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
+
+export function localizeIngredient(ingredient: Ingredient, locale: Locale): Ingredient {
+  if (locale !== "es") return ingredient;
+  const overlay = INGREDIENT_TEXT_ES[ingredient.id];
+  return overlay ? { ...ingredient, ...overlay } : ingredient;
+}

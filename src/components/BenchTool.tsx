@@ -5,9 +5,10 @@ import { fmtTime, hazardWord } from "@/lib/formula";
 import { DEFAULT_CONDITIONS, effectivePH, waterBoilingPointC } from "@/lib/bench/conditions";
 import { compareRuns, isNotSolid } from "@/lib/bench/compare";
 import { CUSTOM_PREFIX, newCustomId } from "@/lib/bench/custom";
-import { allBenchIngredients, benchById } from "@/lib/bench/library";
+import { allBenchIngredients, benchById, localizeBenchIngredient } from "@/lib/bench/library";
 import { findBestMixesAsync } from "@/lib/bench/optimize";
-import { benchPresets } from "@/lib/bench/presets";
+import { benchPresets, localizeBenchPreset } from "@/lib/bench/presets";
+import { localizeReaction, localizeReactionEvent, REACTIONS } from "@/lib/bench/reactions";
 import { simulate } from "@/lib/bench/simulate";
 import { tr, trText } from "@/lib/i18n";
 import { buildMixScene } from "@/lib/bench/scene";
@@ -281,9 +282,15 @@ function candidateTargetStatus(goal: Goal, result: RunResult, locale: "en" | "es
 
 function partsSummary(experiment: Experiment, locale: "en" | "es"): string {
   return experiment.parts
-    .map((part) =>
-      `${trText(locale, benchById[part.id]?.name ?? (part.id.startsWith(CUSTOM_PREFIX) ? tr(locale, "bench.deletedIngredient") : part.id))} ${part.pct}%`,
-    )
+    .map((part) => {
+      const ingredient = benchById[part.id];
+      const name = ingredient
+        ? localizeBenchIngredient(ingredient, locale).name
+        : part.id.startsWith(CUSTOM_PREFIX)
+          ? tr(locale, "bench.deletedIngredient")
+          : part.id;
+      return `${name} ${part.pct}%`;
+    })
     .join(", ") || tr(locale, "bench.noIngredients");
 }
 
@@ -815,7 +822,7 @@ export default function BenchTool() {
               <option value="custom">{t("ui.customMix")}</option>
               {benchPresets.map((preset) => (
                 <option value={preset.id} key={preset.id}>
-                  {trText(locale, preset.name)}
+                  {localizeBenchPreset(preset, locale).name}
                 </option>
               ))}
             </select>
@@ -881,7 +888,7 @@ export default function BenchTool() {
                 return (
                   <div className="bench-library-item" key={ingredient.id}>
                     <div className="bench-library-copy">
-                      <strong>{trText(locale, ingredient.name)}</strong>
+                      <strong>{localizeBenchIngredient(ingredient, locale).name}</strong>
                       <span>{ingredient.formula}</span>
                       {ingredient.id.startsWith(CUSTOM_PREFIX) && (
                       <span className="bench-yours-badge">{t("ui.yours")}</span>
@@ -961,13 +968,13 @@ export default function BenchTool() {
                       <div className="bench-mix-row-top">
                         <div className="bench-mix-title">
                           <span className="bench-order">{String(index + 1).padStart(2, "0")}</span>
-                          <strong>{trText(locale, ingredient.name)}</strong>
+                          <strong>{localizeBenchIngredient(ingredient, locale).name}</strong>
                         </div>
                         <span className="badge bench-category-badge">{t(`ui.category.${ingredient.category === "acid-base" ? "Acids/Bases" : ingredient.category === "salt" ? "Salts" : ingredient.category === "protein" ? "Proteins" : ingredient.category === "enzyme" ? "Enzymes" : ingredient.category === "polymer" ? "Polymers" : ingredient.category === "solvent" ? "Solvents" : ingredient.category === "additive" ? "Additives" : "Elements"}`)}</span>
                       </div>
                       <div className="bench-mix-controls">
                         <input
-                          aria-label={`${trText(locale, ingredient.name)} percentage slider`}
+                          aria-label={`${localizeBenchIngredient(ingredient, locale).name} percentage slider`}
                           className="bench-range"
                           type="range"
                           min="0"
@@ -977,7 +984,7 @@ export default function BenchTool() {
                           onChange={(event) => setPartPct(index, Number(event.target.value))}
                         />
                         <label className="bench-percent-field">
-                          <span className="sr-only">{trText(locale, ingredient.name)} percentage</span>
+                          <span className="sr-only">{localizeBenchIngredient(ingredient, locale).name} percentage</span>
                           <input
                             className="input"
                             type="number"
@@ -993,7 +1000,7 @@ export default function BenchTool() {
                       <div className="bench-row-actions">
                         <button
                           className="button button-secondary bench-icon-button"
-                          aria-label={`Move ${trText(locale, ingredient.name)} up`}
+                          aria-label={`Move ${localizeBenchIngredient(ingredient, locale).name} up`}
                           type="button"
                           disabled={index === 0}
                           onClick={() => movePart(index, -1)}
@@ -1002,7 +1009,7 @@ export default function BenchTool() {
                         </button>
                         <button
                           className="button button-secondary bench-icon-button"
-                          aria-label={`Move ${trText(locale, ingredient.name)} down`}
+                          aria-label={`Move ${localizeBenchIngredient(ingredient, locale).name} down`}
                           type="button"
                           disabled={index === experiment.parts.length - 1}
                           onClick={() => movePart(index, 1)}
@@ -1024,8 +1031,8 @@ export default function BenchTool() {
                       </div>
                       <details className="bench-ingredient-details">
                         <summary>{t("bench.howItBonds")}</summary>
-                        <p>{trText(locale, ingredient.bonding)}</p>
-                        <p>{trText(locale, ingredient.notes)}</p>
+                        <p>{localizeBenchIngredient(ingredient, locale).bonding}</p>
+                        <p>{localizeBenchIngredient(ingredient, locale).notes}</p>
                       </details>
                     </article>
                   );
@@ -1181,7 +1188,7 @@ export default function BenchTool() {
                   .filter((ingredient) => ["salt", "solvent"].includes(ingredient.category))
                   .map((ingredient) => (
                     <option value={ingredient.id} key={ingredient.id}>
-                      {trText(locale, ingredient.name)}
+                      {localizeBenchIngredient(ingredient, locale).name}
                     </option>
                   ))}
               </select>
@@ -1304,7 +1311,9 @@ export default function BenchTool() {
                 <p className="bench-muted">{t("bench.noReactionMatched")}</p>
               ) : (
                 <div className="bench-event-list">
-                  {result.events.map((event) => (
+                  {result.events.map((sourceEvent) => {
+                    const event = localizeReactionEvent(sourceEvent, locale);
+                    return (
                     <article className={`bench-event bench-event-${event.status}`} key={event.id}>
                       <span className="bench-event-icon" aria-hidden="true">
                         {event.status === "happened" ? "✓" : event.status === "partial" ? "◐" : "×"}
@@ -1322,7 +1331,8 @@ export default function BenchTool() {
                         )}
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -1621,7 +1631,9 @@ export default function BenchTool() {
                   {comparison.ingredients.map((ingredient) => (
                     <tr key={`ingredient-${ingredient.id}`}>
                       <th scope="row">
-                        {trText(locale, ingredient.name)}
+                        {benchById[ingredient.id]
+                          ? localizeBenchIngredient(benchById[ingredient.id], locale).name
+                          : ingredient.name}
                         {ingredient.changed && <ChangedTag text={t("bench.changed")} />}
                       </th>
                       {ingredient.pcts.map((pct, index) => (
@@ -1656,17 +1668,20 @@ export default function BenchTool() {
                     </tr>
                   ))}
                   <ComparisonSection heading={t("bench.sectionReactions")} colSpan={comparison.names.length + 1} />
-                  {comparison.reactions.map((reaction) => (
-                    <tr key={`reaction-${reaction.name}`}>
-                      <th scope="row">
-                        {trText(locale, reaction.name)}
-                        {reaction.changed && <ChangedTag text={t("bench.changed")} />}
-                      </th>
-                      {reaction.statuses.map((status, index) => (
-                        <td key={index}>{status === "absent" ? t("bench.statusAbsent") : t(`bench.eventStatus.${status}`)}</td>
-                      ))}
-                    </tr>
-                  ))}
+                  {comparison.reactions.map((reaction) => {
+                    const source = REACTIONS.find(({ name }) => name === reaction.name);
+                    return (
+                      <tr key={`reaction-${reaction.name}`}>
+                        <th scope="row">
+                          {source ? localizeReaction(source, locale).name : trText(locale, reaction.name)}
+                          {reaction.changed && <ChangedTag text={t("bench.changed")} />}
+                        </th>
+                        {reaction.statuses.map((status, index) => (
+                          <td key={index}>{status === "absent" ? t("bench.statusAbsent") : t(`bench.eventStatus.${status}`)}</td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

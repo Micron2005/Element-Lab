@@ -1,5 +1,6 @@
 import type { MessageKey } from "./en";
 import { playEs } from "./messages/play";
+import { benchEs } from "./messages/bench";
 
 export const es: Record<MessageKey, string> = {
   "meta.description": "Un laboratorio científico virtual para mentes curiosas: química, materiales, física y más.",
@@ -681,4 +682,5 @@ export const es: Record<MessageKey, string> = {
   "play.template.checkMolecule": "Revisa los enlaces y la valencia de {name}.",
   "play.template.moleculeStory": "Construye una molécula con los átomos del laboratorio de moléculas.",
   ...playEs,
+  ...benchEs,
 };

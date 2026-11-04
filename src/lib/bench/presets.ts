@@ -1,4 +1,6 @@
 import { DEFAULT_CONDITIONS } from "./conditions";
+import type { Locale } from "../i18n";
+import { BENCH_PRESET_TEXT_ES } from "../i18n/data/es/benchPresets";
 import type { Experiment } from "./types";
 
 export interface BenchPreset {
@@ -174,3 +176,8 @@ export const benchPresets: BenchPreset[] = [
     },
   },
 ];
+
+export function localizeBenchPreset(preset: BenchPreset, locale: Locale): BenchPreset {
+  if (locale !== "es") return preset;
+  return { ...preset, ...BENCH_PRESET_TEXT_ES[preset.id] };
+}

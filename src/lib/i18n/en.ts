@@ -1,4 +1,5 @@
 import { playEn } from "./messages/play";
+import { benchEn } from "./messages/bench";
 
 export const en = {
   "meta.description": "A virtual science lab for curious minds: chemistry, materials, physics and more.",
@@ -680,6 +681,7 @@ export const en = {
   "play.template.checkMolecule": "Check the bonds and valence for {name}.",
   "play.template.moleculeStory": "Build a molecule using the atoms in the molecule lab.",
   ...playEn,
+  ...benchEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

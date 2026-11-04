@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fmtTime } from "@/lib/formula";
-import { trText } from "@/lib/i18n";
-import { allBenchIngredients, benchById } from "@/lib/bench/library";
+import { allBenchIngredients, benchById, localizeBenchIngredient } from "@/lib/bench/library";
+import { localizeReactionEvent } from "@/lib/bench/reactions";
 import {
   DEFAULT_SHOT,
   fluidFromMix,
@@ -324,7 +324,7 @@ export default function ShootTest({
                   >
                     {ingredients.map((ingredient) => (
                       <option key={ingredient.id} value={ingredient.id}>
-                        {trText(locale, ingredient.name)}
+                        {localizeBenchIngredient(ingredient, locale).name}
                       </option>
                     ))}
                   </select>
@@ -449,7 +449,11 @@ export default function ShootTest({
                     <ul>
                       {twoPartReport.combined.result.events
                         .filter((event) => event.activity > 0)
-                        .map((event) => <li key={event.id}>{event.name}</li>)}
+                        .map((event) => (
+                          <li key={event.id}>
+                            {localizeReactionEvent(event, locale).name}
+                          </li>
+                        ))}
                     </ul>
                   ) : (
                     <p>No active modeled reactions.</p>

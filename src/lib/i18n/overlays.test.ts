@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { benchLibrary, localizeBenchIngredient } from "../bench/library";
+import { benchPresets, localizeBenchPreset } from "../bench/presets";
+import { localizeReaction, localizeReactionEvent, REACTIONS } from "../bench/reactions";
+import { byId, INGREDIENTS, localizeIngredient } from "../ingredients";
 import { ATOMS, localizeAtom } from "../play/atoms";
 import { MOLECULE_LESSONS, QUEST_LESSONS } from "../play/learn";
 import { KNOWN_MOLECULES } from "../play/molecule";
@@ -7,14 +11,101 @@ import { ATOM_NAMES_ES } from "./data/es/atoms";
 import { MOLECULE_LESSONS_ES, QUEST_LESSONS_ES } from "./data/es/learn";
 import { MOLECULE_TEXT_ES } from "./data/es/molecule";
 import { CHAPTER_TEXT_ES, QUEST_TEXT_ES } from "./data/es/quests";
+import { BENCH_LIBRARY_TEXT_ES } from "./data/es/benchLibrary";
+import { BENCH_PRESET_TEXT_ES } from "./data/es/benchPresets";
+import { REACTION_TEXT_ES } from "./data/es/benchReactions";
+import { INGREDIENT_TEXT_ES } from "./data/es/ingredients";
 
 const placeholders = (value: string) => [...value.matchAll(/\{([A-Za-z0-9_]+)\}/g)]
   .map((match) => match[1])
   .sort();
+const identicalSpanishTerms = new Set(["hfip.name", "sorbitol.name"]);
 const numericAngle = (value: string) => /^[0-9.,°\s]+$/.test(value);
 const angleValue = (value: string) => Number(value.replace(/[°\s]/g, "").replace(",", "."));
 
 describe("Spanish data overlays", () => {
+  it("covers every Lab ingredient text field", () => {
+    expect(Object.keys(INGREDIENT_TEXT_ES).sort()).toEqual(INGREDIENTS.map(({ id }) => id).sort());
+    for (const source of INGREDIENTS) {
+      const localized = localizeIngredient(source, "es");
+      expect(localized.id).toBe(source.id);
+      expect(localized.formula).toBe(source.formula);
+      for (const field of ["name", "bonding", "notes"] as const) {
+        expect(localized[field].trim(), `${source.id}.${field}`).toBeTruthy();
+        if (localized[field] === source[field]) {
+          expect(identicalSpanishTerms.has(`${source.id}.${field}`), `${source.id}.${field}`).toBe(true);
+        }
+        expect(placeholders(localized[field]), `${source.id}.${field}`).toEqual(placeholders(source[field]));
+      }
+    }
+  });
+
+  it("covers every Bench ingredient display field and leaves custom values untouched", () => {
+    const addedIds = benchLibrary.filter(({ id }) => !byId[id]).map(({ id }) => id).sort();
+    expect(Object.keys(BENCH_LIBRARY_TEXT_ES).sort()).toEqual(addedIds);
+    for (const source of benchLibrary) {
+      const localized = localizeBenchIngredient(source, "es");
+      expect(localized.id).toBe(source.id);
+      expect(localized.formula).toBe(source.formula);
+      for (const field of ["name", "bonding", "notes"] as const) {
+        expect(localized[field].trim(), `${source.id}.${field}`).toBeTruthy();
+        if (localized[field] === source[field]) {
+          expect(identicalSpanishTerms.has(`${source.id}.${field}`), `${source.id}.${field}`).toBe(true);
+        }
+        expect(placeholders(localized[field]), `${source.id}.${field}`).toEqual(placeholders(source[field]));
+      }
+    }
+    const custom = { ...benchLibrary[0], id: "custom-user", name: "Mi ingrediente", notes: "Notas del usuario" };
+    expect(localizeBenchIngredient(custom, "es")).toBe(custom);
+  });
+
+  it("covers every Bench preset name", () => {
+    expect(Object.keys(BENCH_PRESET_TEXT_ES).sort()).toEqual(benchPresets.map(({ id }) => id).sort());
+    for (const source of benchPresets) {
+      const localized = localizeBenchPreset(source, "es");
+      const translated = localized.name;
+      expect(localized.id).toBe(source.id);
+      expect(localized.experiment.parts).toEqual(source.experiment.parts);
+      expect(translated.trim(), `${source.id}.name`).toBeTruthy();
+      expect(translated, `${source.id}.name`).not.toBe(source.name);
+      expect(placeholders(translated), `${source.id}.name`).toEqual(placeholders(source.name));
+    }
+  });
+
+  it("covers every reaction name, mechanism, and note without changing ids", () => {
+    expect(Object.keys(REACTION_TEXT_ES).sort()).toEqual(REACTIONS.map(({ id }) => id).sort());
+    for (const source of REACTIONS) {
+      const localized = localizeReaction(source, "es");
+      expect(localized.id).toBe(source.id);
+      for (const field of ["name", "mechanism"] as const) {
+        expect(localized[field].trim(), `${source.id}.${field}`).toBeTruthy();
+        expect(localized[field], `${source.id}.${field}`).not.toBe(source[field]);
+        expect(placeholders(localized[field]), `${source.id}.${field}`).toEqual(placeholders(source[field]));
+      }
+      if (source.effects.note) {
+        expect(localized.effects.note).toBeTruthy();
+        expect(localized.effects.note).not.toBe(source.effects.note);
+        expect(placeholders(localized.effects.note!), `${source.id}.effects.note`).toEqual(placeholders(source.effects.note));
+      }
+    }
+  });
+
+  it("localizes reaction event text without changing status identifiers", () => {
+    const event = {
+      id: "alginate-calcium",
+      name: "Alginate–calcium",
+      mechanism: REACTIONS.find(({ id }) => id === "alginate-calcium")!.mechanism,
+      reasons: ["effective pH 5.0 is near the edge of the pH 4–10 alginate crosslink window"],
+      status: "partial",
+    };
+    const localized = localizeReactionEvent(event, "es");
+    expect(localized.id).toBe(event.id);
+    expect(localized.status).toBe(event.status);
+    expect(localized.name).toBe(REACTION_TEXT_ES["alginate-calcium"].name);
+    expect(localized.reasons[0]).toContain("5,0");
+    expect(localized.reasons[0]).not.toContain("effective pH");
+  });
+
   it("translates every Play chapter title and blurb", () => {
     for (const chapter of CHAPTERS) {
       const overlay = CHAPTER_TEXT_ES[chapter.id];

@@ -7,9 +7,9 @@ import {
   newCustomId,
   validateCustomDraft,
 } from "@/lib/bench/custom";
-import { hazardWord } from "@/lib/formula";
 import type { CustomDraft, CustomTrait } from "@/lib/bench/custom";
 import type { BenchIngredient, Category, Hazard, WaterBehavior } from "@/lib/bench/types";
+import { useT } from "./LocaleProvider";
 
 interface CustomIngredientFormProps {
   initial?: BenchIngredient;
@@ -17,18 +17,6 @@ interface CustomIngredientFormProps {
   onCancel(): void;
   onDelete?(): void;
 }
-
-const categoryOptions: { value: Category; label: string }[] = [
-  { value: "element", label: "Element" },
-  { value: "salt", label: "Salt" },
-  { value: "protein", label: "Protein" },
-  { value: "enzyme", label: "Enzyme" },
-  { value: "polymer", label: "Polymer" },
-  { value: "solvent", label: "Solvent" },
-  { value: "acid-base", label: "Acid or base" },
-  { value: "additive", label: "Additive" },
-  { value: "filler", label: "Filler" },
-];
 
 type StringField =
   | "name"
@@ -44,12 +32,6 @@ type StringField =
   | "costPerKg"
   | "notes";
 
-const traitOptions: { value: CustomTrait; label: string }[] = [
-  { value: "protein", label: "Protein: enzymes can link or digest it" },
-  { value: "diol", label: "Sugar-like OH groups: borax can link it (polymers)" },
-  { value: "elastomer", label: "Rubbery: stays stretchy when linked" },
-];
-
 function errorId(field: keyof CustomDraft): string {
   return `custom-ingredient-${field}-error`;
 }
@@ -60,10 +42,27 @@ export default function CustomIngredientForm({
   onCancel,
   onDelete,
 }: CustomIngredientFormProps) {
+  const { locale, t } = useT();
   const [draft, setDraft] = useState<CustomDraft>(() =>
     initial ? draftFromIngredient(initial) : emptyDraft(),
   );
   const [errors, setErrors] = useState<Partial<Record<keyof CustomDraft, string>>>({});
+  const categoryOptions: { value: Category; label: string }[] = [
+    { value: "element", label: t("bench.custom.option.element") },
+    { value: "salt", label: t("bench.custom.option.salt") },
+    { value: "protein", label: t("bench.custom.option.protein") },
+    { value: "enzyme", label: t("bench.custom.option.enzyme") },
+    { value: "polymer", label: t("bench.custom.option.polymer") },
+    { value: "solvent", label: t("bench.custom.option.solvent") },
+    { value: "acid-base", label: t("bench.custom.option.acidBase") },
+    { value: "additive", label: t("bench.custom.option.additive") },
+    { value: "filler", label: t("bench.custom.option.filler") },
+  ];
+  const traitOptions: { value: CustomTrait; label: string }[] = [
+    { value: "protein", label: t("bench.custom.trait.protein") },
+    { value: "diol", label: t("bench.custom.trait.diol") },
+    { value: "elastomer", label: t("bench.custom.trait.elastomer") },
+  ];
 
   function update<K extends keyof CustomDraft>(field: K, value: CustomDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -176,7 +175,7 @@ export default function CustomIngredientForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = validateCustomDraft(draft, initial?.id ?? newCustomId());
+    const result = validateCustomDraft(draft, initial?.id ?? newCustomId(), locale);
     if ("errors" in result) {
       setErrors(result.errors);
       return;
@@ -185,40 +184,43 @@ export default function CustomIngredientForm({
   }
 
   function deleteIngredient() {
-    if (initial && onDelete && window.confirm(`Delete ${initial.name}?`)) onDelete();
+    if (initial && onDelete && window.confirm(t("bench.custom.confirmDelete", { name: initial.name }))) onDelete();
   }
 
   const acidBaseOptions: { value: CustomDraft["acidBase"]; label: string }[] = [
-    { value: "neutral", label: "Neutral" },
-    { value: "acid", label: "Acid" },
-    { value: "base", label: "Base" },
+    { value: "neutral", label: t("bench.custom.option.neutral") },
+    { value: "acid", label: t("bench.custom.option.acid") },
+    { value: "base", label: t("bench.custom.option.base") },
   ];
   const hazardOptions = ([0, 1, 2, 3] as Hazard[]).map((value) => ({
     value,
-    label: `${value} — ${hazardWord(value)}`,
+    label: `${value} — ${t([
+      "bench.custom.hazard.safe",
+      "bench.custom.hazard.mild",
+      "bench.custom.hazard.harmful",
+      "bench.custom.hazard.toxic",
+    ][value])}`,
   }));
   const waterOptions: { value: WaterBehavior; label: string }[] = [
-    { value: "dissolves", label: "Dissolves" },
-    { value: "swells", label: "Swells" },
-    { value: "resists", label: "Resists" },
+    { value: "dissolves", label: t("bench.custom.option.dissolves") },
+    { value: "swells", label: t("bench.custom.option.swells") },
+    { value: "resists", label: t("bench.custom.option.resists") },
   ];
 
   return (
-    <form className="bench-custom-form" onSubmit={submit} aria-label={initial ? "Edit custom ingredient" : "Make your own ingredient"}>
+    <form className="bench-custom-form" onSubmit={submit} aria-label={t(initial ? "bench.custom.form.ariaEdit" : "bench.custom.form.ariaCreate")}>
       <div>
-        <h4>{initial ? "Edit your ingredient" : "Make your own ingredient"}</h4>
-        <p className="bench-muted">
-          Your ingredient is modeled from the properties you enter. The Bench can&apos;t predict new reactions for it beyond the traits you tick, so results show lower confidence.
-        </p>
+        <h4>{t(initial ? "bench.custom.heading.edit" : "bench.custom.heading.create")}</h4>
+        <p className="bench-muted">{t("bench.custom.intro")}</p>
       </div>
       <div className="bench-custom-grid">
-        {renderStringField("name", "Name")}
-        {renderSelectField("category", "Type", categoryOptions)}
-        {renderStringField("formula", "Formula (optional)")}
+        {renderStringField("name", t("bench.custom.name"))}
+        {renderSelectField("category", t("bench.custom.type"), categoryOptions)}
+        {renderStringField("formula", t("bench.custom.formula"))}
       </div>
 
       <fieldset className="bench-custom-traits">
-        <legend>Traits</legend>
+        <legend>{t("bench.custom.traits")}</legend>
         {traitOptions.map((trait) => {
           const id = `custom-ingredient-trait-${trait.value}`;
           const fieldError = errors.traits;
@@ -240,54 +242,54 @@ export default function CustomIngredientForm({
       </fieldset>
 
       <div className="bench-custom-grid">
-        {renderStringField("tensileMPa", "Strength (MPa)", { numeric: true })}
-        {renderStringField("elongationPct", "Stretch (%)", { numeric: true })}
-        {renderStringField("tack", "Stickiness (0–10)", { numeric: true })}
-        {renderStringField("density", "Density (g/cm³)", { numeric: true })}
+        {renderStringField("tensileMPa", t("bench.custom.strength"), { numeric: true })}
+        {renderStringField("elongationPct", t("bench.custom.stretch"), { numeric: true })}
+        {renderStringField("tack", t("bench.custom.stickiness"), { numeric: true })}
+        {renderStringField("density", t("bench.custom.density"), { numeric: true })}
       </div>
 
-      {renderCheckbox("liquid", "It's a liquid")}
+      {renderCheckbox("liquid", t("bench.custom.liquid"))}
       {draft.liquid && (
         <div className="bench-custom-grid">
-          {renderStringField("viscosityPas", "Thickness (Pa·s)", {
+          {renderStringField("viscosityPas", t("bench.custom.thickness"), {
             numeric: true,
-            hint: "water 0.001 · honey ~10",
+            hint: t("bench.custom.thicknessHint"),
           })}
         </div>
       )}
 
       {draft.category === "solvent" && (
         <div className="bench-custom-grid">
-          {renderStringField("boilC", "Boiling point (°C)", { numeric: true })}
+          {renderStringField("boilC", t("bench.custom.boilingPoint"), { numeric: true })}
         </div>
       )}
 
       <div className="bench-custom-grid">
-        {renderSelectField("acidBase", "Acid/base", acidBaseOptions)}
+        {renderSelectField("acidBase", t("bench.custom.acidBase"), acidBaseOptions)}
         {draft.acidBase !== "neutral" && (
           <>
-            {renderStringField("pKa", "pKa", { numeric: true })}
-            {renderStringField("molarMass", "Molar mass (g/mol)", { numeric: true })}
+            {renderStringField("pKa", t("bench.custom.pKa"), { numeric: true })}
+            {renderStringField("molarMass", t("bench.custom.molarMass"), { numeric: true })}
           </>
         )}
       </div>
 
       <div className="bench-custom-grid">
-        {renderSelectField("toxicity", "Toxicity", hazardOptions)}
-        {renderSelectField("skin", "Skin", hazardOptions)}
-        {renderCheckbox("edible", "Edible")}
-        {renderSelectField("water", "In water", waterOptions)}
-        {renderCheckbox("biodegradable", "Biodegradable")}
-        {renderStringField("costPerKg", "Cost ($/kg)", { numeric: true })}
+        {renderSelectField("toxicity", t("bench.custom.toxicity"), hazardOptions)}
+        {renderSelectField("skin", t("bench.custom.skin"), hazardOptions)}
+        {renderCheckbox("edible", t("bench.custom.edible"))}
+        {renderSelectField("water", t("bench.custom.inWater"), waterOptions)}
+        {renderCheckbox("biodegradable", t("bench.custom.biodegradable"))}
+        {renderStringField("costPerKg", t("bench.custom.cost"), { numeric: true })}
       </div>
-      {renderStringField("notes", "Notes", { textarea: true })}
+      {renderStringField("notes", t("bench.custom.notes"), { textarea: true })}
 
       <div className="bench-custom-actions">
-        <button className="button button-primary" type="submit">Save ingredient</button>
-        <button className="button button-secondary" type="button" onClick={onCancel}>Cancel</button>
+        <button className="button button-primary" type="submit">{t("bench.custom.save")}</button>
+        <button className="button button-secondary" type="button" onClick={onCancel}>{t("bench.custom.cancel")}</button>
         {initial && onDelete && (
           <button className="button button-secondary bench-custom-delete" type="button" onClick={deleteIngredient}>
-            Delete
+            {t("bench.custom.delete")}
           </button>
         )}
       </div>

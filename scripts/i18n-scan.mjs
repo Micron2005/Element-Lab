@@ -12,7 +12,11 @@ const OVERLAY_COVERED_DATA_TABLES = new Map([
   ["src/lib/play/learn.ts", new Set(["MOLECULE_LESSONS", "QUEST_LESSONS"])],
   ["src/lib/play/molecule.ts", new Set(["KNOWN_MOLECULES"])],
   ["src/lib/play/quests.ts", new Set(["moleculeStarGoals", "moleculeQuests", "mixQuests", "atomQuests", "QUESTS", "CHAPTERS"])],
+  ["src/lib/bench/library.ts", new Set(["benchLibrary"])],
+  ["src/lib/bench/presets.ts", new Set(["benchPresets"])],
+  ["src/lib/ingredients.ts", new Set(["INGREDIENTS"])],
 ]);
+const REACTION_OVERLAY_FIELDS = new Set(["name", "mechanism", "note"]);
 
 const COMMON_ENGLISH = new Set(`
 a about above after again against all also an and another any are around as ask at away back be because
@@ -108,21 +112,26 @@ function dictionary(root, relativePath) {
   const source = parseFile(root, relativePath);
   visit(source, source);
   if (relativePath === "src/lib/i18n/en.ts") {
-    const playSource = parseFile(root, "src/lib/i18n/messages/play.ts");
-    function findPlayEn(node) {
-      if (
-        ts.isVariableDeclaration(node) &&
-        ts.isIdentifier(node.name) &&
-        node.name.text === "playEn" &&
-        node.initializer
-      ) {
-        const initializer = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer;
-        if (ts.isObjectLiteralExpression(initializer)) visit(playSource, initializer);
-        return;
+    for (const [variableName, messagePath] of [
+      ["playEn", "src/lib/i18n/messages/play.ts"],
+      ["benchEn", "src/lib/i18n/messages/bench.ts"],
+    ]) {
+      const messageSource = parseFile(root, messagePath);
+      function findNamespace(node) {
+        if (
+          ts.isVariableDeclaration(node) &&
+          ts.isIdentifier(node.name) &&
+          node.name.text === variableName &&
+          node.initializer
+        ) {
+          const initializer = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer;
+          if (ts.isObjectLiteralExpression(initializer)) visit(messageSource, initializer);
+          return;
+        }
+        ts.forEachChild(node, findNamespace);
       }
-      ts.forEachChild(node, findPlayEn);
+      findNamespace(messageSource);
     }
-    findPlayEn(playSource);
   }
   return { keys, values };
 }
@@ -138,12 +147,24 @@ function ancestor(node, predicate) {
 
 function insideOverlayCoveredTable(node, relativePath) {
   const tableNames = OVERLAY_COVERED_DATA_TABLES.get(relativePath);
-  if (!tableNames) return false;
-  return Boolean(ancestor(node, (current) =>
+  if (tableNames && ancestor(node, (current) =>
     ts.isVariableDeclaration(current) &&
     ts.isIdentifier(current.name) &&
     tableNames.has(current.name.text),
-  ));
+  )) return true;
+  if (relativePath !== "src/lib/bench/reactions.ts") return false;
+  const table = ancestor(node, (current) =>
+    ts.isVariableDeclaration(current) &&
+    ts.isIdentifier(current.name) &&
+    current.name.text === "REACTIONS",
+  );
+  if (!table) return false;
+  const property = ancestor(node, (current) => ts.isPropertyAssignment(current));
+  return Boolean(
+    property &&
+    (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+    REACTION_OVERLAY_FIELDS.has(property.name.text),
+  );
 }
 
 function inCodeAttribute(node) {

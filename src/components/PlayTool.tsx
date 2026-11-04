@@ -41,8 +41,8 @@ import {
   savePack,
   sanitizePackContents,
 } from "@/lib/play/packs";
-import { benchLibrary } from "@/lib/bench/library";
-import { REACTIONS } from "@/lib/bench/reactions";
+import { benchLibrary, localizeBenchIngredient } from "@/lib/bench/library";
+import { localizeReaction, REACTIONS } from "@/lib/bench/reactions";
 import type { Product } from "@/lib/bench/types";
 import { decodeShare, readShareHash } from "@/lib/share";
 import { useT } from "./LocaleProvider";
@@ -427,7 +427,7 @@ function PackQuestEditor({
                   mustInclude: Array.from(event.currentTarget.selectedOptions, (option) => option.value),
                 })}
               >
-                {benchLibrary.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{ingredient.name}</option>)}
+                {benchLibrary.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{localizeBenchIngredient(ingredient, locale).name}</option>)}
               </select>
             </label>
             <label className="pack-field">
@@ -440,7 +440,7 @@ function PackQuestEditor({
                   mustHappen: Array.from(event.currentTarget.selectedOptions, (option) => option.value),
                 })}
               >
-                {REACTIONS.map((reaction) => <option key={reaction.id} value={reaction.id}>{reaction.name}</option>)}
+                {REACTIONS.map((reaction) => <option key={reaction.id} value={reaction.id}>{localizeReaction(reaction, locale).name}</option>)}
               </select>
             </label>
           </div>
