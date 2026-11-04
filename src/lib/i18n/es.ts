@@ -1,4 +1,5 @@
 import type { MessageKey } from "./en";
+import { playEs } from "./messages/play";
 
 export const es: Record<MessageKey, string> = {
   "meta.description": "Un laboratorio científico virtual para mentes curiosas: química, materiales, física y más.",
@@ -426,7 +427,6 @@ export const es: Record<MessageKey, string> = {
   "ui.molecule": "Molécula",
   "ui.askPartner": "Pregúntale a tu compañero de laboratorio ↗",
   "play.grade.waterComplete": "Construiste el agua con todas las valencias completas.",
-  "play.grade.noHints": "No usaste pistas: ¡tres estrellas!",
   "play.waterShape": "angular",
   "play.waterUse.drinking": "agua potable y cocina",
   "play.waterUse.cooling": "refrigeración de centrales eléctricas y motores",
@@ -680,4 +680,5 @@ export const es: Record<MessageKey, string> = {
   "play.template.buildMolecule": "Construye {name}",
   "play.template.checkMolecule": "Revisa los enlaces y la valencia de {name}.",
   "play.template.moleculeStory": "Construye una molécula con los átomos del laboratorio de moléculas.",
+  ...playEs,
 };

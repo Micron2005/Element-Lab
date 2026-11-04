@@ -16,7 +16,7 @@ type Props =
   | { mode: "atom"; z: number; n: number };
 
 export default function QuestBanner(props: Props) {
-  const { locale } = useT();
+  const { locale, t } = useT();
   const questId = useQuestParam();
   const progress = usePlayProgress();
   const dailyProgress = useDailyProgress();
@@ -29,7 +29,7 @@ export default function QuestBanner(props: Props) {
   const [showHint, setShowHint] = useState(false);
   const [startNucleus] = useState(() => (props.mode === "atom" ? `${props.z}-${props.n}` : ""));
 
-  const quest = questId ? questById(questId) : undefined;
+  const quest = questId ? questById(questId, locale) : undefined;
   const fits = quest && ((props.mode === "mix" && quest.chapter === "mixing") || (props.mode === "atom" && quest.chapter === "atoms"));
 
   const mixExperiment = props.mode === "mix" ? props.experiment : null;
@@ -39,10 +39,10 @@ export default function QuestBanner(props: Props) {
 
   const grade: Grade | null = useMemo(() => {
     if (!quest || !fits) return null;
-    if (quest.chapter === "mixing") return mixExperiment && mixResult ? quest.grade(mixExperiment, mixResult) : null;
-    if (quest.chapter === "atoms") return `${z}-${n}` === startNucleus ? null : quest.grade(z, n);
+    if (quest.chapter === "mixing") return mixExperiment && mixResult ? quest.grade(mixExperiment, mixResult, locale) : null;
+    if (quest.chapter === "atoms") return `${z}-${n}` === startNucleus ? null : quest.grade(z, n, locale);
     return null;
-  }, [quest, fits, mixExperiment, mixResult, z, n, startNucleus]);
+  }, [quest, fits, mixExperiment, mixResult, z, n, startNucleus, locale]);
   const stars = grade?.stars ?? 0;
   const learnCard = useMemo(() => {
     if (stars === 0 || !quest || !fits) return null;
@@ -65,14 +65,14 @@ export default function QuestBanner(props: Props) {
   if (!quest || !fits) return null;
 
   return (
-    <section className="quest-banner" aria-label="Quest">
+    <section className="quest-banner" aria-label={t("play.banner.quest")}>
       <div className="quest-banner-top">
-        <span className="eyebrow">QUEST</span>
-        <Link href="/play">All quests</Link>
+        <span className="eyebrow">{t("play.banner.quest")}</span>
+        <Link href="/play">{t("play.banner.allQuests")}</Link>
       </div>
       <h2>{quest.title}</h2>
       <p className="play-story">{quest.story}</p>
-      <p className="play-goal"><strong>Goal:</strong> {quest.goal}</p>
+      <p className="play-goal"><strong>{t("play.banner.goal")}</strong> {quest.goal}</p>
       <ol className="play-star-goals">
         {quest.starGoals.map((goal, index) => (
           <li key={goal} className={stars > index ? "on" : ""}>
@@ -83,7 +83,7 @@ export default function QuestBanner(props: Props) {
       {grade ? (
         <div className={stars > 0 ? "play-success" : "play-fail"} role="status">
           <p className="play-result-title">
-            <StarRow stars={stars} /> {stars === 3 ? "Perfect!" : stars > 0 ? "Quest complete" : "Not yet"}
+            <StarRow stars={stars} /> {stars === 3 ? t("play.banner.perfect") : stars > 0 ? t("play.banner.complete") : t("play.banner.notYet")}
           </p>
           <ul>{grade.feedback.map((line) => <li key={line}>{line}</li>)}</ul>
           {stars > 0 && <p className="play-learn">{quest.learn}</p>}
@@ -92,15 +92,15 @@ export default function QuestBanner(props: Props) {
       ) : (
         <p className="quest-wait">
           {props.mode === "mix"
-            ? "Build your mix below and press Run to be graded."
-            : "Change the protons or neutrons below to be graded."}
+            ? t("play.banner.mixWait")
+            : t("play.banner.atomWait")}
         </p>
       )}
       <div className="quest-actions">
         <button type="button" className="button button-secondary" onClick={() => setShowHint((open) => !open)}>
-          {showHint ? "Hide hint" : "Hint"}
+          {showHint ? t("play.banner.hideHint") : t("play.banner.hint")}
         </button>
-        {best > 0 && <Link className="button button-secondary" href="/play">Back to quests · best <StarRow stars={best} /></Link>}
+        {best > 0 && <Link className="button button-secondary" href="/play">{t("play.banner.backBest", { stars: best })} <StarRow stars={best} /></Link>}
       </div>
       {showHint && <p className="play-hint">{quest.hint}</p>}
     </section>

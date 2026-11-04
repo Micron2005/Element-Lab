@@ -2,7 +2,7 @@ import { DEFAULT_CONDITIONS } from "../bench/conditions";
 import type { Experiment } from "../bench/types";
 import type { Stars } from "./quests";
 import type { QuestTemplate } from "./templates";
-import { DEFAULT_LOCALE, translateTree, type Locale } from "../i18n";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
 
 export const DAILY_PROGRESS_KEY = "elementlab.daily";
 
@@ -21,83 +21,73 @@ export const DAILY_POOL: QuestTemplate[] = [
   { type: "molecule", moleculeId: "hydrogen-sulfide" },
   {
     type: "mix",
-    title: "A gentle, low-cost fiber",
-    story: "Can a simple bath help turn a plant polymer into a useful fiber?",
     targets: { product: ["fiber"], minStrengthMPa: 0.5, maxCostPerKg: 2, maxHazard: 1 },
   },
   {
     type: "mix",
-    title: "A thin chitosan film",
-    story: "Make a film and check which ingredient gives it structure.",
     targets: { product: ["film"], mustInclude: ["chitosan"] },
   },
   {
     type: "mix",
-    title: "A sticky natural adhesive",
-    story: "Find a mixture that models an adhesive inspired by mussels.",
     targets: { product: ["adhesive"], minTack: 1, mustInclude: ["mfp5"] },
   },
   {
     type: "mix",
-    title: "Bubbles from a reaction",
-    story: "Use the model to make a gas-forming reaction happen.",
     targets: { mustHappen: ["bicarbonate-bubbles"], mustInclude: ["sodium-bicarbonate"] },
   },
   {
     type: "mix",
-    title: "Crosslink a protein gel",
-    story: "Try a protein crosslinking enzyme in a water-rich mixture.",
     targets: { mustHappen: ["transglutaminase"], mustInclude: ["transglutaminase"] },
   },
   {
     type: "mix",
-    title: "A stronger latex material",
-    story: "Compare the model's strength after adding a curing ingredient.",
     targets: { minStrengthMPa: 1, mustInclude: ["sulfur"] },
   },
   {
     type: "mix",
-    title: "A strong silk fiber",
-    story: "Explore how a protein-based fiber behaves in the model.",
     targets: { product: ["fiber"], minStrengthMPa: 5 },
   },
   {
     type: "mix",
-    title: "Stretchy slime",
-    story: "Use a reversible network to make a stretchy material.",
     targets: { product: ["slime"], mustInclude: ["pva", "borax"] },
   },
   {
     type: "mix",
-    title: "An enzyme breaks a gel",
-    story: "Observe the modeled effect of a protein-digesting enzyme.",
     targets: { mustHappen: ["protease-digestion"] },
   },
   {
     type: "nucleus",
-    title: "A long-lived iron nucleus",
-    story: "Find the proton and neutron counts for a bound iron nucleus.",
     targets: { z: 26, bound: true, minHalfLifeS: 1e12 },
   },
   {
     type: "nucleus",
-    title: "A bound superheavy nucleus",
-    story: "Explore a model prediction at the edge of the periodic table.",
     targets: { minZ: 114, bound: true },
   },
   {
     type: "nucleus",
-    title: "A long-lived uranium nucleus",
-    story: "Compare a heavy nucleus with a half-life measured in years.",
     targets: { z: 92, bound: true, minHalfLifeS: 1e6 },
   },
   {
     type: "nucleus",
-    title: "A stable helium nucleus",
-    story: "Build a small bound nucleus with a long modeled half-life.",
     targets: { z: 2, bound: true, minHalfLifeS: 1e3 },
   },
 ];
+
+const DAILY_MESSAGE_KEYS: Partial<Record<number, { title: MessageKey; story: MessageKey }>> = {
+  8: { title: "play.ui.dailyTitle.8", story: "play.ui.dailyStory.8" },
+  9: { title: "play.ui.dailyTitle.9", story: "play.ui.dailyStory.9" },
+  10: { title: "play.ui.dailyTitle.10", story: "play.ui.dailyStory.10" },
+  11: { title: "play.ui.dailyTitle.11", story: "play.ui.dailyStory.11" },
+  12: { title: "play.ui.dailyTitle.12", story: "play.ui.dailyStory.12" },
+  13: { title: "play.ui.dailyTitle.13", story: "play.ui.dailyStory.13" },
+  14: { title: "play.ui.dailyTitle.14", story: "play.ui.dailyStory.14" },
+  15: { title: "play.ui.dailyTitle.15", story: "play.ui.dailyStory.15" },
+  16: { title: "play.ui.dailyTitle.16", story: "play.ui.dailyStory.16" },
+  17: { title: "play.ui.dailyTitle.17", story: "play.ui.dailyStory.17" },
+  18: { title: "play.ui.dailyTitle.18", story: "play.ui.dailyStory.18" },
+  19: { title: "play.ui.dailyTitle.19", story: "play.ui.dailyStory.19" },
+  20: { title: "play.ui.dailyTitle.20", story: "play.ui.dailyStory.20" },
+};
 
 function hashString(value: string): number {
   let hash = 0x811c9dc5;
@@ -128,8 +118,16 @@ export function dailyFor(key: string, locale: Locale = DEFAULT_LOCALE): { id: st
     const yesterdayIndex = hashString(shiftDay(key, -1)) % DAILY_POOL.length;
     if (index === yesterdayIndex) index = (index + 1) % DAILY_POOL.length;
   }
-  const result = { id: `daily:${key}`, template: DAILY_POOL[index] };
-  return locale === DEFAULT_LOCALE ? result : translateTree(locale, result);
+  const source = DAILY_POOL[index];
+  const dailyKeys = DAILY_MESSAGE_KEYS[index];
+  const template = source.type === "molecule" || !dailyKeys
+    ? source
+    : {
+        ...source,
+        title: tr(locale, dailyKeys.title),
+        story: tr(locale, dailyKeys.story),
+      };
+  return { id: `daily:${key}`, template };
 }
 
 function isStars(value: unknown): value is Stars {

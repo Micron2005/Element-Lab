@@ -5,8 +5,11 @@ import * as ts from "typescript";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, "..");
-// These data tables are checked by src/lib/i18n/overlays.test.ts.
-const OVERLAY_COVERED_DATA_TABLES = new Set(["src/lib/play/molecule.ts"]);
+// These source tables are covered by src/lib/i18n/overlays.test.ts.
+const OVERLAY_COVERED_DATA_TABLES = new Set([
+  "src/lib/play/molecule.ts",
+  "src/lib/play/quests.ts",
+]);
 
 const COMMON_ENGLISH = new Set(`
 a about above after again against all also an and another any are around as ask at away back be because
@@ -83,10 +86,9 @@ function stringValue(node) {
 }
 
 function dictionary(root, relativePath) {
-  const source = parseFile(root, relativePath);
   const values = new Set();
   const keys = new Set();
-  function visit(node) {
+  function visit(source, node) {
     if (ts.isPropertyAssignment(node)) {
       const key = node.name && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))
         ? node.name.text
@@ -97,9 +99,27 @@ function dictionary(root, relativePath) {
         values.add(value);
       }
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(node, (child) => visit(source, child));
   }
-  visit(source);
+  const source = parseFile(root, relativePath);
+  visit(source, source);
+  if (relativePath === "src/lib/i18n/en.ts") {
+    const playSource = parseFile(root, "src/lib/i18n/messages/play.ts");
+    function findPlayEn(node) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === "playEn" &&
+        node.initializer
+      ) {
+        const initializer = ts.isAsExpression(node.initializer) ? node.initializer.expression : node.initializer;
+        if (ts.isObjectLiteralExpression(initializer)) visit(playSource, initializer);
+        return;
+      }
+      ts.forEachChild(node, findPlayEn);
+    }
+    findPlayEn(playSource);
+  }
   return { keys, values };
 }
 

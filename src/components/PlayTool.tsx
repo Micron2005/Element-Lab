@@ -12,6 +12,7 @@ import {
   CHAPTERS,
   QUESTS,
   gradeMolecule,
+  localizeQuest,
   questById,
   questsIn,
   type Chapter,
@@ -44,7 +45,6 @@ import { REACTIONS } from "@/lib/bench/reactions";
 import type { Product } from "@/lib/bench/types";
 import { decodeShare, readShareHash } from "@/lib/share";
 import { useT } from "./LocaleProvider";
-import { translateTree } from "@/lib/i18n";
 import LearnCard from "./LearnCard";
 import ShareButton from "./ShareButton";
 import ShareNotice from "./ShareNotice";
@@ -71,8 +71,9 @@ function subscribeToToday() {
 }
 
 export function StarRow({ stars }: { stars: number }) {
+  const { t } = useT();
   return (
-    <span className="play-stars" role="img" aria-label={`${stars} of 3 stars`}>
+    <span className="play-stars" role="img" aria-label={t("play.ui.starCountAria", { count: stars })}>
       {[0, 1, 2].map((index) => (
         <span key={index} className={index < stars ? "on" : ""} aria-hidden="true">★</span>
       ))}
@@ -119,7 +120,7 @@ function MoleculeQuestPlay({
   const [match, setMatch] = useState<KnownMolecule | undefined>();
 
   function check(graph: MolGraph) {
-    const next = translateTree(locale, gradeMolecule(quest, graph, hintsUsed));
+    const next = gradeMolecule(quest, graph, hintsUsed, locale);
     setGrade(next);
     setMatch(checkMolecule(graph).match);
     if (next.stars > 0) onAward(next.stars);
@@ -162,18 +163,15 @@ function MoleculeQuestPlay({
 }
 
 function FreeBuild() {
-  const { locale } = useT();
+  const { locale, t } = useT();
   const [check, setCheck] = useState<MolCheck | null>(null);
   const [graph, setGraph] = useState<MolGraph>({ atoms: [], bonds: [] });
   const [show3d, setShow3d] = useState(false);
   const currentCheck = graph.atoms.length >= 2 ? checkMolecule(graph) : null;
   return (
     <section className="play-quest">
-      <h2>Free build</h2>
-      <p className="play-story">
-        Build anything from these atoms. The game checks that every atom has the right number of bonds and names
-        the molecule if it knows it.
-      </p>
+      <h2>{t("play.ui.freeBuild")}</h2>
+      <p className="play-story">{t("play.ui.buildAnything")}</p>
       <MoleculeBoard
         palette={ALL_ATOMS}
         onGraphChange={setGraph}
@@ -187,16 +185,16 @@ function FreeBuild() {
           aria-expanded={show3d}
           onClick={() => setShow3d((open) => !open)}
         >
-          {show3d ? "Hide 3D view" : "3D view"}
+          {show3d ? t("play.ui.hide3d") : t("play.ui.show3d")}
         </button>
       </div>
       {show3d && (
         graph.atoms.length < 2 || !currentCheck?.connected ? (
-          <p className="play-3d-hint">Connect all atoms to see it in 3D</p>
+          <p className="play-3d-hint">{t("play.ui.connectAtoms")}</p>
         ) : (
           <Molecule3D
             graph={graph}
-            label={`${currentCheck.match?.name ?? prettyFormula(currentCheck.formula)} molecule`}
+            label={`${currentCheck.match?.name ?? prettyFormula(currentCheck.formula)} ${t("play.ui.molecule")}`}
           />
         )
       )}
@@ -208,17 +206,16 @@ function FreeBuild() {
       )}
       {check && !check.match && check.complete && (
         <div className="play-success" role="status">
-          <p className="play-result-title">Valid bonding: {prettyFormula(check.formula)}</p>
+          <p className="play-result-title">{t("play.ui.validBonding", { formula: prettyFormula(check.formula) })}</p>
           <p>
-            Every atom has all its bonds, so the bonding rules allow it. Whether it&apos;s stable in real life is
-            another question, and it isn&apos;t in this game&apos;s list yet. Try looking it up in{" "}
-            <Link href="/chemicals">Chemicals</Link>.
+            {t("play.ui.bondsFilled")}{" "}
+            <Link href="/chemicals">{t("ui.chemicals")}</Link>.
           </p>
         </div>
       )}
       {check && !check.complete && (
         <div className="play-fail" role="status">
-          <p className="play-result-title">Not a finished molecule yet</p>
+          <p className="play-result-title">{t("play.ui.notFinished")}</p>
           <ul>{check.problems.map((line) => <li key={line}>{line}</li>)}</ul>
         </div>
       )}
@@ -262,11 +259,11 @@ function QuestView({
         <div className="play-launch">
           <p>
             {t(quest.chapter === "mixing"
-              ? "This quest runs on the real Experiment Bench. Build your mix, press Run, and you'll be graded there."
-              : "This quest runs in the Element explorer. Move the proton and neutron sliders and you'll be graded as you go.")}
+              ? "play.ui.questRunsBench"
+              : "play.ui.questRunsElements")}
           </p>
           <Link className="button button-primary" href={`${external}?quest=${quest.id}`}>
-            {t(quest.chapter === "mixing" ? "Start at the Bench" : "Start in Elements")}
+            {t(quest.chapter === "mixing" ? "play.ui.startBench" : "play.ui.startElements")}
           </Link>
         </div>
       )}
@@ -274,17 +271,8 @@ function QuestView({
   );
 }
 
-const PRODUCT_CHOICES: { id: Product; label: string }[] = [
-  { id: "nothing", label: "No useful solid" },
-  { id: "solution", label: "Solution or weak mixture" },
-  { id: "gel", label: "Crosslinked gel" },
-  { id: "slime", label: "Reversible slime" },
-  { id: "fiber", label: "Fiber" },
-  { id: "film", label: "Film" },
-  { id: "adhesive", label: "Adhesive" },
-  { id: "solid", label: "Cured solid" },
-  { id: "clumps", label: "Clumps" },
-  { id: "dangerous", label: "Dangerous reaction" },
+const PRODUCT_CHOICES: Product[] = [
+  "nothing", "solution", "gel", "slime", "fiber", "film", "adhesive", "solid", "clumps", "dangerous",
 ];
 
 function PackQuestEditor({
@@ -300,7 +288,7 @@ function PackQuestEditor({
   onChange: (next: QuestTemplate) => void;
   onRemove: () => void;
 }) {
-  const { locale } = useT();
+  const { locale, t } = useT();
   const targets = quest.type === "mix" ? quest.targets : null;
   const updateText = (key: "title" | "story" | "hint", value: string) =>
     onChange({ ...quest, [key]: value } as QuestTemplate);
@@ -311,17 +299,17 @@ function PackQuestEditor({
     const number = value === "" ? undefined : Number(value);
     updateMix({ [key]: number } as Partial<MixTargets>);
   };
-  const hasTarget = describeTargets(quest).length > 0;
+  const hasTarget = describeTargets(quest, locale).length > 0;
 
   return (
     <fieldset className="pack-quest-editor">
-      <legend>Quest {index + 1}</legend>
+      <legend>{t("play.ui.questNumber", { number: index + 1 })}</legend>
       <div className="pack-editor-row">
         <label className="pack-field">
-          <span>Type</span>
+          <span>{t("play.ui.type")}</span>
           <select
             className="input"
-            aria-label={`Quest ${index + 1} type`}
+            aria-label={t("play.ui.questTypeAria", { number: index + 1 })}
             value={quest.type}
             onChange={(event) => {
               const common = {
@@ -333,25 +321,25 @@ function PackQuestEditor({
               onChange(type === "molecule"
                 ? { type, moleculeId: KNOWN_MOLECULES[0].id, ...common }
                 : type === "mix"
-                  ? { type, title: common.title || "Mix quest", story: common.story, hint: common.hint, targets: {} }
-                  : { type: "nucleus", title: common.title || "Nucleus quest", story: common.story, hint: common.hint, targets: {} });
+                  ? { type, title: common.title || t("play.ui.mixQuest"), story: common.story, hint: common.hint, targets: {} }
+                  : { type: "nucleus", title: common.title || t("play.ui.nucleusQuest"), story: common.story, hint: common.hint, targets: {} });
             }}
           >
-            <option value="molecule">Molecule</option>
-            <option value="mix">Mix</option>
-            <option value="nucleus">Nucleus</option>
+            <option value="molecule">{t("play.ui.molecule")}</option>
+            <option value="mix">{t("play.ui.mix")}</option>
+            <option value="nucleus">{t("play.ui.nucleus")}</option>
           </select>
         </label>
         {quest.type !== "molecule" && (
           <label className="pack-field">
-            <span>Quest title</span>
+            <span>{t("play.ui.questTitle")}</span>
             <input className="input" maxLength={80} value={quest.title} onChange={(event) => updateText("title", event.target.value)} />
           </label>
         )}
       </div>
       {quest.type === "molecule" && (
         <label className="pack-field">
-          <span>Molecule</span>
+          <span>{t("play.ui.moleculeField")}</span>
           <select className="input" value={quest.moleculeId} onChange={(event) => onChange({ ...quest, moleculeId: event.target.value })}>
             {KNOWN_MOLECULES.map((molecule) => <option key={molecule.id} value={molecule.id}>{localizeMolecule(molecule, locale).name}</option>)}
           </select>
@@ -359,24 +347,24 @@ function PackQuestEditor({
       )}
       {quest.type === "molecule" && (
         <label className="pack-field">
-          <span>Custom title (optional)</span>
+          <span>{t("play.ui.customTitle")}</span>
           <input className="input" maxLength={80} value={quest.title ?? ""} onChange={(event) => updateText("title", event.target.value)} />
         </label>
       )}
       <label className="pack-field">
-        <span>Story (optional)</span>
+        <span>{t("play.ui.storyOptional")}</span>
         <textarea className="input" maxLength={300} rows={2} value={quest.story ?? ""} onChange={(event) => updateText("story", event.target.value)} />
       </label>
       <label className="pack-field">
-        <span>Hint (optional)</span>
+        <span>{t("play.ui.hintOptional")}</span>
         <textarea className="input" maxLength={300} rows={2} value={quest.hint ?? ""} onChange={(event) => updateText("hint", event.target.value)} />
       </label>
 
       {quest.type === "mix" && (
         <div className="pack-targets">
           <fieldset className="pack-products">
-            <legend>Product goals</legend>
-            {PRODUCT_CHOICES.map(({ id, label }) => (
+            <legend>{t("play.ui.productGoals")}</legend>
+            {PRODUCT_CHOICES.map((id) => (
               <label key={id} className="pack-check">
                 <input
                   type="checkbox"
@@ -389,16 +377,16 @@ function PackQuestEditor({
                     updateMix({ product: product.length ? product : undefined });
                   }}
                 />
-                {label}
+                {t(`play.ui.product.${id}`)}
               </label>
             ))}
           </fieldset>
           <div className="pack-numeric-targets">
             {([
-              ["minStrengthMPa", "Minimum strength (MPa)", 0, 5000],
-              ["minStretchPct", "Minimum stretch (%)", 0, 5000],
-              ["minTack", "Minimum stickiness (0–10)", 0, 10],
-              ["maxCostPerKg", "Maximum cost ($/kg)", 0, 10000],
+              ["minStrengthMPa", t("play.ui.minimumStrength"), 0, 5000],
+              ["minStretchPct", t("play.ui.minimumStretch"), 0, 5000],
+              ["minTack", t("play.ui.minimumStickiness"), 0, 10],
+              ["maxCostPerKg", t("play.ui.maximumCost"), 0, 10000],
             ] as const).map(([key, label, min, max]) => (
               <label className="pack-field" key={key}>
                 <span>{label}</span>
@@ -415,21 +403,21 @@ function PackQuestEditor({
               </label>
             ))}
             <label className="pack-field">
-              <span>Maximum hazard</span>
+              <span>{t("play.ui.maximumHazard")}</span>
               <select
                 className="input"
                 value={targets?.maxHazard ?? ""}
                 onChange={(event) => updateMix({ maxHazard: event.target.value === "" ? undefined : Number(event.target.value) as 0 | 1 | 2 | 3 })}
               >
-                <option value="">No hazard target</option>
-                <option value="0">0 · none</option>
-                <option value="1">1 · low</option>
-                <option value="2">2 · moderate</option>
-                <option value="3">3 · high</option>
+                <option value="">{t("play.ui.noHazardTarget")}</option>
+                <option value="0">{t("play.ui.hazardNone")}</option>
+                <option value="1">{t("play.ui.hazardLow")}</option>
+                <option value="2">{t("play.ui.hazardModerate")}</option>
+                <option value="3">{t("play.ui.hazardHigh")}</option>
               </select>
             </label>
             <label className="pack-field">
-              <span>Must include ingredients</span>
+              <span>{t("play.ui.mustInclude")}</span>
               <select
                 className="input pack-multiselect"
                 multiple
@@ -442,7 +430,7 @@ function PackQuestEditor({
               </select>
             </label>
             <label className="pack-field">
-              <span>Must happen</span>
+              <span>{t("play.ui.mustHappen")}</span>
               <select
                 className="input pack-multiselect"
                 multiple
@@ -461,9 +449,9 @@ function PackQuestEditor({
       {quest.type === "nucleus" && (
         <div className="pack-numeric-targets">
           {([
-            ["z", "Exact proton count Z", 1, 300],
-            ["minZ", "Minimum proton count Z", 1, 300],
-            ["minHalfLifeS", "Minimum half-life (seconds)", 0, 1e20],
+            ["z", t("play.ui.exactProtonCount"), 1, 300],
+            ["minZ", t("play.ui.minimumProtonCount"), 1, 300],
+            ["minHalfLifeS", t("play.ui.minimumHalfLife"), 0, 1e20],
           ] as const).map(([key, label, min, max]) => (
             <label className="pack-field" key={key}>
               <span>{label}</span>
@@ -497,14 +485,14 @@ function PackQuestEditor({
                 },
               })}
             />
-            Require a bound nucleus
+            {t("play.ui.requireBound")}
           </label>
         </div>
       )}
-      {!hasTarget && <p className="pack-validation" role="status">Choose at least one goal for this quest.</p>}
+      {!hasTarget && <p className="pack-validation" role="status">{t("play.ui.chooseGoal")}</p>}
       <div className="pack-editor-footer">
-        {hasTarget && <span>{describeTargets(quest).join(" · ")}</span>}
-        <button className="button button-secondary" type="button" disabled={!canRemove} onClick={onRemove}>Remove quest</button>
+        {hasTarget && <span>{describeTargets(quest, locale).join(" · ")}</span>}
+        <button className="button button-secondary" type="button" disabled={!canRemove} onClick={onRemove}>{t("play.ui.removeQuest")}</button>
       </div>
     </fieldset>
   );
@@ -553,16 +541,16 @@ export default function PlayTool() {
         return;
       }
       setOpenedPackId(saved.id);
-      setShareNotice({ message: `Quest pack added: ${saved.title}` });
+      setShareNotice({ message: t("play.ui.packAdded", { title: saved.title }) });
     }
     openPackLink();
     window.addEventListener("hashchange", openPackLink);
     return () => window.removeEventListener("hashchange", openPackLink);
-  }, []);
+  }, [t]);
 
-  const activeSource = activeId ? questById(activeId) : undefined;
-  const active = activeSource ? translateTree(locale, activeSource) : undefined;
-  const chapterQuests = active ? questsIn(active.chapter).map((quest) => translateTree(locale, quest)) : [];
+  const activeSource = activeId ? questById(activeId, locale) : undefined;
+  const active = activeSource ? localizeQuest(activeSource, locale) : undefined;
+  const chapterQuests = active ? questsIn(active.chapter, locale) : [];
   const builtInActive = active ? QUESTS.some((quest) => quest.id === active.id) : false;
   const nextIndex = active && builtInActive
     ? chapterQuests.findIndex((quest) => quest.id === active.id) + 1
@@ -632,9 +620,9 @@ export default function PlayTool() {
   return (
     <div className="play-page">
       <PageIntro
-        eyebrow="PLAY & LEARN"
-        title="Lab quests"
-        description="Side quests with real chemistry and physics. Snap atoms into molecules, mix materials on the Bench, and split atoms. Every answer is checked by the same models the lab uses."
+        eyebrow={t("play.ui.pageEyebrow")}
+        title={t("play.ui.pageTitle")}
+        description={t("play.ui.pageDescription")}
       />
       {shareNotice && (
         <ShareNotice
@@ -684,7 +672,7 @@ export default function PlayTool() {
       )}
       <div className="play-score">
         <StarRow stars={3} />
-        <span><strong>{totalStars(progress)}</strong> / {maxStars} stars</span>
+        <span><strong>{totalStars(progress)}</strong> / {maxStars} {t("play.ui.stars")}</span>
       </div>
       <div className="play-tabs" role="tablist" aria-label={t("ui.chapters")}>
         {CHAPTERS.map((chapter) => (
@@ -700,7 +688,7 @@ export default function PlayTool() {
           </button>
         ))}
         <button type="button" role="tab" aria-selected={tab === "free"} className={tab === "free" ? "is-active" : ""} onClick={() => openTab("free")}>
-          Free build
+          {t("play.ui.freeBuild")}
         </button>
       </div>
 
@@ -720,8 +708,8 @@ export default function PlayTool() {
         <>
           <p className="play-blurb">{CHAPTERS.find((chapter) => chapter.id === tab) ? t(CHAPTERS.find((chapter) => chapter.id === tab)!.blurb) : ""}</p>
           <ol className="play-quest-list">
-            {questsIn(tab).map((sourceQuest, index) => {
-              const quest = translateTree(locale, sourceQuest);
+            {questsIn(tab, locale).map((sourceQuest, index) => {
+              const quest = sourceQuest;
               const unlocked = isUnlocked(quest.id, progress);
               return (
                 <li key={quest.id}>
@@ -766,16 +754,18 @@ export default function PlayTool() {
                   <summary>
                     <span>
                       <strong>{pack.title}</strong>
-                      <span className="saved-pack-summary">{pack.author ? `by ${pack.author} · ` : ""}{total} / {pack.quests.length * 3} stars</span>
+                    <span className="saved-pack-summary">{pack.author
+                      ? t("play.ui.authorSummary", { author: pack.author, stars: total, total: pack.quests.length * 3 })
+                      : t("play.ui.packStars", { stars: total, total: pack.quests.length * 3 })}</span>
                     </span>
                     <span aria-hidden="true">⌄</span>
                   </summary>
                   <div className="saved-pack-content">
-                    {pack.author && <p className="pack-author">By {pack.author}</p>}
+                    {pack.author && <p className="pack-author">{t("play.ui.byAuthor", { author: pack.author })}</p>}
                     <ol className="pack-quest-list">
                       {pack.quests.map((template, index) => {
                         const id = `pack:${packId}:${index}`;
-                        const quest = compileTemplate(id, template);
+                        const quest = compileTemplate(id, template, locale);
                         const target = quest.chapter === "mixing" ? "/bench" : "/elements";
                         return (
                           <li key={id} className="pack-quest-item">
@@ -785,9 +775,9 @@ export default function PlayTool() {
                               <StarRow stars={progress.stars[id] ?? 0} />
                             </div>
                             {quest.chapter === "molecules" ? (
-                              <button className="button button-primary" type="button" onClick={() => playPackQuest(id, quest)}>Play</button>
+                              <button className="button button-primary" type="button" onClick={() => playPackQuest(id, quest)}>{t("play.ui.packQuestPlay")}</button>
                             ) : (
-                              <Link className="button button-primary" href={`${target}?quest=${encodeURIComponent(id)}`}>Play</Link>
+                              <Link className="button button-primary" href={`${target}?quest=${encodeURIComponent(id)}`}>{t("play.ui.packQuestPlay")}</Link>
                             )}
                           </li>
                         );
@@ -795,7 +785,7 @@ export default function PlayTool() {
                     </ol>
                     <div className="saved-pack-actions">
                       <ShareButton
-                        label="Share pack"
+                        label={t("play.ui.sharePack")}
                         build={() => ({
                           v: 1,
                           kind: "pack",
@@ -810,7 +800,7 @@ export default function PlayTool() {
                           setOpenedPackId(null);
                         }}
                       >
-                        Delete
+                        {t("play.ui.delete")}
                       </button>
                     </div>
                   </div>
@@ -843,17 +833,17 @@ export default function PlayTool() {
         >
           <div className="pack-section-heading">
             <div>
-              <p className="eyebrow">BUILD YOUR OWN</p>
-              <h3 id="make-pack-title">Make a pack</h3>
+              <p className="eyebrow">{t("play.ui.buildYourOwn")}</p>
+              <h3 id="make-pack-title">{t("play.ui.makePackTitle")}</h3>
             </div>
           </div>
           <div className="pack-editor-row">
             <label className="pack-field">
-              <span>Pack title</span>
+              <span>{t("play.ui.packTitle")}</span>
               <input className="input" maxLength={80} value={packTitle} onChange={(event) => setPackTitle(event.target.value)} />
             </label>
             <label className="pack-field">
-              <span>Author (optional)</span>
+              <span>{t("play.ui.authorOptional")}</span>
               <input className="input" maxLength={40} value={packAuthor} onChange={(event) => setPackAuthor(event.target.value)} />
             </label>
           </div>
@@ -879,10 +869,10 @@ export default function PlayTool() {
                 { type: "molecule", moleculeId: KNOWN_MOLECULES[0].id },
               ])}
             >
-              Add quest ({drafts.length}/10)
+              {t("play.ui.addQuest", { count: drafts.length })}
             </button>
-            <button className="button button-secondary" type="button" onClick={closePackEditor}>Cancel</button>
-            <button className="button button-primary" type="button" disabled={!canSave} onClick={saveCurrentPack}>Save pack</button>
+            <button className="button button-secondary" type="button" onClick={closePackEditor}>{t("play.ui.cancel")}</button>
+            <button className="button button-primary" type="button" disabled={!canSave} onClick={saveCurrentPack}>{t("play.ui.savePack")}</button>
           </div>
           {packMessage && <p className="pack-status" role="status">{packMessage}</p>}
         </div>

@@ -30,7 +30,7 @@ export default function LearnCard({ card }: { card: LearnCardData }) {
       <div className="play-learn-sections">
         {card.sections.map((section) => (
           <div key={section.heading}>
-            <h4>{section.heading}</h4>
+            <h4>{t(section.heading)}</h4>
             <p>{section.body}</p>
           </div>
         ))}

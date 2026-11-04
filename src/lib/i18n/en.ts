@@ -1,3 +1,5 @@
+import { playEn } from "./messages/play";
+
 export const en = {
   "meta.description": "A virtual science lab for curious minds: chemistry, materials, physics and more.",
   "meta.home": "Science Lab",
@@ -424,7 +426,6 @@ export const en = {
   "ui.molecule": "Molecule",
   "ui.askPartner": "Ask your lab partner ↗",
   "play.grade.waterComplete": "You built Water with every valence filled.",
-  "play.grade.noHints": "No hints used—three stars!",
   "play.waterShape": "bent",
   "play.waterUse.drinking": "drinking water and cooking",
   "play.waterUse.cooling": "cooling in power plants and engines",
@@ -678,6 +679,7 @@ export const en = {
   "play.template.buildMolecule": "Build {name}",
   "play.template.checkMolecule": "Check the bonds and valence for {name}.",
   "play.template.moleculeStory": "Build a molecule using the atoms in the molecule lab.",
+  ...playEn,
 } as const;
 
 export type MessageKey = keyof typeof en;
