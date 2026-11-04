@@ -2,12 +2,14 @@ import { benchLibrary } from "../bench/library";
 import { REACTIONS } from "../bench/reactions";
 import type { Hazard, Product } from "../bench/types";
 import { KNOWN_MOLECULES, type MoleculeId } from "./molecule";
+import { isGradeLevel, type GradeLevel } from "./levels";
 import type { MixTargets, NucleusTargets, QuestTemplate } from "./templates";
 
 export interface QuestPack {
   id: string;
   title: string;
   author?: string;
+  level?: GradeLevel;
   quests: QuestTemplate[];
   createdAt: string;
 }
@@ -15,6 +17,7 @@ export interface QuestPack {
 export interface PackContents {
   title: string;
   author?: string;
+  level?: GradeLevel;
   quests: QuestTemplate[];
 }
 
@@ -144,6 +147,7 @@ export function sanitizeQuestTemplate(raw: unknown, dropped = new Set<string>())
 export function sanitizePackContents(raw: unknown): { pack: PackContents; dropped: string[] } | null {
   if (!isRecord(raw) || typeof raw.title !== "string" || !Array.isArray(raw.quests)) return null;
   if (raw.quests.length < 1 || raw.quests.length > MAX_QUESTS) return null;
+  if (raw.level !== undefined && !isGradeLevel(raw.level)) return null;
   const title = cleanText(raw.title, 80, true);
   if (!title) return null;
   const author = cleanText(raw.author, 40);
@@ -153,7 +157,12 @@ export function sanitizePackContents(raw: unknown): { pack: PackContents; droppe
     .filter((quest): quest is QuestTemplate => quest !== null);
   if (quests.length === 0) return null;
   return {
-    pack: { title, ...(author ? { author } : {}), quests },
+    pack: {
+      title,
+      ...(author ? { author } : {}),
+      ...(raw.level ? { level: raw.level } : {}),
+      quests,
+    },
     dropped: [...dropped],
   };
 }
@@ -162,6 +171,7 @@ function hashContent(contents: PackContents): string {
   const input = JSON.stringify({
     title: contents.title,
     ...(contents.author ? { author: contents.author } : {}),
+    ...(contents.level ? { level: contents.level } : {}),
     quests: contents.quests,
   });
   let hash = 0x811c9dc5;

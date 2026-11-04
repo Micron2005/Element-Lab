@@ -6,6 +6,7 @@ import {
   MOLECULE_LESSONS,
   QUEST_LESSONS,
   atomCard,
+  lessonDepth,
   mixCard,
   moleculeCard,
 } from "./learn";
@@ -32,6 +33,32 @@ describe("learning cards", () => {
         } else {
           expect(value.trim().length).toBeGreaterThan(0);
         }
+      }
+    }
+  });
+
+  it("provides simple and deeper lesson overlays for every lesson in both locales", async () => {
+    const { MOLECULE_LESSONS_ES, QUEST_LESSONS_ES } = await import("../i18n/data/es/learn");
+    for (const locale of ["en", "es"] as const) {
+      const molecules = locale === "es"
+        ? Object.fromEntries(Object.entries(MOLECULE_LESSONS).map(([id, lesson]) => [id, { ...lesson, ...MOLECULE_LESSONS_ES[id as keyof typeof MOLECULE_LESSONS_ES] }]))
+        : MOLECULE_LESSONS;
+      const quests = locale === "es"
+        ? Object.fromEntries(Object.entries(QUEST_LESSONS).map(([id, lesson]) => [id, { ...lesson, ...QUEST_LESSONS_ES[id as keyof typeof QUEST_LESSONS_ES] }]))
+        : QUEST_LESSONS;
+      for (const lesson of Object.values(molecules)) {
+        const depth = lessonDepth(lesson, locale, "molecule");
+        expect(depth.simple.split(/(?<=[.!?])\s+/).length).toBeGreaterThanOrEqual(1);
+        expect(depth.simple.split(/(?<=[.!?])\s+/).length).toBeLessThanOrEqual(2);
+        expect(depth.deeper.split(/(?<=[.!?])\s+/).length).toBeGreaterThanOrEqual(2);
+        expect(depth.deeper.split(/(?<=[.!?])\s+/).length).toBeLessThanOrEqual(4);
+      }
+      for (const [id, lesson] of Object.entries(quests)) {
+        const depth = lessonDepth(lesson, locale, id.startsWith("atom-") ? "nuclear" : "mix");
+        expect(depth.simple.split(/(?<=[.!?])\s+/).length).toBeGreaterThanOrEqual(1);
+        expect(depth.simple.split(/(?<=[.!?])\s+/).length).toBeLessThanOrEqual(2);
+        expect(depth.deeper.split(/(?<=[.!?])\s+/).length).toBeGreaterThanOrEqual(2);
+        expect(depth.deeper.split(/(?<=[.!?])\s+/).length).toBeLessThanOrEqual(4);
       }
     }
   });

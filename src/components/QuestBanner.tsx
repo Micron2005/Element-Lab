@@ -7,7 +7,10 @@ import type { Experiment, RunResult } from "@/lib/bench/types";
 import { atomCard, mixCard } from "@/lib/play/learn";
 import { StarRow } from "./PlayTool";
 import LearnCard from "./LearnCard";
-import { awardDaily, awardStars, useDailyProgress, usePlayProgress, useQuestParam } from "./usePlayProgress";
+import { awardDaily, awardStars, awardWeekly, useDailyProgress, usePlayProgress, useQuestParam, useWeeklyProgress } from "./usePlayProgress";
+import { dailyKey } from "@/lib/play/daily";
+import { earnedBadges, isoWeekKey, rankFor, weeklyFor, xpFor, type RewardState } from "@/lib/play/rewards";
+import { compileTemplate } from "@/lib/play/templates";
 import { useT } from "./LocaleProvider";
 import "./play.css";
 
@@ -20,16 +23,28 @@ export default function QuestBanner(props: Props) {
   const questId = useQuestParam();
   const progress = usePlayProgress();
   const dailyProgress = useDailyProgress();
+  const weeklyProgress = useWeeklyProgress();
   const dayKey = questId?.startsWith("daily:") ? questId.slice("daily:".length) : null;
+  const weekly = useMemo(() => {
+    const week = isoWeekKey(new Date());
+    const today = dailyKey();
+    return weeklyFor(week, today).map(({ id, template }) => ({ id, quest: compileTemplate(id, template, locale) }));
+  }, [locale]);
+  const weeklyId = questId?.startsWith("weekly:") ? questId : null;
   const best = dayKey
     ? dailyProgress.done[dayKey] ?? 0
+    : weeklyId
+      ? weeklyProgress.done[weeklyId] ?? 0
     : questId
       ? progress.stars[questId] ?? 0
       : 0;
   const [showHint, setShowHint] = useState(false);
+  const [rewardToast, setRewardToast] = useState("");
   const [startNucleus] = useState(() => (props.mode === "atom" ? `${props.z}-${props.n}` : ""));
 
-  const quest = questId ? questById(questId, locale) : undefined;
+  const quest = questId
+    ? weekly.find(({ id }) => id === questId)?.quest ?? questById(questId, locale)
+    : undefined;
   const fits = quest && ((props.mode === "mix" && quest.chapter === "mixing") || (props.mode === "atom" && quest.chapter === "atoms"));
 
   const mixExperiment = props.mode === "mix" ? props.experiment : null;
@@ -57,10 +72,40 @@ export default function QuestBanner(props: Props) {
 
   useEffect(() => {
     if (quest && grade && grade.stars > best) {
+      const before: RewardState = {
+        progress,
+        daily: dailyProgress,
+        weekly: weeklyProgress,
+        today: dailyKey(),
+        playedPack: Object.entries(progress.stars).some(([id, stars]) => id.startsWith("pack:") && stars > 0),
+      };
+      let after = before;
       if (dayKey) awardDaily(dayKey, grade.stars);
-      else awardStars(quest.id, grade.stars);
+      else if (weeklyId) {
+        awardWeekly(weeklyId, grade.stars);
+        after = { ...before, weekly: { done: { ...before.weekly.done, [weeklyId]: grade.stars } } };
+      } else {
+        awardStars(quest.id, grade.stars);
+        after = { ...before, progress: { stars: { ...before.progress.stars, [quest.id]: grade.stars } } };
+      }
+      if (dayKey) after = { ...before, daily: { done: { ...before.daily.done, [dayKey]: grade.stars } } };
+      const rankUp = rankFor(xpFor(after.progress, after.daily, after.weekly)).current.id !== rankFor(xpFor(before.progress, before.daily, before.weekly)).current.id;
+      const oldBadges = new Set(earnedBadges(before).map(({ id }) => id));
+      const newBadge = earnedBadges(after).find(({ id }) => !oldBadges.has(id));
+      if (rankUp || newBadge) {
+        const toast = rankUp
+          ? t("play.reward.rankUp")
+          : t("play.reward.badgeEarned", { badge: t(newBadge!.titleKey) });
+        window.setTimeout(() => setRewardToast(toast), 0);
+      }
     }
-  }, [quest, grade, best, dayKey]);
+  }, [quest, grade, best, dayKey, weeklyId, progress, dailyProgress, weeklyProgress, t]);
+
+  useEffect(() => {
+    if (!rewardToast) return;
+    const timeout = window.setTimeout(() => setRewardToast(""), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [rewardToast]);
 
   if (!quest || !fits) return null;
 
@@ -103,6 +148,7 @@ export default function QuestBanner(props: Props) {
         {best > 0 && <Link className="button button-secondary" href="/play">{t("play.banner.backBest", { stars: best })} <StarRow stars={best} /></Link>}
       </div>
       {showHint && <p className="play-hint">{quest.hint}</p>}
+      {rewardToast && <p className="reward-toast" role="status">{rewardToast}</p>}
     </section>
   );
 }

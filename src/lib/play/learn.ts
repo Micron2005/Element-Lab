@@ -20,6 +20,13 @@ export interface LearnCard {
   usedFor: string[];
   askPrompt: string;
   context: string;
+  simple: string;
+  deeper: string;
+}
+
+export interface LessonDepth {
+  simple: string;
+  deeper: string;
 }
 
 export interface Lesson {
@@ -28,6 +35,8 @@ export interface Lesson {
   whyItMatters: string;
   usedFor: string[];
   askPrompt: string;
+  simple?: string;
+  deeper?: string;
 }
 
 export interface MoleculeLesson extends Omit<Lesson, "askPrompt"> {
@@ -314,13 +323,23 @@ const STEP_LABEL_KEYS: Partial<Record<NuclearStepKind, MessageKey>> = {
 
 function localizedMoleculeLesson(id: MoleculeLessonId, locale: Locale): MoleculeLesson {
   const lesson = MOLECULE_LESSONS[id];
-  return locale === "es" ? { ...lesson, ...MOLECULE_LESSONS_ES[id] } : lesson;
+  const localized = locale === "es" ? { ...lesson, ...MOLECULE_LESSONS_ES[id] } : lesson;
+  return { ...localized, ...lessonDepth(localized, locale, "molecule") };
 }
 
 function localizedQuestLesson(id: string, locale: Locale): Lesson | undefined {
   const lesson = (QUEST_LESSONS as Record<string, Lesson>)[id];
-  if (!lesson || locale !== "es") return lesson;
-  return { ...lesson, ...QUEST_LESSONS_ES[id as QuestLessonId] };
+  if (!lesson) return undefined;
+  const localized = locale === "es" ? { ...lesson, ...QUEST_LESSONS_ES[id as QuestLessonId] } : lesson;
+  return { ...localized, ...lessonDepth(localized, locale, id.startsWith("atom-") ? "nuclear" : "mix") };
+}
+
+export function lessonDepth(lesson: Pick<Lesson, "whatItIs" | "whatItDoes" | "whyItMatters"> & Partial<Pick<MoleculeLesson, "whyShape">>, locale: Locale, domain: "molecule" | "mix" | "nuclear"): LessonDepth {
+  const simple = lesson.whatItIs.trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(" ");
+  const deeper = domain === "molecule"
+    ? `${lesson.whyShape ?? lesson.whatItDoes} ${tr(locale, "play.depth.molecule")}`
+    : `${lesson.whatItDoes} ${tr(locale, domain === "mix" ? "play.depth.mix" : "play.depth.nuclear")}`;
+  return { simple, deeper };
 }
 
 function formatNumber(value: number, locale: Locale, places: number): string {
@@ -355,12 +374,14 @@ function createCard(
   usedFor: string[],
   askPrompt: string,
   locale: Locale,
+  depth: LessonDepth,
 ): LearnCard {
   return {
     title,
     sections,
     usedFor,
     askPrompt,
+    ...depth,
     context: cardContext(title, sections, usedFor, locale),
   };
 }
@@ -389,6 +410,7 @@ export function moleculeCard(
     lesson.usedFor,
     tr(locale, "play.learn.molecule.ask", { name: spokenName }),
     locale,
+    lessonDepth(lesson, locale, "molecule"),
   );
 }
 
@@ -458,6 +480,7 @@ export function mixCard(
     lesson.usedFor,
     lesson.askPrompt,
     locale,
+    lessonDepth(lesson, locale, "mix"),
   );
 }
 
@@ -538,6 +561,7 @@ export function atomCard(
     lesson.usedFor,
     lesson.askPrompt,
     locale,
+    lessonDepth(lesson, locale, "nuclear"),
   );
 }
 

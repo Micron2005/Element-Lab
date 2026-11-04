@@ -16,6 +16,8 @@ import {
   type MolGraph,
 } from "@/lib/play/molecule";
 import { useT } from "./LocaleProvider";
+import { useBeta } from "./BetaProvider";
+import { useGearLoadout } from "./useGearLoadout";
 
 const W = 360;
 const H = 300;
@@ -184,6 +186,8 @@ export default function MoleculeBoard({
   onEdit?: () => void;
 }) {
   const { locale, t } = useT();
+  const gear = useGearLoadout();
+  const boardStyle = useBeta().isOn("rewards") ? gear.board : null;
   const [graph, setGraph] = useState<MolGraph>(EMPTY_GRAPH);
   const [history, setHistory] = useState<MolGraph[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -318,7 +322,7 @@ export default function MoleculeBoard({
           </button>
         ))}
       </div>
-      <div className="mol-stage">
+      <div className={`mol-stage${boardStyle ? ` mol-stage-bg-${boardStyle}` : ""}`}>
         <svg
           ref={svgRef}
           className="mol-svg"
