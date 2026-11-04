@@ -70,7 +70,8 @@ function isCodeLike(value) {
     /^=; path=\/; max-age=\d+; SameSite=Lax$/.test(value) ||
     /^\d+px Arial$/.test(value) ||
     /^\d+px solid #[0-9a-f]{6}$/i.test(value) ||
-    (/^(?:[a-z][a-z0-9_.:/-]*|[A-Z][A-Za-z0-9_.:/-]*)$/.test(value) && !/\s/.test(value));
+    /^\/[a-z][a-z0-9_./-]*$/i.test(value) ||
+    (/^[A-Za-z][A-Za-z0-9_.:/-]*$/.test(value) && !/\s/.test(value));
 }
 
 function readFiles(directory, suffix, root, output = []) {
@@ -124,6 +125,7 @@ function dictionary(root, relativePath) {
       ["benchComponentsEn", "src/lib/i18n/messages/benchComponents.ts"],
       ["elementsEn", "src/lib/i18n/messages/elements.ts"],
       ["labEn", "src/lib/i18n/messages/lab.ts"],
+      ["betaEn", "src/lib/i18n/messages/beta.ts"],
     ]) {
       const messageSource = parseFile(root, messagePath);
       function findNamespace(node) {

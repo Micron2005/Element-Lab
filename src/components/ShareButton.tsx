@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { shareUrl, type SharePayload } from "@/lib/share";
+import { registerCurrentShareBuilder, shareUrl, type SharePayload } from "@/lib/share";
 import { useT } from "./LocaleProvider";
 
 export default function ShareButton({
@@ -18,6 +18,11 @@ export default function ShareButton({
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (disabledReason) return;
+    return registerCurrentShareBuilder(window.location.pathname, build);
+  }, [build, disabledReason]);
 
   useEffect(() => {
     if (!link) return;

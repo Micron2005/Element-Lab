@@ -280,3 +280,38 @@ export function readShareHash(hash: string): string | null {
   const match = /^#share=(.*)$/.exec(hash);
   return match ? match[1] : null;
 }
+
+type CurrentShareBuilder = {
+  pathname: string;
+  build: () => SharePayload;
+};
+
+const currentShareBuilders: CurrentShareBuilder[] = [];
+
+export function registerCurrentShareBuilder(pathname: string, build: () => SharePayload): () => void {
+  const registration = { pathname, build };
+  currentShareBuilders.push(registration);
+  return () => {
+    const index = currentShareBuilders.indexOf(registration);
+    if (index >= 0) currentShareBuilders.splice(index, 1);
+  };
+}
+
+export function buildCurrentShareUrl(
+  origin: string,
+  pathAndSearch: string,
+  hash: string,
+): string | null {
+  const page = new URL(pathAndSearch, origin);
+  const builder = [...currentShareBuilders].reverse().find(({ pathname }) => pathname === page.pathname);
+  if (builder) {
+    try {
+      return shareUrl(origin, `${page.pathname}${page.search}`, builder.build());
+    } catch {
+      return null;
+    }
+  }
+  const encoded = readShareHash(hash);
+  const decoded = encoded ? decodeShare(encoded) : null;
+  return decoded ? shareUrl(origin, `${page.pathname}${page.search}`, decoded.payload) : null;
+}

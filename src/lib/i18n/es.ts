@@ -4,6 +4,7 @@ import { benchEs } from "./messages/bench";
 import { benchComponentsEs } from "./messages/benchComponents";
 import { elementsEs } from "./messages/elements";
 import { labEs } from "./messages/lab";
+import { betaEs } from "./messages/beta";
 
 export const es: Record<MessageKey, string> = {
   "meta.description": "Un laboratorio científico virtual para mentes curiosas: química, materiales, física y más.",
@@ -774,4 +775,5 @@ export const es: Record<MessageKey, string> = {
   ...benchComponentsEs,
   ...elementsEs,
   ...labEs,
+  ...betaEs,
 };
