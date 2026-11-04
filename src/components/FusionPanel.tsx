@@ -124,7 +124,7 @@ export default function FusionPanel({
   const residueName = report.residue.length === 1 ? report.residue[0].name : "";
   const singleResidue = report.residue.length === 1 ? report.residue[0] : undefined;
   const singleResidueMeasuredHalfLife = singleResidue
-    ? measuredHalfLife(singleResidue.z, singleResidue.n)
+    ? measuredHalfLife(singleResidue.z, singleResidue.n, locale)
     : undefined;
   const singleResidueHalfLife = singleResidue
     ? displayHalfLife(singleResidueMeasuredHalfLife, report.residueReport?.halfLife ?? "", t)
@@ -169,15 +169,18 @@ export default function FusionPanel({
                 aria-pressed={recipe.id === activeRecipeId}
                 onClick={() => chooseRecipe(recipe)}
               >
-                {recipe.label}
+                {t(recipe.labelKey)}
               </button>
             ))}
           </div>
           {recipeMatches && (
             <p className="fusion-real-note" role="note">
-              {activeRecipe.realNote}
+              {t(activeRecipe.realNoteKey)}
             </p>
           )}
+          <p className="fusion-real-note" role="note">
+            {t("elements.caveat.prediction")} {t("elements.caveat.hypothetical")} {t("elements.caveat.fewAtoms")}
+          </p>
         </section>
 
         <div className="fusion-controls">
@@ -248,7 +251,7 @@ export default function FusionPanel({
           <p className="fusion-reaction">{report.reaction}</p>
           <div className="fusion-metrics">
             <div className="metric-card">
-              <span className="metric-label"><Term id="coulomb-barrier">Coulomb barrier</Term> (CM)</span>
+              <span className="metric-label"><Term id="coulomb-barrier">{t("elements.metric.coulombBarrier")}</Term> (CM)</span>
               <p className="metric-value">{report.barrierMeV.toFixed(2)} MeV</p>
             </div>
             <div className="metric-card">
@@ -288,7 +291,7 @@ export default function FusionPanel({
             {report.light ? (
               <div className="metric-card">
                 <span className="metric-label">{t("fusion.plasmaTemperature")}</span>
-                <p className="metric-value">{report.plasmaMillionC?.toFixed(2)} million °C</p>
+                <p className="metric-value">{report.plasmaMillionC?.toFixed(2)} {t("elements.metric.millionCelsius")}</p>
               </div>
             ) : (
               <>
@@ -341,8 +344,8 @@ export default function FusionPanel({
               <div className="fusion-products">
                 {report.residue.map((item, index) => {
                   const element = elementName(item.z);
-                  const analysis = analyzeNucleus(item.z, item.n);
-                  const measured = measuredHalfLife(item.z, item.n);
+                  const analysis = analyzeNucleus(item.z, item.n, locale);
+                  const measured = measuredHalfLife(item.z, item.n, locale);
                   return (
                     <span className="fusion-product" key={`${item.z}-${item.n}-${index}`}>
                       <span className="fusion-product-heading">

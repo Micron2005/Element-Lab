@@ -116,12 +116,20 @@ function rgba(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${clamp(alpha)})`;
 }
 
-function drawMix(ctx: CanvasRenderingContext2D, w: number, h: number, scene: MixScene, model: Model, t: number) {
+function drawMix(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  scene: MixScene,
+  model: Model,
+  t: number,
+  labels: { emptyMix: string; vacuum: string; nitrogenBlanket: string; bath: string },
+) {
   if (scene.finalShape === "empty" || model.particles.length === 0) {
     ctx.fillStyle = "#91a3a4";
     ctx.font = "14px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Add ingredients, then press Run", w / 2, h / 2);
+    ctx.fillText(labels.emptyMix, w / 2, h / 2);
     return;
   }
 
@@ -185,14 +193,14 @@ function drawMix(ctx: CanvasRenderingContext2D, w: number, h: number, scene: Mix
     ctx.fillStyle = "#9fb6bd";
     ctx.font = "11px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("vacuum", (x0 + x1) / 2, y0 - 8);
+    ctx.fillText(labels.vacuum, (x0 + x1) / 2, y0 - 8);
   } else if (scene.atmosphere === "nitrogen") {
     ctx.fillStyle = "rgba(140,170,255,0.08)";
     ctx.fillRect(x0, y0 - 18, x1 - x0, liquidTop - y0 + 18);
     ctx.fillStyle = "#9fb0e6";
     ctx.font = "11px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("N₂ blanket", (x0 + x1) / 2, y0 - 6);
+    ctx.fillText(labels.nitrogenBlanket, (x0 + x1) / 2, y0 - 6);
   }
 
   if (scene.thermal > 0.55) {
@@ -217,7 +225,7 @@ function drawMix(ctx: CanvasRenderingContext2D, w: number, h: number, scene: Mix
       ctx.fillStyle = "#7fa9d8";
       ctx.font = "11px Arial";
       ctx.textAlign = "center";
-      ctx.fillText("bath", (x1 + 22 + strandEnd) / 2, y1 - 6);
+      ctx.fillText(labels.bath, (x1 + 22 + strandEnd) / 2, y1 - 6);
     }
   }
 
@@ -449,7 +457,7 @@ function formatSeconds(seconds: number) {
 }
 
 export default function MixViewer({ scene, resultLabel }: { scene: MixScene; resultLabel: string }) {
-  const { t: translate } = useT();
+  const { locale, t: translate } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(DURATION_SECONDS, scene.finalShape !== "empty", reducedMotion);
   const { ref, width } = useCanvasWidth();
@@ -458,8 +466,13 @@ export default function MixViewer({ scene, resultLabel }: { scene: MixScene; res
 
   useEffect(() => {
     const prepared = prepareCanvas(ref.current, width);
-    if (prepared) drawMix(prepared.ctx, prepared.w, prepared.h, scene, model, t);
-  }, [ref, width, scene, model, t]);
+    if (prepared) drawMix(prepared.ctx, prepared.w, prepared.h, scene, model, t, {
+      emptyMix: translate("bench.viewer.emptyMix"),
+      vacuum: translate("bench.viewer.vacuum"),
+      nitrogenBlanket: translate("bench.viewer.nitrogenBlanket"),
+      bath: translate("bench.viewer.bath"),
+    });
+  }, [ref, width, scene, model, t, translate]);
 
   const phase = scene.phases.find((item) => t >= item.start && t <= item.end) ?? scene.phases[scene.phases.length - 1];
   const reactStart = scene.phases.find((item) => item.id === "react" || item.id === "set")?.start ?? 1;
@@ -485,9 +498,9 @@ export default function MixViewer({ scene, resultLabel }: { scene: MixScene; res
           </div>
         </div>
       </div>
-      <PlaybackControls playback={playback} label="Experiment" />
+      <PlaybackControls playback={playback} label={translate("bench.title")} />
       <div className="viewer-captions" aria-live="polite">
-        {inFinal && <div className="viewer-caption">Result: {resultLabel}</div>}
+        {inFinal && <div className="viewer-caption">{translate("bench.viewer.resultPrefix", { value: resultLabel })}</div>}
         {!inFinal && active.map((effect) => (
           <div className="viewer-caption" key={`${effect.eventId}-${effect.kind}`}>
             {effect.label}
@@ -496,7 +509,7 @@ export default function MixViewer({ scene, resultLabel }: { scene: MixScene; res
         {showBlocked &&
           scene.blocked.slice(0, 2).map((item) => (
             <div className="viewer-caption viewer-caption-blocked" key={item.eventId}>
-              Didn&apos;t happen: {item.label}
+              {translate("bench.viewer.didNotHappen", { value: item.label })}
             </div>
           ))}
       </div>

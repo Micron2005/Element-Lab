@@ -6,7 +6,7 @@ import {
   type NuclearStep,
   type NucleusRef,
 } from "./nuclearScene";
-import { DEFAULT_LOCALE, tr, translateTree, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "./i18n";
 
 const AMU_MEV = 931.494;
 const ALPHA = 1 / 137.036;
@@ -45,26 +45,26 @@ const MEASURED_BINDING = new Map<string, number>([
 const MEASURED_HALF_LIFE = new Map<string, string>([
   ["1,0", "stable"],
   ["1,1", "stable"],
-  ["1,2", "12.3 years"],
+  ["1,2", "years:12.3"],
   ["2,1", "stable"],
   ["2,2", "stable"],
-  ["2,3", "about 7×10⁻²² s (drops a neutron)"],
-  ["2,4", "0.81 s"],
+  ["2,3", "neutron-drop:7:-22"],
+  ["2,4", "seconds:0.81"],
   ["3,3", "stable"],
   ["3,4", "stable"],
-  ["4,3", "53 days"],
-  ["4,4", "about 8×10⁻¹⁷ s (splits into two alphas)"],
+  ["4,3", "days:53"],
+  ["4,4", "alpha-split:8:-17"],
   ["4,5", "stable"],
   ["5,5", "stable"],
   ["5,6", "stable"],
-  ["6,5", "20.4 minutes"],
+  ["6,5", "minutes:20.4"],
   ["6,6", "stable"],
   ["6,7", "stable"],
-  ["6,8", "5,730 years"],
-  ["7,6", "10.0 minutes"],
+  ["6,8", "years:5730"],
+  ["7,6", "minutes:10.0"],
   ["7,7", "stable"],
   ["7,8", "stable"],
-  ["8,7", "2.0 minutes"],
+  ["8,7", "minutes:2.0"],
   ["8,8", "stable"],
   ["8,9", "stable"],
   ["8,10", "stable"],
@@ -97,81 +97,77 @@ export const PROJECTILES: Projectile[] = [
 
 export interface FusionRecipe {
   id: string;
-  label: string;
+  labelKey: MessageKey;
   projectileId: string;
   target: { z: number; n: number };
   beam: { labMeV: number } | { barrierFactor: number };
-  realNote: string;
+  realNoteKey: MessageKey;
 }
 
 export const FUSION_RECIPES: FusionRecipe[] = [
   {
     id: "dt",
-    label: "D + T (fusion power)",
+    labelKey: "elements.recipe.dt",
     projectileId: "d",
     target: { z: 1, n: 2 },
     beam: { labMeV: 0.107 },
-    realNote: "The reaction fusion reactors like ITER use. It gives off 17.6 MeV.",
+    realNoteKey: "elements.recipeNote.dt",
   },
   {
     id: "dd",
-    label: "D + D",
+    labelKey: "elements.recipe.dd",
     projectileId: "d",
     target: { z: 1, n: 1 },
     beam: { labMeV: 0.1 },
-    realNote:
-      "Real D + D splits two ways, about equally: He-3 + n or T + p. The model follows the easier one.",
+    realNoteKey: "elements.recipeNote.dd",
   },
   {
     id: "pli",
-    label: "p + Li-7 (1932)",
+    labelKey: "elements.recipe.pli",
     projectileId: "p",
     target: { z: 3, n: 4 },
     beam: { labMeV: 0.4 },
-    realNote:
-      "Cockcroft and Walton's 1932 experiment, the first nucleus split with an accelerator: it gives two alpha particles.",
+    realNoteKey: "elements.recipeNote.pli",
   },
   {
     id: "nobelium",
-    label: "Ca-48 + Pb-208",
+    labelKey: "elements.recipe.nobelium",
     projectileId: "ca48",
     target: { z: 82, n: 126 },
     beam: { barrierFactor: 1 },
-    realNote: "Used to make nobelium-254 (2 neutrons off, about 2 microbarns).",
+    realNoteKey: "elements.recipeNote.nobelium",
   },
   {
     id: "nihonium",
-    label: "Zn-70 + Bi-209",
+    labelKey: "elements.recipe.nihonium",
     projectileId: "zn70",
     target: { z: 83, n: 126 },
     beam: { barrierFactor: 1 },
-    realNote:
-      "RIKEN made nihonium-278 this way: 3 atoms in about 9 years (2003–2012).",
+    realNoteKey: "elements.recipeNote.nihonium",
   },
   {
     id: "oganesson",
-    label: "Ca-48 + Cf-249",
+    labelKey: "elements.recipe.oganesson",
     projectileId: "ca48",
     target: { z: 98, n: 151 },
     beam: { barrierFactor: 1.03 },
-    realNote:
-      "Dubna made oganesson-294 this way (2002–2005): a handful of atoms, about 0.5 picobarns.",
+    realNoteKey: "elements.recipeNote.oganesson",
   },
   {
     id: "tennessine",
-    label: "Ca-48 + Bk-249",
+    labelKey: "elements.recipe.tennessine",
     projectileId: "ca48",
     target: { z: 97, n: 152 },
     beam: { barrierFactor: 1.03 },
-    realNote: "Tennessine was first made this way in 2010.",
+    realNoteKey: "elements.recipeNote.tennessine",
   },
   {
     id: "e120",
-    label: "Ti-50 + Cf-249 → 120?",
+    labelKey: "elements.recipe.e120",
     projectileId: "ti50",
     target: { z: 98, n: 151 },
     beam: { barrierFactor: 1.03 },
-    realNote: "Labs are trying this now. No atom of element 120 has been seen yet.",
+    realNoteKey: "elements.recipeNote.e120",
   },
 ];
 
@@ -214,8 +210,34 @@ export function bestBinding(z: number, n: number): number {
   return MEASURED_BINDING.get(massKey(z, n)) ?? bindingEnergy(z, n);
 }
 
-export function measuredHalfLife(z: number, n: number): string | undefined {
-  return MEASURED_HALF_LIFE.get(massKey(z, n));
+export function measuredHalfLife(
+  z: number,
+  n: number,
+  locale: Locale = DEFAULT_LOCALE,
+): string | undefined {
+  const value = MEASURED_HALF_LIFE.get(massKey(z, n));
+  if (!value || value === "stable") return value;
+  const [kind, amount, exponent] = value.split(":");
+  const decimalPlaces = amount?.split(".")[1]?.length ?? 0;
+  const formatted = new Intl.NumberFormat(locale === "es" ? "es" : "en-US", {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
+  }).format(Number(amount));
+  if (kind === "years") return tr(locale, "elements.measured.years", { value: formatted });
+  if (kind === "days") return tr(locale, "elements.measured.days", { value: formatted });
+  if (kind === "minutes") return tr(locale, "elements.measured.minutes", { value: formatted });
+  if (kind === "seconds") return tr(locale, "elements.measured.seconds", { value: formatted });
+  if (kind === "neutron-drop" || kind === "alpha-split") {
+    const superscript = (exponent ?? "").replace(/[0-9-]/g, (digit) => ({
+      "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
+      "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻",
+    })[digit] ?? digit);
+    const scientific = `${amount}×10${superscript}`;
+    return kind === "neutron-drop"
+      ? tr(locale, "elements.measured.neutron-drop", { value: scientific })
+      : tr(locale, "elements.measured.alpha-split", { value: scientific });
+  }
+  return value;
 }
 
 function barrierMeV(
@@ -258,19 +280,22 @@ export function fmtCrossSection(barn: number, locale: "en" | "es" = "en"): strin
 }
 
 export function fmtOneIn(probability: number, locale: "en" | "es" = "en"): string {
-  if (!Number.isFinite(probability) || probability <= 0) return "never";
-  if (probability >= 0.5) return "most hits";
+  if (!Number.isFinite(probability) || probability <= 0) return tr(locale, "elements.fusion.never");
+  if (probability >= 0.5) return tr(locale, "elements.fusion.mostHits");
   const odds = 1 / probability;
   if (odds >= 1e12) {
     const exponent = Math.floor(Math.log10(odds));
     const coefficient = Number((odds / 10 ** exponent).toPrecision(2));
     return coefficient === 1
-      ? `1 in 10^${exponent}`
-      : `1 in ${compactNumber(coefficient)}×10^${exponent}`;
+      ? tr(locale, "elements.fusion.oneInPower", { exponent })
+      : tr(locale, "elements.fusion.oneInScaled", {
+        coefficient: compactNumber(coefficient),
+        exponent,
+      });
   }
-  return locale === "es"
-    ? `1 de cada ${Math.round(odds).toLocaleString("es")}`
-    : `1 in ${Math.round(odds).toLocaleString("en-US")}`;
+  return tr(locale, "elements.fusion.oneIn", {
+    value: Math.round(odds).toLocaleString(locale === "es" ? "es" : "en-US"),
+  });
 }
 
 function separations(z: number, n: number): Separation[] {
@@ -319,20 +344,21 @@ function reactionLabel(
   compound: NucleusRef,
   residue: NucleusRef[],
   emitted: Emission[],
+  locale: Locale,
 ): string {
   const products = reactionProducts(residue, emitted);
-  return `${formatNucleus(projectile)} + ${formatNucleus(target)} → ${formatNucleus(compound)}* → ${products.length ? products.join(" + ") : "no product"}`;
+  return `${formatNucleus(projectile)} + ${formatNucleus(target)} → ${formatNucleus(compound)}* → ${products.length ? products.join(" + ") : tr(locale, "elements.fusion.noProduct")}`;
 }
 
-function mostHits(dominant: FusionReport["dominant"]): string {
-  if (dominant === "bounce") return "Most hits: the projectile bounces off.";
+function mostHits(dominant: FusionReport["dominant"], locale: Locale): string {
+  if (dominant === "bounce") return tr(locale, "elements.fusion.bounce");
   if (dominant === "quasi-fission") {
-    return "Most hits: the pair separates before the nuclei fully fuse.";
+    return tr(locale, "elements.fusion.quasiFission");
   }
   if (dominant === "fusion-fission") {
-    return "Most hits: the compound nucleus splits before it can cool.";
+    return tr(locale, "elements.fusion.fusionFission");
   }
-  return "The nuclei fuse and the compound cools.";
+  return tr(locale, "elements.fusion.fuses");
 }
 
 function oneInPhrase(probability: number, locale: Locale): string {
@@ -345,6 +371,7 @@ function failureStep(
   target: NucleusRef,
   projectile: NucleusRef,
   compound: NucleusRef,
+  locale: Locale,
 ): NuclearStep {
   if (dominant === "fusion-fission") {
     return {
@@ -353,7 +380,7 @@ function failureStep(
       projectile,
       ...fissionProducts(compound.z, compound.n),
       halfLife: "",
-      caption: mostHits(dominant),
+      caption: mostHits(dominant, locale),
     };
   }
   return {
@@ -364,7 +391,7 @@ function failureStep(
     emitted: [],
     energyMeV: 0,
     halfLife: "",
-    caption: mostHits(dominant),
+    caption: mostHits(dominant, locale),
   };
 }
 
@@ -416,9 +443,7 @@ function finishReport(
     bestBinding(target.z, target.n);
   const excitationMeV = ecmMeV + qMeV;
   const light = compoundA <= 20;
-  const notes = [
-    "Rough model: liquid-drop masses (measured masses for a few light nuclei), a simple barrier, and rough fusion and survival estimates. Real cross sections can be 10–1000× different.",
-  ];
+  const notes = [tr(locale, "elements.fusion.modelNote")];
   const steps: NuclearStep[] = [];
   let dominant: FusionReport["dominant"];
   let successPossible = true;
@@ -451,7 +476,7 @@ function finishReport(
     chancePerCollision = pTouch;
     plasmaMillionC = ecmMeV / BOLTZMANN_MEV_PER_K / 1e6;
     notes.push(
-      "Real fusion fuel is a hot plasma, so most bumps bounce off; it works because there are trillions of them.",
+      tr(locale, "elements.fusion.lightFuelNote"),
     );
 
     let residueZ = compoundZ;
@@ -574,7 +599,7 @@ function finishReport(
   if (residue.some((item) => item.z >= 119)) {
     const predictedZ = Math.max(...residue.map((item) => item.z));
     notes.push(
-      `No lab has made element ${predictedZ} yet. This is a prediction, not a discovery.`,
+      tr(locale, "elements.fusion.noLabElement", { z: predictedZ }),
     );
   }
   if (
@@ -586,7 +611,7 @@ function finishReport(
       return !report.bound || report.fissility >= 1;
     })
   ) {
-    notes.push("In this model the product falls apart instantly.");
+    notes.push(tr(locale, "elements.fusion.instantFallApart"));
   }
 
   const reaction = reactionLabel(
@@ -595,14 +620,15 @@ function finishReport(
     compound,
     residue,
     emitted,
+    locale,
   );
   const products = reactionProducts(residue, emitted);
   const successCaption = tr(locale, "fusion.successCaption", {
     odds: oneInPhrase(chancePerCollision, locale),
-    products: products.join(" + ") || "the compound forms",
+    products: products.join(" + ") || tr(locale, "elements.fusion.compoundForms"),
   });
   if (dominant !== "fuses") {
-    steps.push(failureStep(dominant, targetRef, projectileRef, compound));
+    steps.push(failureStep(dominant, targetRef, projectileRef, compound, locale));
   }
   if (successPossible && chancePerCollision >= 1e-30) {
     steps.push(
@@ -623,23 +649,25 @@ function finishReport(
       energyMeV: energyReleasedMeV,
       halfLife:
         residue.length === 1
-          ? (measuredHalfLife(residue[0].z, residue[0].n) ??
+          ? (measuredHalfLife(residue[0].z, residue[0].n, locale) ??
             residueReport?.halfLife ??
             "")
           : "",
-      caption: `The compound cools: ${products.join(" + ") || "no residue"}.`,
+      caption: tr(locale, "elements.fusion.compoundCools", {
+        products: products.join(" + ") || tr(locale, "elements.fusion.noResidue"),
+      }),
     });
   }
 
-  return translateTree(locale, {
+  return {
     light,
     reaction,
     dominant,
     successPossible,
     headline:
       dominant === "fuses"
-        ? mostHits(dominant)
-        : `${mostHits(dominant)}${successPossible && chancePerCollision >= 1e-30 ? ` ${successCaption}` : ""}`,
+        ? mostHits(dominant, locale)
+        : `${mostHits(dominant, locale)}${successPossible && chancePerCollision >= 1e-30 ? ` ${successCaption}` : ""}`,
     barrierMeV: barrier,
     ecmMeV,
     qMeV,
@@ -656,7 +684,7 @@ function finishReport(
     residueMeasured,
     notes,
     steps,
-  });
+  };
 }
 
 export function fuse(

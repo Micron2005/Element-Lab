@@ -1,5 +1,7 @@
 import { playEn } from "./messages/play";
 import { benchEn } from "./messages/bench";
+import { benchComponentsEn } from "./messages/benchComponents";
+import { elementsEn } from "./messages/elements";
 
 export const en = {
   "meta.description": "A virtual science lab for curious minds: chemistry, materials, physics and more.",
@@ -236,11 +238,6 @@ export const en = {
   "assistant.notice": "This is a learning tool. Never use its estimates as a substitute for testing, safety data, or professional advice.",
   "assistant.clearNotice": "Conversation cleared.",
   "assistant.noKeyMessage": "The assistant is off. Add your own Anthropic or OpenAI key in **Your AI key** (stays on this device), or the site owner can add one in Vercel.",
-  "bench.test.aria": "{test} test",
-  "bench.test.setupOnly": "Setup controls only",
-  "bench.test.modelConfidence": "Model confidence",
-  "bench.test.footnote": "Rough model estimate, not a lab measurement.",
-  "bench.test.choose": "Choose a test",
   "bench.test.nozzle": "Nozzle test",
   "bench.test.stretch": "Stretch",
   "bench.test.heat": "Heat",
@@ -682,6 +679,8 @@ export const en = {
   "play.template.moleculeStory": "Build a molecule using the atoms in the molecule lab.",
   ...playEn,
   ...benchEn,
+  ...benchComponentsEn,
+  ...elementsEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

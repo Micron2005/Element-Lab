@@ -29,12 +29,12 @@ import { useT } from "./LocaleProvider";
 
 const TEST_STORAGE = "elementlab.bench.test";
 const TESTS: { id: BenchTestId; label: string }[] = [
-  { id: "shoot", label: "Nozzle test" },
-  { id: "stretch", label: "Stretch" },
-  { id: "heat", label: "Heat" },
-  { id: "dissolve", label: "Dissolve" },
-  { id: "stick", label: "Stick" },
-  { id: "drop", label: "Drop" },
+  { id: "shoot", label: "bench.test.nozzle" },
+  { id: "stretch", label: "bench.test.stretch" },
+  { id: "heat", label: "bench.test.heat" },
+  { id: "dissolve", label: "bench.test.dissolve" },
+  { id: "stick", label: "bench.test.stick" },
+  { id: "drop", label: "bench.test.drop" },
 ];
 const VALID_TESTS = new Set<BenchTestId>(TESTS.map(({ id }) => id));
 
@@ -56,15 +56,15 @@ function TestResultCard({
     <article className="bench-shoot-card bench-test-card" aria-label={t("bench.test.aria", { test: t(heading) })}>
       <header className="bench-test-card-heading">
         <div>
-          <p className="bench-test-kicker">{kicker}</p>
-          <h4>{heading === "Stretch" ? <Term id="stretch">{t(heading)}</Term> : t(heading)}</h4>
+          <p className="bench-test-kicker">{t(kicker)}</p>
+          <h4>{heading === "bench.test.stretch" ? <Term id="stretch">{t(heading)}</Term> : t(heading)}</h4>
         </div>
         <span className="bench-test-setup-label">{t("bench.test.setupOnly")}</span>
       </header>
       <div className="bench-test-controls">{controls}</div>
       <TestViewer key={`${viewer.type}-${JSON.stringify(viewer.setup)}-${report.verdict}`} data={viewer} />
       <div className={`bench-test-verdict tone-${report.tone}`}>
-        <strong>{report.verdict.replaceAll("-", " ")}</strong>
+        <strong>{t(`bench.test.status.${report.verdict}`)}</strong>
         <p>{report.headline}</p>
       </div>
       <dl className="bench-metric-grid bench-test-metrics">
@@ -194,11 +194,11 @@ export default function BenchTests({
     if (selected === "shoot") return null;
     if (selected === "stretch") {
       return {
-        name: "Stretch",
+        name: t("bench.test.stretch"),
         setup: [
-          ["Strand diameter", `${stretchSetup.diameterMm} mm`],
-          ["Starting length", `${stretchSetup.lengthMm} mm`],
-          ["Pull speed", `${stretchSetup.pullMmPerMin} mm/min`],
+          [t("bench.test.strandDiameter"), `${stretchSetup.diameterMm} mm`],
+          [t("bench.test.startingLength"), `${stretchSetup.lengthMm} mm`],
+          [t("bench.test.pullSpeed"), `${stretchSetup.pullMmPerMin} mm/min`],
         ],
         headline: stretch.headline,
         metrics: stretch.metrics,
@@ -207,11 +207,11 @@ export default function BenchTests({
     }
     if (selected === "heat") {
       return {
-        name: "Heat",
+        name: t("bench.test.heat"),
         setup: [
-          ["Maximum temperature", `${heatSetup.maxTempC} °C`],
-          ["Time at temperature", `${heatSetup.minutes} min`],
-          ["Atmosphere", heatSetup.atmosphere],
+          [t("bench.test.maximumTemperature"), `${heatSetup.maxTempC} °C`],
+          [t("bench.test.timeAtTemperature"), `${heatSetup.minutes} min`],
+          [t("bench.test.atmosphere"), t(`bench.test.${heatSetup.atmosphere}`)],
         ],
         headline: heat.headline,
         metrics: heat.metrics,
@@ -220,12 +220,12 @@ export default function BenchTests({
     }
     if (selected === "dissolve") {
       return {
-        name: "Dissolve",
+        name: t("bench.test.dissolve"),
         setup: [
-          ["Liquid", dissolveSetup.liquid],
-          ["Liquid temperature", `${dissolveSetup.tempC} °C`],
-          ["Sample thickness", `${dissolveSetup.thicknessMm} mm`],
-          ["Stirred", dissolveSetup.stirred ? "Yes" : "No"],
+          [t("bench.test.liquid"), t(`bench.test.${dissolveSetup.liquid === "salt-water" ? "saltWater" : dissolveSetup.liquid}`)],
+          [t("bench.test.liquidTemperature"), `${dissolveSetup.tempC} °C`],
+          [t("bench.test.sampleThickness"), `${dissolveSetup.thicknessMm} mm`],
+          [t("bench.test.stirredLabel"), dissolveSetup.stirred ? t("bench.model.material.yes") : t("bench.model.material.no")],
         ],
         headline: dissolve.headline,
         metrics: dissolve.metrics,
@@ -234,11 +234,11 @@ export default function BenchTests({
     }
     if (selected === "stick") {
       return {
-        name: "Stick",
+        name: t("bench.test.stick"),
         setup: [
-          ["Surface", STICK_SURFACE_LABELS[stickSetup.surface]],
-          ["Contact area", `${stickSetup.areaCm2} cm²`],
-          ["Press time", `${stickSetup.pressMinutes} min`],
+          [t("bench.test.surface"), t(`bench.test.${stickSetup.surface}`)],
+          [t("bench.test.contactArea"), `${stickSetup.areaCm2} cm²`],
+          [t("bench.test.pressTime"), `${stickSetup.pressMinutes} min`],
         ],
         headline: stick.headline,
         metrics: stick.metrics,
@@ -246,17 +246,17 @@ export default function BenchTests({
       };
     }
     return {
-        name: "Drop",
+      name: t("bench.test.drop"),
       setup: [
-        ["Drop height", `${dropSetup.heightM} m`],
-        ["Sample diameter", `${dropSetup.diameterMm} mm`],
-        ["Floor", dropSetup.floor],
+        [t("bench.test.dropHeight"), `${dropSetup.heightM} m`],
+        [t("bench.test.sampleDiameter"), `${dropSetup.diameterMm} mm`],
+        [t("bench.test.floor"), t(`bench.test.${dropSetup.floor}`)],
       ],
       headline: drop.headline,
       metrics: drop.metrics,
       notes: drop.notes,
     };
-  }, [selected, stretchSetup, stretch, heatSetup, heat, dissolveSetup, dissolve, stickSetup, stick, dropSetup, drop]);
+  }, [selected, stretchSetup, stretch, heatSetup, heat, dissolveSetup, dissolve, stickSetup, stick, dropSetup, drop, t]);
 
   useEffect(() => {
     if (selected !== "shoot") onTestSummary?.(selectedSummary);
@@ -267,20 +267,20 @@ export default function BenchTests({
     card = (
       <div className="bench-test-shoot-wrap">
         <ShootTest key={runId} experiment={experiment} result={result} onTestSummary={onTestSummary} />
-        <p className="bench-test-footnote">Rough model estimate, not a lab measurement.</p>
+        <p className="bench-test-footnote">{t("bench.test.estimateNote")}</p>
       </div>
     );
   } else if (selected === "stretch") {
     card = (
       <TestResultCard
-        kicker="PULL TEST"
-        heading="Stretch"
+        kicker="bench.test.pullKicker"
+        heading="bench.test.stretch"
         report={stretch}
         viewer={{ type: "stretch", setup: stretchSetup, report: stretch }}
         controls={
           <>
             <RangeNumberField
-              label="Strand diameter"
+              label={t("bench.test.strandDiameter")}
               value={stretchSetup.diameterMm}
               min={0.05}
               max={20}
@@ -289,7 +289,7 @@ export default function BenchTests({
               onChange={(diameterMm) => setStretchSetup((current) => ({ ...current, diameterMm }))}
             />
             <RangeNumberField
-              label="Starting length"
+              label={t("bench.test.startingLength")}
               value={stretchSetup.lengthMm}
               min={10}
               max={1000}
@@ -298,7 +298,7 @@ export default function BenchTests({
               onChange={(lengthMm) => setStretchSetup((current) => ({ ...current, lengthMm }))}
             />
             <RangeNumberField
-              label="Pull speed"
+              label={t("bench.test.pullSpeed")}
               value={stretchSetup.pullMmPerMin}
               min={1}
               max={10000}
@@ -315,14 +315,14 @@ export default function BenchTests({
   } else if (selected === "heat") {
     card = (
       <TestResultCard
-        kicker="HEAT TEST"
-        heading="Heat"
+        kicker="bench.test.heatKicker"
+        heading="bench.test.heat"
         report={heat}
         viewer={{ type: "heat", setup: heatSetup, report: heat }}
         controls={
           <>
             <RangeNumberField
-              label="Maximum temperature"
+              label={t("bench.test.maximumTemperature")}
               value={heatSetup.maxTempC}
               min={25}
               max={1000}
@@ -331,7 +331,7 @@ export default function BenchTests({
               onChange={(maxTempC) => setHeatSetup((current) => ({ ...current, maxTempC }))}
             />
             <RangeNumberField
-              label="Time at temperature"
+              label={t("bench.test.timeAtTemperature")}
               value={heatSetup.minutes}
               min={1}
               max={120}
@@ -340,11 +340,11 @@ export default function BenchTests({
               onChange={(minutes) => setHeatSetup((current) => ({ ...current, minutes }))}
             />
             <ChoiceGroup
-              label="Atmosphere"
+              label={t("bench.test.atmosphere")}
               value={heatSetup.atmosphere}
               options={[
-                { value: "air", label: "Air" },
-                { value: "nitrogen", label: "Nitrogen" },
+                { value: "air", label: t("bench.test.air") },
+                { value: "nitrogen", label: t("bench.test.nitrogen") },
               ]}
               onChange={(atmosphere) => setHeatSetup((current) => ({ ...current, atmosphere }))}
             />
@@ -354,27 +354,27 @@ export default function BenchTests({
     );
   } else if (selected === "dissolve") {
     const liquids: { value: DissolveLiquid; label: string }[] = [
-      { value: "water", label: "Water" },
-      { value: "salt-water", label: "Salt water" },
-      { value: "acidic", label: "Acidic" },
-      { value: "alkaline", label: "Alkaline" },
+      { value: "water", label: t("bench.test.water") },
+      { value: "salt-water", label: t("bench.test.saltWater") },
+      { value: "acidic", label: t("bench.test.acidic") },
+      { value: "alkaline", label: t("bench.test.alkaline") },
     ];
     card = (
       <TestResultCard
-        kicker="WATER TEST"
-        heading="Dissolve"
+        kicker="bench.test.waterKicker"
+        heading="bench.test.dissolve"
         report={dissolve}
         viewer={{ type: "dissolve", setup: dissolveSetup, report: dissolve }}
         controls={
           <>
             <ChoiceGroup
-              label="Liquid"
+              label={t("bench.test.liquid")}
               value={dissolveSetup.liquid}
               options={liquids}
               onChange={(liquid) => setDissolveSetup((current) => ({ ...current, liquid }))}
             />
             <RangeNumberField
-              label="Liquid temperature"
+              label={t("bench.test.liquidTemperature")}
               value={dissolveSetup.tempC}
               min={0}
               max={100}
@@ -383,7 +383,7 @@ export default function BenchTests({
               onChange={(tempC) => setDissolveSetup((current) => ({ ...current, tempC }))}
             />
             <RangeNumberField
-              label="Sample thickness"
+              label={t("bench.test.sampleThickness")}
               value={dissolveSetup.thicknessMm}
               min={0.01}
               max={50}
@@ -401,7 +401,7 @@ export default function BenchTests({
                 setDissolveSetup((current) => ({ ...current, stirred: !current.stirred }))
               }
             >
-              {dissolveSetup.stirred ? "Stirred" : "Not stirred"}
+              {dissolveSetup.stirred ? t("bench.test.stirredLabel") : t("bench.test.notStirred")}
             </button>
           </>
         }
@@ -410,23 +410,23 @@ export default function BenchTests({
   } else if (selected === "stick") {
     const surfaces: { value: StickSurface; label: string }[] = (
       Object.keys(STICK_SURFACE_LABELS) as StickSurface[]
-    ).map((value) => ({ value, label: STICK_SURFACE_LABELS[value] }));
+    ).map((value) => ({ value, label: t(`bench.test.${value}`) }));
     card = (
       <TestResultCard
-        kicker="STICK TEST"
-        heading="Stick"
+        kicker="bench.test.stickKicker"
+        heading="bench.test.stick"
         report={stick}
         viewer={{ type: "stick", setup: stickSetup, report: stick }}
         controls={
           <>
             <ChoiceGroup
-              label="Surface"
+              label={t("bench.test.surface")}
               value={stickSetup.surface}
               options={surfaces}
               onChange={(surface) => setStickSetup((current) => ({ ...current, surface }))}
             />
             <RangeNumberField
-              label="Contact area"
+              label={t("bench.test.contactArea")}
               value={stickSetup.areaCm2}
               min={0.1}
               max={100}
@@ -435,7 +435,7 @@ export default function BenchTests({
               onChange={(areaCm2) => setStickSetup((current) => ({ ...current, areaCm2 }))}
             />
             <RangeNumberField
-              label="Press time"
+              label={t("bench.test.pressTime")}
               value={stickSetup.pressMinutes}
               min={0}
               max={1440}
@@ -452,14 +452,14 @@ export default function BenchTests({
   } else {
     card = (
       <TestResultCard
-        kicker="DROP TEST"
-        heading="Drop"
+        kicker="bench.test.dropKicker"
+        heading="bench.test.drop"
         report={drop}
         viewer={{ type: "drop", setup: dropSetup, report: drop }}
         controls={
           <>
             <RangeNumberField
-              label="Drop height"
+              label={t("bench.test.dropHeight")}
               value={dropSetup.heightM}
               min={0.1}
               max={100}
@@ -468,7 +468,7 @@ export default function BenchTests({
               onChange={(heightM) => setDropSetup((current) => ({ ...current, heightM }))}
             />
             <RangeNumberField
-              label="Sample diameter"
+              label={t("bench.test.sampleDiameter")}
               value={dropSetup.diameterMm}
               min={1}
               max={200}
@@ -479,11 +479,11 @@ export default function BenchTests({
               }
             />
             <ChoiceGroup<DropFloor>
-              label="Floor"
+              label={t("bench.test.floor")}
               value={dropSetup.floor}
               options={[
-                { value: "hard", label: "Hard" },
-                { value: "soft", label: "Soft" },
+                { value: "hard", label: t("bench.test.hard") },
+                { value: "soft", label: t("bench.test.soft") },
               ]}
               onChange={(floor) => setDropSetup((current) => ({ ...current, floor }))}
             />

@@ -525,8 +525,8 @@ export default function BenchTool() {
     JSON.stringify(experiment) !== JSON.stringify(lastRunExperiment);
 
   const scene = useMemo(
-    () => (result && lastRunExperiment ? buildMixScene(lastRunExperiment, result) : null),
-    [result, lastRunExperiment],
+    () => (result && lastRunExperiment ? buildMixScene(lastRunExperiment, result, locale) : null),
+    [result, lastRunExperiment, locale],
   );
 
   function updateExperiment(next: Experiment) {
@@ -577,7 +577,7 @@ export default function BenchTool() {
       }
     } catch (error) {
       setCustomSaveError(
-        error instanceof Error ? error.message : "Could not save this ingredient.",
+        error instanceof Error ? error.message : t("bench.ui.saveIngredientFailed"),
       );
     }
   }
@@ -589,7 +589,7 @@ export default function BenchTool() {
       removeCustomIngredient(id);
     } catch (error) {
       setCustomSaveError(
-        error instanceof Error ? error.message : "Could not delete this ingredient.",
+        error instanceof Error ? error.message : t("bench.ui.deleteIngredientFailed"),
       );
       return;
     }
@@ -715,6 +715,7 @@ export default function BenchTool() {
           lockConditions: keepConditions ? experiment.conditions : undefined,
         },
         (completed, total) => setProgress({ completed, total }),
+        locale,
       );
       setCandidates(found);
       setSearchTimeMs(performance.now() - start);
@@ -729,7 +730,7 @@ export default function BenchTool() {
     .map((id) => notebook.find((entry) => entry.id === id))
     .filter((entry): entry is NotebookEntry => Boolean(entry));
   const comparison = comparisonEntries.length >= 2
-    ? compareRuns(comparisonEntries.map(({ name, experiment, result }) => ({ name, experiment, result })))
+    ? compareRuns(comparisonEntries.map(({ name, experiment, result }) => ({ name, experiment, result })), locale)
     : null;
 
   function undoSharedExperiment() {
@@ -797,8 +798,8 @@ export default function BenchTool() {
         />
       )}
       <header className="bench-intro">
-        <p className="bench-eyebrow">{t("VIRTUAL EXPERIMENT SANDBOX")}</p>
-        <h1>{t("Experiment Bench")}</h1>
+        <p className="bench-eyebrow">{t("bench.eyebrow")}</p>
+        <h1>{t("bench.title")}</h1>
         <p>
           {t("ui.benchDescription")}
         </p>
@@ -807,7 +808,7 @@ export default function BenchTool() {
       <section className="bench-panel">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">01 · {t("Build")}</p>
+            <p className="bench-kicker">01 · {t("bench.ui.build")}</p>
             <h2>{t("ui.yourMixture")}</h2>
           </div>
           <div className="bench-preset-control">
@@ -942,7 +943,7 @@ export default function BenchTool() {
                         <div className="bench-mix-row-top">
                           <div className="bench-mix-title">
                             <span className="bench-order">{String(index + 1).padStart(2, "0")}</span>
-                            <strong>Deleted ingredient</strong>
+                            <strong>{t("bench.ui.deletedIngredient")}</strong>
                           </div>
                         <span className="badge bench-category-badge">{t("bench.custom")}</span>
                         </div>
@@ -957,7 +958,7 @@ export default function BenchTool() {
                               })
                             }
                           >
-                            Remove
+                            {t("bench.test.remove")}
                           </button>
                         </div>
                       </article>
@@ -1026,7 +1027,7 @@ export default function BenchTool() {
                             })
                           }
                         >
-                          Remove
+                          {t("bench.test.remove")}
                         </button>
                       </div>
                       <details className="bench-ingredient-details">
@@ -1059,7 +1060,7 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-conditions-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">02 · {t("Process")}</p>
+            <p className="bench-kicker">02 · {t("bench.ui.process")}</p>
             <h2 id="bench-conditions-heading">{t("ui.conditions")}</h2>
           </div>
         </div>
@@ -1219,7 +1220,7 @@ export default function BenchTool() {
         </p>
       </section>
 
-      <section className="bench-run-panel" aria-label="Run experiment">
+      <section className="bench-run-panel" aria-label={t("ui.runExperiment")}>
         <label className="bench-run-name">
           <span>{t("bench.notebookName")}</span>
           <input
@@ -1576,8 +1577,8 @@ export default function BenchTool() {
       <section className="bench-panel" aria-labelledby="bench-notebook-heading">
         <div className="bench-panel-heading">
           <div>
-            <p className="bench-kicker">05 · RECORD</p>
-            <h2 id="bench-notebook-heading">Notebook</h2>
+            <p className="bench-kicker">{t("bench.ui.record")}</p>
+            <h2 id="bench-notebook-heading">{t("bench.ui.notebook")}</h2>
           </div>
           <span className="bench-live-value">{t("bench.runsCount", { count: notebook.length })}</span>
         </div>

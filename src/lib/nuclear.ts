@@ -1,5 +1,5 @@
 // Semi-empirical (liquid-drop) mass formula, coefficients in MeV (Krane).
-import { DEFAULT_LOCALE, translateTree, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
 const aV = 15.75, aS = 17.8, aC = 0.711, aA = 23.7, aP = 11.18;
 const MAGIC = [2, 8, 20, 28, 50, 82, 126, 184];
 
@@ -66,22 +66,32 @@ export interface NucleusReport {
   magicN: boolean;
   bound: boolean;
   modes: string[];
+  modeIds: NuclearModeId[];
   verdict: string;
   halfLife: string;
   halfLifeSeconds: number;
 }
 
+type NuclearModeId =
+  | "neutron-drip"
+  | "proton-drip"
+  | "instant-fission"
+  | "spontaneous-fission"
+  | "alpha"
+  | "beta-minus"
+  | "beta-plus";
+
 function fmtSeconds(s: number, locale: Locale = DEFAULT_LOCALE) {
-  if (!isFinite(s)) return "Stable (no decay predicted)";
-  if (s < 1e-21) return "< 10^-21 s (falls apart instantly)";
+  if (!isFinite(s)) return tr(locale, "elements.time.stable");
+  if (s < 1e-21) return tr(locale, "elements.time.instant");
   if (s < 1e-6) return `~${s.toExponential(0)} s`;
   if (s < 1) return `~${(s * 1000).toPrecision(2)} ms`;
   if (s < 3600) return `~${s.toPrecision(2)} s`;
-  if (s < 86400 * 365) return `~${(s / 3600).toPrecision(2)} ${locale === "es" ? "horas" : "hours"}`;
+  if (s < 86400 * 365) return `~${(s / 3600).toPrecision(2)} ${tr(locale, "elements.time.hours")}`;
   const y = s / (86400 * 365.25);
   return y > 1e9
-    ? `~${y.toExponential(1)} ${locale === "es" ? "años" : "years"}`
-    : `~${y.toPrecision(2)} ${locale === "es" ? "años" : "years"}`;
+    ? `~${y.toExponential(1)} ${tr(locale, "elements.time.years")}`
+    : `~${y.toPrecision(2)} ${tr(locale, "elements.time.years")}`;
 }
 
 export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LOCALE): NucleusReport {
@@ -97,23 +107,27 @@ export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LO
   const fissility = (z * z) / a / 50.9;
   const bound = sn > 0 && sp > 0 && B > 0;
 
-  const modes: string[] = [];
-  if (!bound) modes.push(sn <= 0 ? "Neutron drips off" : "Proton drips off");
-  if (fissility >= 1) modes.push("Splits in two instantly (fission)");
-  else if (fissility > 0.75) modes.push("Spontaneous fission");
-  if (qAlpha > 0 && a > 100) modes.push(`Alpha decay (Q ≈ ${qAlpha.toFixed(1)} MeV)`);
-  if (qBetaMinus > 0) modes.push("Beta-minus (neutron → proton)");
-  if (qBetaPlus > 0) modes.push("Beta-plus / electron capture (proton → neutron)");
-  const localizedModes = locale === "es"
-    ? modes.map((mode) => mode
-      .replace(/^Alpha decay \(Q ≈ (.+) MeV\)$/, "Decaimiento alfa (Q ≈ $1 MeV)")
-      .replace("Beta-minus (neutron → proton)", "Beta menos (neutrón → protón)")
-      .replace("Beta-plus / electron capture (proton → neutron)", "Beta más / captura electrónica (protón → neutrón)")
-      .replace("Spontaneous fission", "Fisión espontánea")
-      .replace("Splits in two instantly (fission)", "Se divide al instante en dos (fisión)")
-      .replace("Neutron drips off", "Se desprende un neutrón")
-      .replace("Proton drips off", "Se desprende un protón"))
-    : modes;
+  const modeIds: NuclearModeId[] = [];
+  if (!bound) modeIds.push(sn <= 0 ? "neutron-drip" : "proton-drip");
+  if (fissility >= 1) modeIds.push("instant-fission");
+  else if (fissility > 0.75) modeIds.push("spontaneous-fission");
+  if (qAlpha > 0 && a > 100) modeIds.push("alpha");
+  if (qBetaMinus > 0) modeIds.push("beta-minus");
+  if (qBetaPlus > 0) modeIds.push("beta-plus");
+  const modeMessageKeys = {
+    "neutron-drip": "elements.mode.neutronDrip",
+    "proton-drip": "elements.mode.protonDrip",
+    "instant-fission": "elements.mode.instantFission",
+    "spontaneous-fission": "elements.mode.spontaneousFission",
+    alpha: "elements.mode.alpha",
+    "beta-minus": "elements.mode.betaMinus",
+    "beta-plus": "elements.mode.betaPlus",
+  } as const;
+  const modes = modeIds.map((id) => tr(
+    locale,
+    modeMessageKeys[id],
+    id === "alpha" ? { q: qAlpha.toFixed(1) } : undefined,
+  ));
 
   let halfS = Infinity;
   if (!bound || fissility >= 1) halfS = 1e-22;
@@ -135,16 +149,20 @@ export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LO
   const sz = stableZ(a);
   const stableN = Math.round(a - sz);
   const nearIsland = z >= 112 && z <= 126 && n >= 176 && n <= 190;
-  let verdict: string;
-  if (!bound) verdict = "Can't exist: the nucleus isn't bound, a nucleon flies off immediately.";
-  else if (fissility >= 1) verdict = "Can't exist: electric repulsion between protons beats the nuclear glue.";
-  else if (!isFinite(halfS) || halfS > 3e16) verdict = "Stable or practically stable.";
-  else if (halfS > 1) verdict = "Radioactive but would last long enough to study.";
-  else if (halfS > 1e-6) verdict = "Super short-lived: it would be made one atom at a time in an accelerator.";
-  else verdict = "Exists for a blink: gone before it can form chemistry.";
-  if (nearIsland) verdict += " This is near the predicted 'island of stability' (Z≈114-126, N≈184), where extra shell stability could make it last much longer than this model says.";
+  const verdictKey = !bound
+    ? "elements.verdict.unbound"
+    : fissility >= 1
+      ? "elements.verdict.repulsion"
+      : !isFinite(halfS) || halfS > 3e16
+        ? "elements.verdict.stable"
+        : halfS > 1
+          ? "elements.verdict.study"
+          : halfS > 1e-6
+            ? "elements.verdict.shortLived"
+            : "elements.verdict.instant";
+  const verdict = `${tr(locale, verdictKey)}${nearIsland ? ` ${tr(locale, "elements.verdict.island")}` : ""}`;
 
-  return translateTree(locale, {
+  return {
     z,
     n,
     a,
@@ -163,9 +181,10 @@ export function analyzeNucleus(z: number, n: number, locale: Locale = DEFAULT_LO
     magicZ: MAGIC.includes(z),
     magicN: MAGIC.includes(n),
     bound,
-    modes: localizedModes,
+    modes,
+    modeIds,
     verdict,
     halfLife: fmtSeconds(halfS, locale),
     halfLifeSeconds: halfS,
-  });
+  };
 }

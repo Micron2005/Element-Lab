@@ -1,13 +1,14 @@
 import { analyzeNucleus, bindingEnergy, elementName } from "./nuclear";
+import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
 
 export type NuclearStepKind = "stable" | "neutron-drip" | "proton-drip" | "fission" | "alpha" | "beta-minus" | "beta-plus" | "neutron-capture" | "bounce" | "quasi-fission" | "fusion-fission" | "fusion" | "evaporation";
 export interface NucleusRef { z: number; n: number; symbol: string; name: string }
 export interface Emission { type: "n" | "p" | "alpha" | "e-" | "e+" | "gamma" | "neutrino"; count: number }
 export interface NuclearStep { kind: NuclearStepKind; from: NucleusRef; to: NucleusRef[]; emitted: Emission[]; energyMeV: number; halfLife: string; caption: string; projectile?: NucleusRef }
 
-function assertNucleus(z: number, n: number): void {
+function assertNucleus(z: number, n: number, locale: Locale = DEFAULT_LOCALE): void {
   if (!Number.isInteger(z) || z < 1 || !Number.isInteger(n) || n < 0) {
-    throw new RangeError("A nucleus needs an integer Z ≥ 1 and N ≥ 0.");
+    throw new RangeError(tr(locale, "elements.scene.invalidInput"));
   }
 }
 
@@ -42,7 +43,7 @@ export function fissionProducts(z: number, n: number): {
   };
 }
 
-function stableStep(z: number, n: number, halfLife: string): NuclearStep {
+function stableStep(z: number, n: number, halfLife: string, locale: Locale): NuclearStep {
   const nucleus = nucleusRef(z, n);
   return {
     kind: "stable",
@@ -51,18 +52,18 @@ function stableStep(z: number, n: number, halfLife: string): NuclearStep {
     emitted: [],
     energyMeV: 0,
     halfLife,
-    caption: `${nucleus.name} is stable.`,
+    caption: tr(locale, "elements.scene.stable", { name: nucleus.name }),
   };
 }
 
-function stepForMode(z: number, n: number): NuclearStep {
-  const report = analyzeNucleus(z, n);
+function stepForMode(z: number, n: number, locale: Locale): NuclearStep {
+  const report = analyzeNucleus(z, n, locale);
   const from = nucleusRef(z, n);
-  const mode = report.modes[0];
-  if (!mode) return stableStep(z, n, report.halfLife);
+  const mode = report.modeIds[0];
+  if (!mode) return stableStep(z, n, report.halfLife, locale);
 
-  if (mode.startsWith("Neutron drips off")) {
-    if (n === 0) return stableStep(z, n, report.halfLife);
+  if (mode === "neutron-drip") {
+    if (n === 0) return stableStep(z, n, report.halfLife, locale);
     const to = nucleusRef(z, n - 1);
     return {
       kind: "neutron-drip",
@@ -71,12 +72,12 @@ function stepForMode(z: number, n: number): NuclearStep {
       emitted: [{ type: "n", count: 1 }],
       energyMeV: Math.abs(report.sn),
       halfLife: report.halfLife,
-      caption: `A neutron drips away: ${from.name} → ${to.name}.`,
+      caption: tr(locale, "elements.scene.neutronDrip", { from: from.name, to: to.name }),
     };
   }
 
-  if (mode.startsWith("Proton drips off")) {
-    if (z <= 1) return stableStep(z, n, report.halfLife);
+  if (mode === "proton-drip") {
+    if (z <= 1) return stableStep(z, n, report.halfLife, locale);
     const to = nucleusRef(z - 1, n);
     return {
       kind: "proton-drip",
@@ -85,23 +86,23 @@ function stepForMode(z: number, n: number): NuclearStep {
       emitted: [{ type: "p", count: 1 }],
       energyMeV: Math.abs(report.sp),
       halfLife: report.halfLife,
-      caption: `A proton drips away: ${from.name} → ${to.name}.`,
+      caption: tr(locale, "elements.scene.protonDrip", { from: from.name, to: to.name }),
     };
   }
 
-  if (mode.startsWith("Splits in two") || mode.startsWith("Spontaneous fission")) {
+  if (mode === "instant-fission" || mode === "spontaneous-fission") {
     const fission = fissionProducts(z, n);
     return {
       kind: "fission",
       from,
       ...fission,
       halfLife: report.halfLife,
-      caption: `The nucleus splits: ${from.name} → ${fission.to.map((fragment) => fragment.name).join(" + ")}.`,
+      caption: tr(locale, "elements.scene.fission", { from: from.name, products: fission.to.map((fragment) => fragment.name).join(" + ") }),
     };
   }
 
-  if (mode.startsWith("Alpha decay")) {
-    if (z <= 2 || n <= 2) return stableStep(z, n, report.halfLife);
+  if (mode === "alpha") {
+    if (z <= 2 || n <= 2) return stableStep(z, n, report.halfLife, locale);
     const to = nucleusRef(z - 2, n - 2);
     return {
       kind: "alpha",
@@ -110,12 +111,12 @@ function stepForMode(z: number, n: number): NuclearStep {
       emitted: [{ type: "alpha", count: 1 }],
       energyMeV: report.qAlpha,
       halfLife: report.halfLife,
-      caption: `An alpha particle leaves: ${from.name} → ${to.name} + alpha.`,
+      caption: tr(locale, "elements.scene.alpha", { from: from.name, to: to.name }),
     };
   }
 
-  if (mode.startsWith("Beta-minus")) {
-    if (n <= 0) return stableStep(z, n, report.halfLife);
+  if (mode === "beta-minus") {
+    if (n <= 0) return stableStep(z, n, report.halfLife, locale);
     const to = nucleusRef(z + 1, n - 1);
     return {
       kind: "beta-minus",
@@ -127,12 +128,12 @@ function stepForMode(z: number, n: number): NuclearStep {
       ],
       energyMeV: report.qBetaMinus,
       halfLife: report.halfLife,
-      caption: `A neutron turns into a proton and shoots out an electron: ${from.name} → ${to.name}.`,
+      caption: tr(locale, "elements.scene.betaMinus", { from: from.name, to: to.name }),
     };
   }
 
-  if (mode.startsWith("Beta-plus")) {
-    if (z <= 1) return stableStep(z, n, report.halfLife);
+  if (mode === "beta-plus") {
+    if (z <= 1) return stableStep(z, n, report.halfLife, locale);
     const to = nucleusRef(z - 1, n + 1);
     return {
       kind: "beta-plus",
@@ -144,21 +145,21 @@ function stepForMode(z: number, n: number): NuclearStep {
       ],
       energyMeV: report.qBetaPlus,
       halfLife: report.halfLife,
-      caption: `A proton turns into a neutron and emits a positron: ${from.name} → ${to.name}.`,
+      caption: tr(locale, "elements.scene.betaPlus", { from: from.name, to: to.name }),
     };
   }
 
-  return stableStep(z, n, report.halfLife);
+  return stableStep(z, n, report.halfLife, locale);
 }
 
-export function decayChain(z: number, n: number, maxSteps = 8): NuclearStep[] {
-  assertNucleus(z, n);
+export function decayChain(z: number, n: number, maxSteps = 8, locale: Locale = DEFAULT_LOCALE): NuclearStep[] {
+  assertNucleus(z, n, locale);
   const steps: NuclearStep[] = [];
   const limit = Math.max(0, Math.floor(maxSteps));
   let currentZ = z;
   let currentN = n;
   for (let index = 0; index < limit; index += 1) {
-    const step = stepForMode(currentZ, currentN);
+    const step = stepForMode(currentZ, currentN, locale);
     steps.push(step);
     if (step.kind === "stable" || step.kind === "fission") break;
     const daughter = step.to[0];
@@ -168,11 +169,11 @@ export function decayChain(z: number, n: number, maxSteps = 8): NuclearStep[] {
   return steps;
 }
 
-export function neutronHit(z: number, n: number): NuclearStep {
-  assertNucleus(z, n);
+export function neutronHit(z: number, n: number, locale: Locale = DEFAULT_LOCALE): NuclearStep {
+  assertNucleus(z, n, locale);
   const from = nucleusRef(z, n);
   const compoundN = n + 1;
-  const compound = analyzeNucleus(z, compoundN);
+  const compound = analyzeNucleus(z, compoundN, locale);
   if (z >= 90 && compound.fissility > 0.7) {
     const fission = fissionProducts(z, compoundN);
     return {
@@ -181,7 +182,7 @@ export function neutronHit(z: number, n: number): NuclearStep {
       ...fission,
       energyMeV: fission.energyMeV + compound.sn,
       halfLife: compound.halfLife,
-      caption: `The nucleus captures a neutron and splits: ${from.name} → ${fission.to.map((fragment) => fragment.name).join(" + ")}.`,
+      caption: tr(locale, "elements.scene.neutronFission", { from: from.name, products: fission.to.map((fragment) => fragment.name).join(" + ") }),
     };
   }
   const to = nucleusRef(z, compoundN);
@@ -192,6 +193,6 @@ export function neutronHit(z: number, n: number): NuclearStep {
     emitted: [{ type: "gamma", count: 1 }],
     energyMeV: compound.sn,
     halfLife: compound.halfLife,
-    caption: `A neutron is captured and a gamma ray is released: ${from.name} → ${to.name}.`,
+    caption: tr(locale, "elements.scene.capture", { from: from.name, to: to.name }),
   };
 }

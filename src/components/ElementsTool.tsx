@@ -132,9 +132,9 @@ export default function ElementsTool() {
           <Panel title={t("ui.nucleusControls")} subtitle={t("ui.nucleusRange")}>
             <div className="element-controls">
               {([
-                ["Protons (Z)", z, setZ, 1, 200],
-                ["Neutrons (N)", n, setN, 0, 320],
-              ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label.startsWith("Protons") ? <Term id="proton">{t(label)}</Term> : <Term id="neutron">{t(label)}</Term>}</label><div className="dual-slider"><input aria-label={`${t(label)} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
+                ["elements.control.protons", z, setZ, 1, 200],
+                ["elements.control.neutrons", n, setN, 0, 320],
+              ] as const).map(([label, value, setter, min, max]) => <div key={label}><label className="field-label" htmlFor={`nucleus-${label}`}>{label === "elements.control.protons" ? <Term id="proton">{t(label)}</Term> : <Term id="neutron">{t(label)}</Term>}</label><div className="dual-slider"><input aria-label={`${t(label)} slider`} type="range" min={min} max={max} value={value} onChange={(event) => setter(Number(event.target.value))} /><input className="input" id={`nucleus-${label}`} type="number" min={min} max={max} value={value} onChange={(event) => setter(Math.max(min, Math.min(max, Number(event.target.value) || min)))} /></div></div>)}
               <div className="element-main-actions">
                 <button className="button button-secondary" type="button" onClick={snapToStable}>{t("ui.snapStable")}</button>
                 <ShareButton
@@ -172,7 +172,7 @@ export default function ElementsTool() {
           <Panel title={t("ui.atAGlance")}>
             <div className="element-tile"><div className="element-symbol">{report.symbol}</div><div><h2 className="element-title">{report.name}</h2><p className="small muted" style={{ margin: 0 }}>Z = {report.z} <Term id="proton">{t("ui.protonPlural")}</Term></p><span className={`badge ${report.known ? "badge-good" : "badge-warn"}`} style={{ marginTop: 9 }}>{report.known ? t("ui.knownElement") : t("ui.hypotheticalElement")}</span></div></div>
             <div className="element-facts">
-              <div className="fact"><span className="metric-label"><Term id="mass-number">Mass number</Term> A</span><strong>{report.a}</strong></div>
+              <div className="fact"><span className="metric-label"><Term id="mass-number">{t("elements.label.massNumber")}</Term> A</span><strong>{report.a}</strong></div>
               <div className="fact"><span className="metric-label"><Term id="binding-energy">Binding</Term> / <Term id="nucleon">nucleon</Term></span><strong>{report.perNucleonMeV.toFixed(2)} <Term id="mev">MeV</Term></strong></div>
               <div className="fact"><span className="metric-label"><Term id="fissility">Fissility</Term></span><strong>{report.fissility.toFixed(2)}</strong></div>
               <div className="fact"><span className="metric-label">Est. <Term id="half-life">half-life</Term></span><strong>{report.halfLife}</strong></div>
@@ -181,7 +181,7 @@ export default function ElementsTool() {
             <p className="section-label">{t("ui.decayModes")}</p>
             {report.modes.length ? <ul className="plain-list">{report.modes.map((mode) => <li key={mode}><span className="check-icon warn">›</span>{mode.toLowerCase().includes("alpha") ? <Term id="alpha-decay">{mode}</Term> : mode.toLowerCase().includes("beta") ? <Term id="beta-decay">{mode}</Term> : mode}</li>)}</ul> : <p className="small good">{t("ui.noDecay")}</p>}
             <div className="divider" />
-            <p className="section-label"><Term id="magic-numbers">Magic numbers</Term></p>
+            <p className="section-label"><Term id="magic-numbers">{t("elements.label.magicNumbers")}</Term></p>
             <div className="chip-row">{report.magicZ && <span className="badge badge-good"><Term id="magic-numbers">{t("ui.magicNumbers")} Z</Term> · {z}</span>}{report.magicN && <span className="badge badge-good"><Term id="magic-numbers">{t("ui.magicNumbers")} N</Term> · {n}</span>}{!report.magicZ && !report.magicN && <span className="small muted">{t("ui.notMagic")}</span>}</div>
           </Panel>
         </div>
@@ -214,7 +214,7 @@ export default function ElementsTool() {
                 <line x1={points.plot.left} x2={points.plot.left} y1={points.plot.top} y2={points.plot.bottom} stroke="#687b79" />
                 {n >= points.low && n <= points.high && <line x1={points.x(n)} x2={points.x(n)} y1={points.plot.top} y2={points.plot.bottom} stroke="#f0bd69" strokeWidth="1.5" strokeDasharray="6 5" />}
                 <polyline points={points.path} fill="none" stroke="#49d5c2" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-                {n >= points.low && n <= points.high && <circle cx={points.x(n)} cy={points.y(report.perNucleonMeV)} r="5" fill="#f0bd69" stroke="#101719" strokeWidth="2"><title>{`N = ${n}, ${report.perNucleonMeV.toFixed(2)} MeV per nucleon`}</title></circle>}
+                {n >= points.low && n <= points.high && <circle cx={points.x(n)} cy={points.y(report.perNucleonMeV)} r="5" fill="#f0bd69" stroke="#101719" strokeWidth="2"><title>{t("elements.chart.selectedPoint", { n, value: report.perNucleonMeV.toFixed(2) })}</title></circle>}
                 <text x={(points.plot.left + points.plot.right) / 2} y="252" textAnchor="middle" fill="#9aacab" fontSize="12">{t("ui.neutronCount")}</text>
                 <text x="16" y={(points.plot.top + points.plot.bottom) / 2} textAnchor="middle" fill="#9aacab" fontSize="12" transform={`rotate(-90 16 ${(points.plot.top + points.plot.bottom) / 2})`}>{t("ui.mevPerNucleon")}</text>
               </svg>

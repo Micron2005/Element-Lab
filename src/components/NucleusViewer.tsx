@@ -16,20 +16,20 @@ type Mode = "decay" | "neutron";
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const ease = (k: number) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
 
-const KIND_LABEL: Record<NuclearStep["kind"], string> = {
-  stable: "Stable",
-  "neutron-drip": "Neutron drips off",
-  "proton-drip": "Proton drips off",
-  fission: "Fission",
-  alpha: "Alpha decay",
-  "beta-minus": "Beta-minus decay",
-  "beta-plus": "Beta-plus decay",
-  "neutron-capture": "Neutron capture",
-  bounce: "Bounce",
-  "quasi-fission": "Quasi-fission",
-  "fusion-fission": "Fusion-fission",
-  fusion: "Fusion",
-  evaporation: "Evaporation",
+const KIND_KEY: Record<NuclearStep["kind"], string> = {
+  stable: "elements.kind.stable",
+  "neutron-drip": "elements.kind.neutronDrip",
+  "proton-drip": "elements.kind.protonDrip",
+  fission: "elements.kind.fission",
+  alpha: "elements.kind.alpha",
+  "beta-minus": "elements.kind.betaMinus",
+  "beta-plus": "elements.kind.betaPlus",
+  "neutron-capture": "elements.kind.neutronCapture",
+  bounce: "elements.kind.bounce",
+  "quasi-fission": "elements.kind.quasiFission",
+  "fusion-fission": "elements.kind.fusionFission",
+  fusion: "elements.kind.fusion",
+  evaporation: "elements.kind.evaporation",
 };
 
 function nucleusRadius(a: number, scale: number) {
@@ -475,11 +475,11 @@ export default function NucleusViewer({
   n: number;
   steps?: NuclearStep[];
 }) {
-  const { t: translate } = useT();
+  const { locale, t: translate } = useT();
   const [mode, setMode] = useState<Mode>("decay");
   const defaultSteps = useMemo(
-    () => (mode === "decay" ? decayChain(z, n) : [neutronHit(z, n)]),
-    [mode, z, n],
+    () => (mode === "decay" ? decayChain(z, n, 8, locale) : [neutronHit(z, n, locale)]),
+    [mode, z, n, locale],
   );
   const steps = suppliedSteps ?? defaultSteps;
   const hasSuppliedSteps = suppliedSteps !== undefined;
@@ -538,9 +538,9 @@ export default function NucleusViewer({
           <div className="viewer-hud">
             <div>
               <strong>
-                Step {index + 1} of {steps.length}
+                {translate("elements.stepLabel", { current: index + 1, total: steps.length })}
               </strong>
-              {KIND_LABEL[step.kind]}
+              {translate(KIND_KEY[step.kind])}
             </div>
             <div className="viewer-clock">
               <strong>{translate("viewer.energy")}</strong>
@@ -549,17 +549,17 @@ export default function NucleusViewer({
           </div>
         )}
       </div>
-      <PlaybackControls playback={playback} label={hasSuppliedSteps ? "Fusion" : "Nucleus"} />
+      <PlaybackControls playback={playback} label={hasSuppliedSteps ? translate("elements.kind.fusion") : translate("elements.kind.nucleus")} />
       <ol className="viewer-steps">
         {steps.map((item, itemIndex) => (
           <li key={`${item.kind}-${itemIndex}`} className={itemIndex === index ? "is-current" : undefined}>
             {item.caption}
-            {item.kind !== "stable" && item.halfLife ? ` · half-life ${item.halfLife}` : ""}
+            {item.kind !== "stable" && item.halfLife ? ` · ${translate("elements.halfLifeLabel", { value: item.halfLife })}` : ""}
           </li>
         ))}
       </ol>
       <p className="muted small">
-        Animated from the rough model on this page, not measured data. A nucleus on screen is not a real new element.
+        {translate("elements.viewer.modelCaveat")}
       </p>
     </div>
   );

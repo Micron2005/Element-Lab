@@ -1,6 +1,8 @@
 import type { MessageKey } from "./en";
 import { playEs } from "./messages/play";
 import { benchEs } from "./messages/bench";
+import { benchComponentsEs } from "./messages/benchComponents";
+import { elementsEs } from "./messages/elements";
 
 export const es: Record<MessageKey, string> = {
   "meta.description": "Un laboratorio científico virtual para mentes curiosas: química, materiales, física y más.",
@@ -237,11 +239,6 @@ export const es: Record<MessageKey, string> = {
   "assistant.notice": "Esta es una herramienta educativa. No uses sus estimaciones en lugar de pruebas, datos de seguridad ni asesoría profesional.",
   "assistant.clearNotice": "Conversación borrada.",
   "assistant.noKeyMessage": "El asistente está apagado. Agrega tu propia clave de Anthropic u OpenAI en **Tu clave de IA** (se conserva en este dispositivo), o el responsable del sitio puede agregar una en Vercel.",
-  "bench.test.aria": "Prueba de {test}",
-  "bench.test.setupOnly": "Solo controles de configuración",
-  "bench.test.modelConfidence": "Confianza del modelo",
-  "bench.test.footnote": "Estimación aproximada del modelo, no una medición de laboratorio.",
-  "bench.test.choose": "Elige una prueba",
   "bench.test.nozzle": "Prueba de boquilla",
   "bench.test.stretch": "Tracción",
   "bench.test.heat": "Calor",
@@ -683,4 +680,6 @@ export const es: Record<MessageKey, string> = {
   "play.template.moleculeStory": "Construye una molécula con los átomos del laboratorio de moléculas.",
   ...playEs,
   ...benchEs,
+  ...benchComponentsEs,
+  ...elementsEs,
 };
