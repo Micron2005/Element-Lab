@@ -457,7 +457,7 @@ function formatSeconds(seconds: number) {
 }
 
 export default function MixViewer({ scene, resultLabel }: { scene: MixScene; resultLabel: string }) {
-  const { locale, t: translate } = useT();
+  const { t: translate } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(DURATION_SECONDS, scene.finalShape !== "empty", reducedMotion);
   const { ref, width } = useCanvasWidth();

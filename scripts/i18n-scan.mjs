@@ -46,6 +46,7 @@ use client use strict
 H C N O F Cl S P He Li Be B Ne Na Mg Al Si Ar K Ca Ti Cr Fe Ni Cu Zn Br Kr Xe Cs Ba
 CO2 H2O H2 O2 N2 CH4 NH3 HCl H2O2 CO C=O C=C C≡C beta alpha
 PubChem PUG REST GHS IUPAC JSON PDF SVG PNG URL API
+var(--accent)
 `.trim().split(/\s+/));
 
 const CODE_ATTRIBUTE_NAMES = new Set([
@@ -65,6 +66,7 @@ function words(value) {
 
 function isCodeLike(value) {
   return /^#[0-9a-f]{3,8}$/i.test(value) ||
+    /^=; path=\/; max-age=\d+; SameSite=Lax$/.test(value) ||
     /^\d+px Arial$/.test(value) ||
     /^\d+px solid #[0-9a-f]{6}$/i.test(value) ||
     (/^(?:[a-z][a-z0-9_.:/-]*|[A-Z][A-Za-z0-9_.:/-]*)$/.test(value) && !/\s/.test(value));

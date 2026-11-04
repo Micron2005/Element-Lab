@@ -1,10 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { INGREDIENTS } from "@/lib/ingredients";
+import { INGREDIENTS, localizeIngredient } from "@/lib/ingredients";
 import { PageIntro, Panel } from "./shared";
 import { useT } from "./LocaleProvider";
-import { trText } from "@/lib/i18n";
 
 type Chemical = {
   cid: number;
@@ -19,9 +18,10 @@ type Chemical = {
   hazardStatements: string[];
 };
 
+const CHEMICAL_API_PATH = "api/chemical";
 const quickSearches = [...new Map(INGREDIENTS
   .filter((ingredient) => ingredient.pubchemName)
-  .map((ingredient) => [ingredient.pubchemName as string, ingredient.name]))];
+  .map((ingredient) => [ingredient.pubchemName as string, ingredient])).values()];
 
 export default function ChemicalsTool() {
   const { locale, t } = useT();
@@ -38,12 +38,15 @@ export default function ChemicalsTool() {
     setError("");
     setChemical(null);
     try {
-      const response = await fetch(`/api/chemical?q=${encodeURIComponent(term)}`);
+      const response = await fetch(`/${CHEMICAL_API_PATH}?q=${encodeURIComponent(term)}`);
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Lookup failed.");
+      if (!response.ok) {
+        setError(t("chem.lookupFailed"));
+        return;
+      }
       setChemical(result as Chemical);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Lookup failed.");
+    } catch {
+      setError(t("chem.lookupFailed"));
     } finally {
       setLoading(false);
     }
@@ -55,16 +58,16 @@ export default function ChemicalsTool() {
 
   return (
     <>
-      <PageIntro eyebrow="TOOL 03 / REFERENCE DESK" title="Chemical lookup" description="Search PubChem for a compound’s identifiers, computed properties, and available GHS hazard classification." />
+      <PageIntro eyebrow="home.chemicalsLabel" title="ui.chemicalLookup" description="ui.chemicalSearchSubtitle" />
       <div className="stack">
-        <Panel title="Search PubChem" subtitle="Enter a common or IUPAC name. This lookup is powered by the public PubChem PUG REST API.">
+        <Panel title="ui.searchPubChem" subtitle="ui.chemicalSearchSubtitle">
           <form className="search-form" onSubmit={submit}><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("chem.tryNames")} aria-label={t("chem.chemicalName")} /><button className="button button-primary" type="submit" disabled={loading}>{loading ? t("ui.searching") : t("ui.search")}</button></form>
           <p className="section-label" style={{ marginTop: 19 }}>{t("chem.quickIngredientSearch")}</p>
-          <div className="chip-row">{quickSearches.map(([name, label]) => <button className="chip" type="button" key={name} onClick={() => void search(name)}>{trText(locale, label)}</button>)}</div>
+          <div className="chip-row">{quickSearches.map((ingredient) => <button className="chip" type="button" key={ingredient.pubchemName} onClick={() => void search(ingredient.pubchemName!)}>{localizeIngredient(ingredient, locale).name}</button>)}</div>
           {error && <p className="notice" role="alert" style={{ marginTop: 15 }}>{error}</p>}
         </Panel>
         {chemical && (
-          <Panel title="Compound record" subtitle={`PubChem compound ID ${chemical.cid}`}>
+          <Panel title="chem.compoundRecord" subtitle={t("chem.compoundId", { cid: chemical.cid })}>
             <div className="chemical-layout">
               <div>
                 <h2 className="chemical-title">{chemical.name}</h2>
@@ -86,7 +89,11 @@ export default function ChemicalsTool() {
                   </>
                 ) : <p className="small muted">{t("ui.noGhs")}</p>}
               </div>
-              <div><img className="chemical-image" src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${chemical.cid}/PNG`} alt={t("chem.structureAlt", { name: chemical.name })} /><p className="small muted" style={{ textAlign: "center" }}>{t("chem.structure")}</p></div>
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element -- PubChem returns compound-specific PNG dimensions; render the remote structure directly. */}
+                <img className="chemical-image" src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${chemical.cid}/PNG`} alt={t("chem.structureAlt", { name: chemical.name })} />
+                <p className="small muted" style={{ textAlign: "center" }}>{t("chem.structure")}</p>
+              </div>
             </div>
           </Panel>
         )}

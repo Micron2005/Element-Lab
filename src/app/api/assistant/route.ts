@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const locale = request.headers.get("x-lang") === "es" ? "es" : "en";
-  const credentials = resolveCredentials(request.headers, process.env);
+  const credentials = resolveCredentials(request.headers, process.env, locale);
   if (!credentials) return Response.json({ error: "no-key" }, { status: 503 });
   if ("error" in credentials) {
     return Response.json({ error: "bad-key", message: credentials.error }, { status: 400 });
