@@ -10,6 +10,7 @@ type ChemicalRecord = {
   signalWord: string | null;
   pictograms: string[];
   hazardStatements: string[];
+  classificationNotes: string[];
 };
 
 const PICTOGRAM_NAMES: Record<string, string> = {
@@ -48,6 +49,7 @@ function collectGhs(data: unknown) {
   const statements: string[] = [];
   const pictograms = new Set<string>();
   let signalWord: string | null = null;
+  const notes: string[] = [];
 
   const walk = (section: unknown) => {
     if (!section || typeof section !== "object") return;
@@ -63,6 +65,7 @@ function collectGhs(data: unknown) {
       const textValues = stringsFromValue(values);
       if (informationHeading.toLowerCase() === "signal" && signalWord === null) signalWord = textValues[0] ?? null;
       if (informationHeading.toLowerCase().includes("hazard statement")) statements.push(...textValues);
+      if (/^notes?$/i.test(informationHeading.trim())) notes.push(...textValues);
       if (values && typeof values === "object") {
         const value = values as JsonObject;
         if (Array.isArray(value.StringWithMarkup)) {
@@ -88,7 +91,12 @@ function collectGhs(data: unknown) {
   const root = data as JsonObject | null;
   const record = root?.Record as JsonObject | undefined;
   if (Array.isArray(record?.Section)) record.Section.forEach(walk);
-  return { signalWord, pictograms: [...pictograms], hazardStatements: [...new Set(statements)].slice(0, 15) };
+  return {
+    signalWord,
+    pictograms: [...pictograms],
+    hazardStatements: [...new Set(statements)].slice(0, 15),
+    classificationNotes: [...new Set(notes)].slice(0, 8),
+  };
 }
 
 export async function GET(request: Request) {

@@ -9,7 +9,7 @@ export type ReactionText = {
 export const REACTION_TEXT_ES: Record<Reaction["id"], ReactionText> = {
   "alginate-calcium": { name: "Alginato y calcio", mechanism: "Los iones de calcio forman uniones iónicas de tipo «caja de huevos» entre las cadenas de alginato." },
   "alginate-fe-zn": { name: "Alginato con hierro o zinc", mechanism: "Los iones de hierro o zinc forman uniones iónicas entre las cadenas de alginato." },
-  "borax-pva": { name: "Baba elástica de bórax y PVA", mechanism: "Los iones borato unen de forma reversible los grupos diol de las cadenas de PVA.", effects: { note: "Los enlaces reversibles de borato pueden autorrepararse después de estirarlos." } },
+  "borax-pva": { name: "Slime elástico de bórax y PVA", mechanism: "Los iones borato unen de forma reversible los grupos diol de las cadenas de PVA.", effects: { note: "Los enlaces reversibles de borato pueden autorrepararse después de estirarlos." } },
   transglutaminase: { name: "Reticulación de proteínas con transglutaminasa", mechanism: "La transglutaminasa forma enlaces covalentes isopeptídicos entre cadenas de proteína." },
   "phenol-oxidase": { name: "Reticulación con tirosinasa o lacasa", mechanism: "Los grupos fenol y catecol oxidados forman enlaces adhesivos de quinona." },
   "hrp-crosslinking": { name: "Reticulación con peróxido y HRP", mechanism: "La HRP usa una pequeña cantidad de peróxido para acoplar grupos compatibles." },

@@ -361,9 +361,10 @@ function mostHits(dominant: FusionReport["dominant"], locale: Locale): string {
   return tr(locale, "elements.fusion.fuses");
 }
 
-function oneInPhrase(probability: number, locale: Locale): string {
+export function oneInPhrase(probability: number, locale: Locale): string {
   const value = fmtOneIn(probability, locale);
-  return value.startsWith("1 in ") ? value.slice(5) : value;
+  const prefix = tr(locale, "elements.fusion.oneIn", { value: "" }).trimEnd();
+  return value.startsWith(`${prefix} `) ? value.slice(prefix.length + 1) : value;
 }
 
 function failureStep(

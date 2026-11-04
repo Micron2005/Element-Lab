@@ -2,6 +2,12 @@
 
 import { FormEvent, useState } from "react";
 import { INGREDIENTS, localizeIngredient } from "@/lib/ingredients";
+import {
+  localizeGhsClassificationNote,
+  localizeGhsHazardStatement,
+  localizeGhsPictogram,
+  localizeGhsSignalWord,
+} from "@/lib/ghsSpanish";
 import { PageIntro, Panel } from "./shared";
 import { useT } from "./LocaleProvider";
 
@@ -16,6 +22,7 @@ type Chemical = {
   signalWord: string | null;
   pictograms: string[];
   hazardStatements: string[];
+  classificationNotes: string[];
 };
 
 const CHEMICAL_API_PATH = "api/chemical";
@@ -71,6 +78,7 @@ export default function ChemicalsTool() {
             <div className="chemical-layout">
               <div>
                 <h2 className="chemical-title">{chemical.name}</h2>
+                <p className="small muted">{t("chem.pubchemNamesNote")}</p>
                 <a className="text-link" href={`https://pubchem.ncbi.nlm.nih.gov/compound/${chemical.cid}`} target="_blank" rel="noreferrer">{t("chem.openRecord")}</a>
                 <dl className="property-list">
                   <dt>{t("ui.iupacName")}</dt><dd>{chemical.iupacName}</dd>
@@ -81,11 +89,12 @@ export default function ChemicalsTool() {
                 </dl>
                 <div className="divider" />
                 <p className="section-label">{t("ui.ghsHazard")}</p>
-                {chemical.signalWord || chemical.pictograms.length || chemical.hazardStatements.length ? (
+                {chemical.signalWord || chemical.pictograms.length || chemical.hazardStatements.length || chemical.classificationNotes.length ? (
                   <>
-                    <p className="small">{t("chem.signalWord")} <strong className={chemical.signalWord?.toLowerCase() === "danger" ? "bad" : "warn"}>{chemical.signalWord ?? t("ui.notListed")}</strong></p>
-                    {chemical.pictograms.length > 0 && <p className="small">{t("chem.pictograms")} {chemical.pictograms.map((name) => <span className="badge badge-warn" key={name} style={{ margin: "0 4px 4px" }}>{name}</span>)}</p>}
-                    {chemical.hazardStatements.length > 0 && <ul className="hazard-list">{chemical.hazardStatements.map((statement) => <li key={statement}>{statement}</li>)}</ul>}
+                    <p className="small">{t("chem.signalWord")} <strong className={chemical.signalWord?.toLowerCase() === "danger" ? "bad" : "warn"}>{localizeGhsSignalWord(chemical.signalWord, locale) ?? t("ui.notListed")}</strong></p>
+                    {chemical.pictograms.length > 0 && <p className="small">{t("chem.pictograms")} {chemical.pictograms.map((name) => <span className="badge badge-warn" key={name} style={{ margin: "0 4px 4px" }}>{localizeGhsPictogram(name, locale)}</span>)}</p>}
+                    {chemical.hazardStatements.length > 0 && <ul className="hazard-list">{chemical.hazardStatements.map((statement) => <li key={statement}>{localizeGhsHazardStatement(statement, locale)}</li>)}</ul>}
+                    {chemical.classificationNotes.map((note) => <p className="small muted" key={note}>{localizeGhsClassificationNote(note, locale)}</p>)}
                   </>
                 ) : <p className="small muted">{t("ui.noGhs")}</p>}
               </div>

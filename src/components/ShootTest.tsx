@@ -21,6 +21,7 @@ import {
 } from "@/lib/bench/twoPart";
 import type { Experiment, Part, RunResult } from "@/lib/bench/types";
 import { useT } from "./LocaleProvider";
+import { BENCH_TEST_STATUS_LABEL_KEYS } from "@/lib/bench/displayLabels";
 import type { TestSummary } from "@/lib/labReport";
 import JetViewer from "./JetViewer";
 import RangeNumberField from "./RangeNumberField";
@@ -187,7 +188,7 @@ export default function ShootTest({
             { label: t("bench.test.fluidTest"), value: `${formatNumber(shot.jet.volumeMl, 3)} mL` },
           ]
         : []),
-      { label: t("bench.test.verdict"), value: shot?.verdict ?? t("bench.test.noExtrusionPredicted") },
+      { label: t("bench.test.verdict"), value: shot ? t(BENCH_TEST_STATUS_LABEL_KEYS[shot.verdict]) : t("bench.test.noExtrusionPredicted") },
       { label: t("bench.test.holds"), value: shot?.holdsKg === null || shot?.holdsKg === undefined ? "—" : `${formatNumber(shot.holdsKg, 2)} kg` },
     ];
     return {
@@ -406,7 +407,7 @@ export default function ShootTest({
                 min={1}
                 max={10}
                 step={1}
-                unit="parts"
+                unit={t("bench.test.partsUnit")}
                 onChange={(value) =>
                   setRatio((current) => ({ ...current, ratioA: value }))
                 }
@@ -417,7 +418,7 @@ export default function ShootTest({
                 min={1}
                 max={10}
                 step={1}
-                unit="parts"
+                unit={t("bench.test.partsUnit")}
                 onChange={(value) =>
                   setRatio((current) => ({ ...current, ratioB: value }))
                 }

@@ -1418,6 +1418,10 @@
   left: 0;
   z-index: 1;
   width: 190px;
+  max-width: 190px;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
   background: #102126;
 }
 
@@ -1453,14 +1457,16 @@
 
 .bench-compare-changed {
   display: inline-block;
-  margin-left: 7px;
+  max-width: 100%;
+  margin: 4px 0 0;
   padding: 2px 6px;
   border-radius: 999px;
   background: #4b3820;
   color: #ffd68c;
   font-size: 0.68rem;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .bench-compare-best,

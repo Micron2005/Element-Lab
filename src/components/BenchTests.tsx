@@ -7,7 +7,9 @@ import {
   DEFAULT_HEAT,
   DEFAULT_STICK,
   DEFAULT_STRETCH,
-  STICK_SURFACE_LABELS,
+  DISSOLVE_LIQUID_LABEL_KEYS,
+  DROP_FLOOR_LABEL_KEYS,
+  STICK_SURFACE_LABEL_KEYS,
   dissolveTest,
   dropTest,
   heatTest,
@@ -21,6 +23,11 @@ import {
 import type { Experiment, RunResult } from "@/lib/bench/types";
 import type { BenchTestId } from "@/lib/share";
 import type { TestSummary } from "@/lib/labReport";
+import {
+  BENCH_HEAT_ATMOSPHERE_LABEL_KEYS,
+  BENCH_TEST_STATUS_LABEL_KEYS,
+  type BenchTestVerdict,
+} from "@/lib/bench/displayLabels";
 import ShootTest from "./ShootTest";
 import RangeNumberField from "./RangeNumberField";
 import TestViewer, { type TestViewerData } from "./TestViewer";
@@ -49,7 +56,7 @@ function TestResultCard({
   heading: string;
   controls: ReactNode;
   viewer: TestViewerData;
-  report: TestReport<string>;
+  report: TestReport<BenchTestVerdict>;
 }) {
   const { t } = useT();
   return (
@@ -64,7 +71,7 @@ function TestResultCard({
       <div className="bench-test-controls">{controls}</div>
       <TestViewer key={`${viewer.type}-${JSON.stringify(viewer.setup)}-${report.verdict}`} data={viewer} />
       <div className={`bench-test-verdict tone-${report.tone}`}>
-        <strong>{t(`bench.test.status.${report.verdict}`)}</strong>
+        <strong>{t(BENCH_TEST_STATUS_LABEL_KEYS[report.verdict])}</strong>
         <p>{report.headline}</p>
       </div>
       <dl className="bench-metric-grid bench-test-metrics">
@@ -211,7 +218,7 @@ export default function BenchTests({
         setup: [
           [t("bench.test.maximumTemperature"), `${heatSetup.maxTempC} °C`],
           [t("bench.test.timeAtTemperature"), `${heatSetup.minutes} min`],
-          [t("bench.test.atmosphere"), t(`bench.test.${heatSetup.atmosphere}`)],
+          [t("bench.test.atmosphere"), t(BENCH_HEAT_ATMOSPHERE_LABEL_KEYS[heatSetup.atmosphere])],
         ],
         headline: heat.headline,
         metrics: heat.metrics,
@@ -222,7 +229,7 @@ export default function BenchTests({
       return {
         name: t("bench.test.dissolve"),
         setup: [
-          [t("bench.test.liquid"), t(`bench.test.${dissolveSetup.liquid === "salt-water" ? "saltWater" : dissolveSetup.liquid}`)],
+          [t("bench.test.liquid"), t(DISSOLVE_LIQUID_LABEL_KEYS[dissolveSetup.liquid])],
           [t("bench.test.liquidTemperature"), `${dissolveSetup.tempC} °C`],
           [t("bench.test.sampleThickness"), `${dissolveSetup.thicknessMm} mm`],
           [t("bench.test.stirredLabel"), dissolveSetup.stirred ? t("bench.model.material.yes") : t("bench.model.material.no")],
@@ -236,7 +243,7 @@ export default function BenchTests({
       return {
         name: t("bench.test.stick"),
         setup: [
-          [t("bench.test.surface"), t(`bench.test.${stickSetup.surface}`)],
+          [t("bench.test.surface"), t(STICK_SURFACE_LABEL_KEYS[stickSetup.surface])],
           [t("bench.test.contactArea"), `${stickSetup.areaCm2} cm²`],
           [t("bench.test.pressTime"), `${stickSetup.pressMinutes} min`],
         ],
@@ -250,7 +257,7 @@ export default function BenchTests({
       setup: [
         [t("bench.test.dropHeight"), `${dropSetup.heightM} m`],
         [t("bench.test.sampleDiameter"), `${dropSetup.diameterMm} mm`],
-        [t("bench.test.floor"), t(`bench.test.${dropSetup.floor}`)],
+        [t("bench.test.floor"), t(DROP_FLOOR_LABEL_KEYS[dropSetup.floor])],
       ],
       headline: drop.headline,
       metrics: drop.metrics,
@@ -409,8 +416,8 @@ export default function BenchTests({
     );
   } else if (selected === "stick") {
     const surfaces: { value: StickSurface; label: string }[] = (
-      Object.keys(STICK_SURFACE_LABELS) as StickSurface[]
-    ).map((value) => ({ value, label: t(`bench.test.${value}`) }));
+      Object.keys(STICK_SURFACE_LABEL_KEYS) as StickSurface[]
+    ).map((value) => ({ value, label: t(STICK_SURFACE_LABEL_KEYS[value]) }));
     card = (
       <TestResultCard
         kicker="bench.test.stickKicker"

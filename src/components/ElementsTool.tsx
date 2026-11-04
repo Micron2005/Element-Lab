@@ -173,9 +173,9 @@ export default function ElementsTool() {
             <div className="element-tile"><div className="element-symbol">{report.symbol}</div><div><h2 className="element-title">{report.name}</h2><p className="small muted" style={{ margin: 0 }}>Z = {report.z} <Term id="proton">{t("ui.protonPlural")}</Term></p><span className={`badge ${report.known ? "badge-good" : "badge-warn"}`} style={{ marginTop: 9 }}>{report.known ? t("ui.knownElement") : t("ui.hypotheticalElement")}</span></div></div>
             <div className="element-facts">
               <div className="fact"><span className="metric-label"><Term id="mass-number">{t("elements.label.massNumber")}</Term> A</span><strong>{report.a}</strong></div>
-              <div className="fact"><span className="metric-label"><Term id="binding-energy">Binding</Term> / <Term id="nucleon">nucleon</Term></span><strong>{report.perNucleonMeV.toFixed(2)} <Term id="mev">MeV</Term></strong></div>
-              <div className="fact"><span className="metric-label"><Term id="fissility">Fissility</Term></span><strong>{report.fissility.toFixed(2)}</strong></div>
-              <div className="fact"><span className="metric-label">Est. <Term id="half-life">half-life</Term></span><strong>{report.halfLife}</strong></div>
+              <div className="fact"><span className="metric-label"><Term id="binding-energy">{t("elements.label.binding")}</Term> / <Term id="nucleon">{t("elements.label.nucleon")}</Term></span><strong>{report.perNucleonMeV.toFixed(2)} <Term id="mev">MeV</Term></strong></div>
+              <div className="fact"><span className="metric-label"><Term id="fissility">{t("elements.label.fissility")}</Term></span><strong>{report.fissility.toFixed(2)}</strong></div>
+              <div className="fact"><span className="metric-label"><Term id="half-life">{t("elements.label.estimatedHalfLife")}</Term></span><strong>{report.halfLife}</strong></div>
             </div>
             <p className={`small ${report.bound ? "good" : "bad"}`} style={{ lineHeight: 1.65 }}>{report.verdict}</p>
             <p className="section-label">{t("ui.decayModes")}</p>

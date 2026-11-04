@@ -1,5 +1,5 @@
 import { byId, CureMechanism, Hazard, Ingredient, localizeIngredient } from "./ingredients";
-import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "./i18n";
 
 export interface Part {
   id: string;
@@ -32,12 +32,12 @@ export interface FormulaResult {
   checks: Check[];
 }
 
-const HAZARD_KEYS = [
-  "formula.hazard.safe",
-  "formula.hazard.mild",
-  "formula.hazard.harmful",
-  "formula.hazard.toxic",
-] as const;
+export const HAZARD_LABEL_KEYS: Record<Hazard, MessageKey> = {
+  0: "formula.hazard.safe",
+  1: "formula.hazard.mild",
+  2: "formula.hazard.harmful",
+  3: "formula.hazard.toxic",
+};
 const CURE_KEYS: Record<CureMechanism, Parameters<typeof tr>[1]> = {
   evaporation: "formula.cure.evaporation",
   "ionic-bath": "formula.cure.ionicBath",
@@ -48,18 +48,18 @@ const CURE_KEYS: Record<CureMechanism, Parameters<typeof tr>[1]> = {
   covalent: "formula.cure.covalent",
   none: "formula.cure.none",
 };
-const WATER_KEYS = {
+export const WATER_LABEL_KEYS: Record<FormulaResult["water"], MessageKey> = {
   dissolves: "formula.water.dissolves",
   swells: "formula.water.swells",
   resists: "formula.water.resists",
-} as const;
+};
 
 export const hazardWord = (h: Hazard, locale: Locale = DEFAULT_LOCALE) =>
-  tr(locale, HAZARD_KEYS[h]);
+  tr(locale, HAZARD_LABEL_KEYS[h]);
 export const cureLabel = (cure: CureMechanism, locale: Locale = DEFAULT_LOCALE) =>
   tr(locale, CURE_KEYS[cure]);
 export const waterLabel = (water: FormulaResult["water"], locale: Locale = DEFAULT_LOCALE) =>
-  tr(locale, WATER_KEYS[water]);
+  tr(locale, WATER_LABEL_KEYS[water]);
 
 function ingredientName(ingredient: Ingredient, locale: Locale): string {
   return localizeIngredient(ingredient, locale).name;

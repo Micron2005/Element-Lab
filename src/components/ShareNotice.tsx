@@ -17,7 +17,7 @@ export default function ShareNotice({
 }) {
   const { t } = useT();
   return (
-    <aside
+    <div
       className={`share-banner${invalid ? " share-banner-invalid" : ""}`}
       role={invalid ? "alert" : "status"}
     >
@@ -45,6 +45,6 @@ export default function ShareNotice({
       >
         ×
       </button>
-    </aside>
+    </div>
   );
 }

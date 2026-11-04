@@ -311,7 +311,7 @@ export default function LabTool() {
                 [t("lab.ui.strands"), "strands", "count", 1, 100],
                 [t("lab.ui.dynamicFactor"), "dynamicFactor", "×", 1, 10],
                 [t("lab.ui.safetyFactor"), "safetyFactor", "×", 1, 10],
-              ] as const).map(([label, key, unit, min, max]) => <div key={key}><label className="field-label" htmlFor={`load-${key}`}>{label} ({unit})</label><input className="input" id={`load-${key}`} type="number" min={min} max={max} step={key === "strands" ? 1 : 0.1} value={loadInputs[key]} onChange={(event) => setLoadInputs((current) => ({ ...current, [key]: Math.max(min, Number(event.target.value) || min) }))} /></div>)}
+              ] as const).map(([label, key, unit, min, max]) => <div key={key}><label className="field-label" htmlFor={`load-${key}`}>{label} ({unit === "count" ? t("lab.ui.count") : unit})</label><input className="input" id={`load-${key}`} type="number" min={min} max={max} step={key === "strands" ? 1 : 0.1} value={loadInputs[key]} onChange={(event) => setLoadInputs((current) => ({ ...current, [key]: Math.max(min, Number(event.target.value) || min) }))} /></div>)}
             </div>
             <div className="load-output"><span className="metric-label">{t("lab.ui.requiredDiameter")}</span><strong>{Number.isFinite(load.diameterMm) ? load.diameterMm.toFixed(2) : "∞"} mm</strong><p className="small muted">{t("lab.ui.diameterCompare")}</p></div>
             <Link href="/assistant" className="button button-primary" style={{ marginTop: 13, width: "100%" }}>{t("lab.ui.askAssistant")}</Link>

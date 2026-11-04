@@ -13,6 +13,12 @@ import type {
   StretchReport,
   StretchSetup,
 } from "@/lib/bench/materialTests";
+import {
+  DISSOLVE_LIQUID_LABEL_KEYS,
+  DROP_FLOOR_LABEL_KEYS,
+  STICK_SURFACE_LABEL_KEYS,
+} from "@/lib/bench/materialTests";
+import { BENCH_VIEWER_TEST_LABEL_KEYS } from "@/lib/bench/displayLabels";
 import { wrapCaption } from "@/lib/bench/svgText";
 import { usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
@@ -235,7 +241,7 @@ function DissolveScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={t("bench.viewer.dissolveTest", { liquid: t(`bench.test.${setup.liquid === "salt-water" ? "saltWater" : setup.liquid}`) })}
+        text={t("bench.viewer.dissolveTest", { liquid: t(DISSOLVE_LIQUID_LABEL_KEYS[setup.liquid]) })}
       />
       <path d="M 92 44 H 228 M 106 44 V 146 Q 106 160 120 160 H 200 Q 214 160 214 146 V 44" fill="none" stroke="#91afb4" strokeWidth="4" strokeLinejoin="round" />
       <path d="M 110 90 H 210 V 146 Q 210 156 198 156 H 122 Q 110 156 110 146 Z" fill={colors[setup.liquid]} opacity="0.46" />
@@ -308,7 +314,7 @@ function StickScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={t("bench.viewer.stickTest", { surface: t(`bench.test.${data.setup.surface}`) })}
+        text={t("bench.viewer.stickTest", { surface: t(STICK_SURFACE_LABEL_KEYS[data.setup.surface]) })}
       />
       <Caption
         x={16}
@@ -362,7 +368,7 @@ function DropScene({
         x={16}
         y={20}
         fill="#a9c0c4"
-        text={t("bench.viewer.dropTest", { height: data.setup.heightM, floor: t(`bench.test.${data.setup.floor}`) })}
+        text={t("bench.viewer.dropTest", { height: data.setup.heightM, floor: t(DROP_FLOOR_LABEL_KEYS[data.setup.floor]) })}
       />
       <rect x="40" y={floorY} width="240" height="9" rx="3" fill={data.setup.floor === "hard" ? "#71878a" : "#496b58"} />
       {broken && progress > impactAt ? (
@@ -412,9 +418,9 @@ export default function TestViewer({ data }: { data: TestViewerData }) {
         className="bench-test-visual"
         viewBox="0 0 320 180"
         role="img"
-        aria-label={t("viewer.testAnimation", { type: t(`bench.test.${data.type}`) })}
+        aria-label={t("viewer.testAnimation", { type: t(BENCH_VIEWER_TEST_LABEL_KEYS[data.type]) })}
       >
-        <title>{t("bench.viewer.testModelVisual", { type: t(`bench.test.${data.type}`) })}</title>
+        <title>{t("bench.viewer.testModelVisual", { type: t(BENCH_VIEWER_TEST_LABEL_KEYS[data.type]) })}</title>
         {data.type === "stretch" && <StretchScene progress={playback.t} data={data} />}
         {data.type === "heat" && <HeatScene progress={playback.t} data={data} />}
         {data.type === "dissolve" && <DissolveScene progress={playback.t} data={data} />}

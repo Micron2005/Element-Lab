@@ -3,6 +3,7 @@ import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "../i18n";
 import { effectivePH } from "./conditions";
 import { localizeBenchIngredient, benchById } from "./library";
 import { localizeReactionEvent } from "./reactions";
+import { BENCH_REACTION_STATUS_LABEL_KEYS } from "./displayLabels";
 import type { EventStatus, Experiment, Forming, Product, RunResult } from "./types";
 
 export interface CompareInput {
@@ -57,7 +58,7 @@ export function reactionStatusLabel(
 ): string {
   return status === "absent"
     ? tr(locale, "bench.model.compare.status.absent")
-    : tr(locale, `bench.reaction.status.${status}` as MessageKey);
+    : tr(locale, BENCH_REACTION_STATUS_LABEL_KEYS[status]);
 }
 
 function formatPct(value: number): string {
@@ -81,7 +82,7 @@ function formatTime(seconds: number, locale: Locale): string {
 }
 
 function formatHazard(value: number, locale: Locale): string {
-  return tr(locale, `bench.custom.hazard.${hazardWord(value as 0 | 1 | 2 | 3)}` as MessageKey);
+  return hazardWord(value as 0 | 1 | 2 | 3, locale);
 }
 
 function maxHazard(result: RunResult): number {
@@ -295,7 +296,9 @@ function makeWhy(
         reaction: reaction.name,
         before: reactionStatusLabel(reaction.statuses[0], locale),
         after: reactionStatusLabel(reaction.statuses[index], locale),
-        reason: reason ? `, because ${reason}` : "",
+        reason: reason
+          ? tr(locale, "bench.model.compare.whyReason", { reason })
+          : "",
       }));
     }
 

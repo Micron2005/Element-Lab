@@ -1,4 +1,4 @@
-import { byId, localizeIngredient } from "../ingredients";
+import { byId, localizeIngredient, localizeIngredientFormula } from "../ingredients";
 import type { Locale } from "../i18n";
 import { BENCH_LIBRARY_TEXT_ES } from "../i18n/data/es/benchLibrary";
 import { CUSTOM_PREFIX } from "./custom";
@@ -645,6 +645,14 @@ export function localizeBenchIngredient(
       : {}),
     ...overlay,
   };
+}
+
+export function benchIngredientFormulaLabel(
+  ingredient: Pick<BenchIngredient, "id" | "formula">,
+  locale: Locale,
+): string {
+  if (locale !== "es" || ingredient.id.startsWith(CUSTOM_PREFIX)) return ingredient.formula;
+  return localizeIngredientFormula(ingredient.formula, locale);
 }
 
 let customList: BenchIngredient[] = [];

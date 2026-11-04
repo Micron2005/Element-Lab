@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GLOSSARY } from "./glossary";
+import { GLOSSARY, GLOSSARY_GROUP_LABEL_KEYS } from "./glossary";
+import { tr } from "./i18n";
 import { GLOSSARY_ES } from "./i18n/data/es/glossary";
 
 function sourceFiles(directory: string): string[] {
@@ -38,5 +39,11 @@ describe("glossary", () => {
     });
     expect(usages.length).toBeGreaterThan(0);
     for (const usage of usages) expect(ids.has(usage.id), `${usage.id} in ${usage.path}`).toBe(true);
+  });
+
+  it("localizes every glossary group label", () => {
+    for (const key of Object.values(GLOSSARY_GROUP_LABEL_KEYS)) {
+      expect(tr("es", key)).not.toBe(tr("en", key));
+    }
   });
 });

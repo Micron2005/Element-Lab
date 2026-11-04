@@ -135,7 +135,7 @@ function drawParticle(ctx: CanvasRenderingContext2D, x: number, y: number, radiu
   }
 }
 
-function drawStep(ctx: CanvasRenderingContext2D, w: number, h: number, step: NuclearStep, p: number, time: number, incoming: boolean) {
+function drawStep(ctx: CanvasRenderingContext2D, w: number, h: number, step: NuclearStep, p: number, time: number, incoming: boolean, stableLabel: string) {
   const cx = w / 2;
   const cy = h * 0.55;
   const scale = Math.min(1, h / 300, w / 340);
@@ -145,7 +145,7 @@ function drawStep(ctx: CanvasRenderingContext2D, w: number, h: number, step: Nuc
   const reach = Math.max(w, h) * 0.55;
 
   if (step.kind === "stable") {
-    drawNucleus(ctx, cx, cy, from.z, from.n, scale, { wobble: wobble(0.015), label: `${label(from)} · stable` });
+    drawNucleus(ctx, cx, cy, from.z, from.n, scale, { wobble: wobble(0.015), label: `${label(from)} · ${stableLabel}` });
     return;
   }
 
@@ -503,9 +503,10 @@ export default function NucleusViewer({
         local,
         t * steps.length * stepSeconds,
         !hasSuppliedSteps && mode === "neutron",
+        translate("elements.kind.stable"),
       );
     }
-  }, [ref, width, step, local, t, steps.length, stepSeconds, mode, hasSuppliedSteps]);
+  }, [ref, width, step, local, t, steps.length, stepSeconds, mode, hasSuppliedSteps, translate]);
 
   function choose(next: Mode) {
     setMode(next);
@@ -554,7 +555,7 @@ export default function NucleusViewer({
         {steps.map((item, itemIndex) => (
           <li key={`${item.kind}-${itemIndex}`} className={itemIndex === index ? "is-current" : undefined}>
             {item.caption}
-            {item.kind !== "stable" && item.halfLife ? ` · ${translate("elements.halfLifeLabel", { value: item.halfLife })}` : ""}
+            {item.kind !== "stable" && item.halfLife ? ` · ${translate("elements.halfLifeLabel", { value: item.halfLife === "stable" ? translate("elements.time.stable") : item.halfLife })}` : ""}
           </li>
         ))}
       </ol>

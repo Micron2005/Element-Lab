@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { analyze, PRESETS } from "./formula";
+import { localizeIngredientFormula } from "./ingredients";
 
 describe("analyze", () => {
+  it("localizes prose connectors in displayed ingredient formulas without changing English", () => {
+    const formula = "C2H4O2 in H2O";
+    expect(localizeIngredientFormula(formula, "es")).toBe("C2H4O2 en H2O");
+    expect(localizeIngredientFormula(formula, "en")).toBe(formula);
+  });
+
   it("estimates silk adhesive strength and flags that it is not edible", () => {
     const result = analyze(PRESETS.find((preset) => preset.name.startsWith("Silk adhesive"))!.parts);
     expect(result.tensileMPa).toBeGreaterThan(500);

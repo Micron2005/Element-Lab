@@ -7,6 +7,11 @@ import {
   newCustomId,
   validateCustomDraft,
 } from "@/lib/bench/custom";
+import {
+  CUSTOM_CATEGORY_LABEL_KEYS,
+  CUSTOM_HAZARD_LABEL_KEYS,
+  CUSTOM_WATER_LABEL_KEYS,
+} from "@/lib/bench/displayLabels";
 import type { CustomDraft, CustomTrait } from "@/lib/bench/custom";
 import type { BenchIngredient, Category, Hazard, WaterBehavior } from "@/lib/bench/types";
 import { useT } from "./LocaleProvider";
@@ -47,17 +52,9 @@ export default function CustomIngredientForm({
     initial ? draftFromIngredient(initial) : emptyDraft(),
   );
   const [errors, setErrors] = useState<Partial<Record<keyof CustomDraft, string>>>({});
-  const categoryOptions: { value: Category; label: string }[] = [
-    { value: "element", label: t("bench.custom.option.element") },
-    { value: "salt", label: t("bench.custom.option.salt") },
-    { value: "protein", label: t("bench.custom.option.protein") },
-    { value: "enzyme", label: t("bench.custom.option.enzyme") },
-    { value: "polymer", label: t("bench.custom.option.polymer") },
-    { value: "solvent", label: t("bench.custom.option.solvent") },
-    { value: "acid-base", label: t("bench.custom.option.acidBase") },
-    { value: "additive", label: t("bench.custom.option.additive") },
-    { value: "filler", label: t("bench.custom.option.filler") },
-  ];
+  const categoryOptions: { value: Category; label: string }[] = (
+    Object.keys(CUSTOM_CATEGORY_LABEL_KEYS) as Category[]
+  ).map((value) => ({ value, label: t(CUSTOM_CATEGORY_LABEL_KEYS[value]) }));
   const traitOptions: { value: CustomTrait; label: string }[] = [
     { value: "protein", label: t("bench.custom.trait.protein") },
     { value: "diol", label: t("bench.custom.trait.diol") },
@@ -194,18 +191,11 @@ export default function CustomIngredientForm({
   ];
   const hazardOptions = ([0, 1, 2, 3] as Hazard[]).map((value) => ({
     value,
-    label: `${value} — ${t([
-      "bench.custom.hazard.safe",
-      "bench.custom.hazard.mild",
-      "bench.custom.hazard.harmful",
-      "bench.custom.hazard.toxic",
-    ][value])}`,
+    label: `${value} — ${t(CUSTOM_HAZARD_LABEL_KEYS[value])}`,
   }));
-  const waterOptions: { value: WaterBehavior; label: string }[] = [
-    { value: "dissolves", label: t("bench.custom.option.dissolves") },
-    { value: "swells", label: t("bench.custom.option.swells") },
-    { value: "resists", label: t("bench.custom.option.resists") },
-  ];
+  const waterOptions: { value: WaterBehavior; label: string }[] = (
+    Object.keys(CUSTOM_WATER_LABEL_KEYS) as WaterBehavior[]
+  ).map((value) => ({ value, label: t(CUSTOM_WATER_LABEL_KEYS[value]) }));
 
   return (
     <form className="bench-custom-form" onSubmit={submit} aria-label={t(initial ? "bench.custom.form.ariaEdit" : "bench.custom.form.ariaCreate")}>

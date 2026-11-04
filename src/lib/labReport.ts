@@ -3,8 +3,9 @@ import { analyzeNucleus } from "./nuclear";
 import { cureLabel, fmtTime, hazardWord, waterLabel, type Part as FormulaPart, type FormulaResult } from "./formula";
 import { byId, localizeIngredient, type Role } from "./ingredients";
 import { allBenchIngredients, localizeBenchIngredient } from "./bench/library";
+import { CATEGORY_LABEL_KEYS } from "./bench/displayLabels";
 import { CUSTOM_PREFIX } from "./bench/custom";
-import type { Atmosphere, Experiment, RunResult } from "./bench/types";
+import type { Atmosphere, Category, EventStatus, Experiment, RunResult } from "./bench/types";
 import type { FusionReport } from "./nuclearFusion";
 import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "./i18n";
 
@@ -81,17 +82,6 @@ const ATMOSPHERE_KEYS: Record<Atmosphere, MessageKey> = {
   vacuum: "bench.model.compare.atmosphere.vacuum",
   nitrogen: "bench.model.compare.atmosphere.nitrogen",
 };
-const CATEGORY_KEYS: Record<string, MessageKey> = {
-  element: "report.category.element",
-  salt: "report.category.salt",
-  protein: "report.category.protein",
-  enzyme: "report.category.enzyme",
-  polymer: "report.category.polymer",
-  solvent: "report.category.solvent",
-  "acid-base": "report.category.acidBase",
-  additive: "report.category.additive",
-  filler: "report.category.filler",
-};
 const ROLE_KEYS: Record<Role, MessageKey> = {
   polymer: "lab.role.polymer",
   crosslinker: "lab.role.crosslinker",
@@ -100,7 +90,7 @@ const ROLE_KEYS: Record<Role, MessageKey> = {
   solvent: "lab.role.solvent",
   filler: "lab.role.filler",
 };
-const EVENT_STATUS_KEYS: Record<string, MessageKey> = {
+const EVENT_STATUS_KEYS: Record<EventStatus, MessageKey> = {
   happened: "bench.reaction.status.happened",
   partial: "bench.reaction.status.partial",
   blocked: "bench.reaction.status.blocked",
@@ -122,7 +112,7 @@ const REPORT_LEVEL_KEYS: Record<string, MessageKey> = {
 
 function ingredientType(type: string | undefined, locale: Locale): string {
   if (type && type in ROLE_KEYS) return tr(locale, ROLE_KEYS[type as Role]);
-  if (type && type in CATEGORY_KEYS) return tr(locale, CATEGORY_KEYS[type]);
+  if (type && type in CATEGORY_LABEL_KEYS) return tr(locale, CATEGORY_LABEL_KEYS[type as Category]);
   return type ?? tr(locale, "report.unknown");
 }
 

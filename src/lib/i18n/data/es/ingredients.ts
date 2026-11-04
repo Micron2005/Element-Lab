@@ -16,7 +16,7 @@ export const INGREDIENT_TEXT_ES: Record<Ingredient["id"], IngredientText> = {
   pva: {
     name: "Alcohol polivinílico (PVA)",
     bonding: "Las cadenas largas de carbono tienen un grupo -OH en cada segundo carbono. Las cadenas forman puentes de hidrógeno entre sí, y el borato u otros agentes reticulantes unen esos grupos -OH.",
-    notes: "Polímero de barras adhesivas y baba elástica. Es económico y seguro, pero se disuelve en agua si no está reticulado.",
+    notes: "Polímero de barras adhesivas y slime elástico. Es económico y seguro, pero se disuelve en agua si no está reticulado.",
   },
   alginate: {
     name: "Alginato de sodio",
@@ -70,7 +70,7 @@ export const INGREDIENT_TEXT_ES: Record<Ingredient["id"], IngredientText> = {
   },
   borax: {
     name: "Bórax (borato de sodio)",
-    bonding: "Los iones borato forman enlaces reversibles entre los grupos -OH del PVA y crean baba elástica.",
+    bonding: "Los iones borato forman enlaces reversibles entre los grupos -OH del PVA y crean slime elástico.",
     notes: "Está clasificado como tóxico para la reproducción (GHS H360). Los enlaces son reversibles, por lo que el material se deforma y fluye.",
   },
   genipin: {

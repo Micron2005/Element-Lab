@@ -5,6 +5,7 @@ import { realTimeAt, type MixScene, type ScenePhase } from "../lib/bench/scene";
 import { PlaybackControls, prepareCanvas, seededRandom, useCanvasWidth, usePlayback } from "./usePlayback";
 import { useReducedMotion } from "./useReducedMotion";
 import { useT } from "./LocaleProvider";
+import { benchScenePhaseBadgeLabel } from "../lib/bench/displayLabels";
 import "./viewer.css";
 
 const DURATION_SECONDS = 16;
@@ -457,7 +458,7 @@ function formatSeconds(seconds: number) {
 }
 
 export default function MixViewer({ scene, resultLabel }: { scene: MixScene; resultLabel: string }) {
-  const { t: translate } = useT();
+  const { locale, t: translate } = useT();
   const reducedMotion = useReducedMotion();
   const playback = usePlayback(DURATION_SECONDS, scene.finalShape !== "empty", reducedMotion);
   const { ref, width } = useCanvasWidth();
@@ -489,7 +490,7 @@ export default function MixViewer({ scene, resultLabel }: { scene: MixScene; res
         <canvas ref={ref} role="img" aria-label={translate("viewer.experimentAnimation", { phase: phase?.label ?? "" })} />
         <div className="viewer-hud">
           <div>
-            <strong>{phase?.id === "final" ? translate("viewer.result") : phase?.id ?? ""}</strong>
+            <strong>{phase ? benchScenePhaseBadgeLabel(phase.id, locale) : ""}</strong>
             {phase?.label}
           </div>
           <div className="viewer-clock">

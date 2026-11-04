@@ -7,8 +7,10 @@ import {
   fuse,
   FUSION_RECIPES,
   measuredHalfLife,
+  oneInPhrase,
   PROJECTILES,
 } from "./nuclearFusion";
+import { tr } from "./i18n";
 
 function projectile(id: string) {
   const found = PROJECTILES.find((item) => item.id === id);
@@ -143,5 +145,17 @@ describe("nuclear fusion model", () => {
     expect(fmtOneIn(0.5)).toBe("most hits");
     expect(fmtOneIn(0)).toBe("never");
     expect(fmtOneIn(-0.1)).toBe("never");
+  });
+
+  it("uses one localized prefix for fusion probabilities", () => {
+    const products = "H-3 + p";
+    expect(tr("es", "fusion.successCaption", {
+      odds: oneInPhrase(1 / 18, "es"),
+      products,
+    })).toBe("1 impacto de cada 18: H-3 + p.");
+    expect(tr("en", "fusion.successCaption", {
+      odds: oneInPhrase(1 / 18, "en"),
+      products,
+    })).toBe("1 hit in 18: H-3 + p.");
   });
 });

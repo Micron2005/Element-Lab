@@ -51,6 +51,31 @@ export interface Ingredient {
   notes: string;
 }
 
+const INGREDIENT_FORMULA_ES: Record<string, string> = {
+  "Protein (Gly/Ala-rich repeats)": "Proteína (repeticiones ricas en Gly/Ala)",
+  "Protein (Gly-Ala-Gly-Ala-Gly-Ser repeats)": "Proteína (repeticiones Gly-Ala-Gly-Ala-Gly-Ser)",
+  "Protein (collagen-derived)": "Proteína (derivada del colágeno)",
+  "-[NH-CO-O]- urethane links": "-[NH-CO-O]- enlaces de uretano",
+  "(C5H8)n cis-polyisoprene": "(C5H8)n cis-poliisopreno",
+  "C (oxidized sheets)": "C (láminas oxidadas)",
+  "C2H4O2 in H2O": "C2H4O2 en H2O",
+  "Protein (collagen triple helix)": "Proteína (triple hélice de colágeno)",
+  "Milk phosphoprotein": "Fosfoproteína de la leche",
+  "Milk protein mixture": "Mezcla de proteínas de la leche",
+  "Plant protein mixture": "Mezcla de proteínas vegetales",
+  "Corn prolamin protein": "Proteína prolamina del maíz",
+  "Structural protein": "Proteína estructural",
+  "Repeating elastin-like peptide": "Péptido repetitivo similar a elastina",
+  "Catechol-rich adhesive protein": "Proteína adhesiva rica en catecol",
+  Enzyme: "Enzima",
+  "Enzyme (protease)": "Enzima (proteasa)",
+};
+
+export function localizeIngredientFormula(formula: string, locale: Locale): string {
+  if (locale !== "es") return formula;
+  return INGREDIENT_FORMULA_ES[formula] ?? formula.replace(/(\s)in(\s)/g, "$1en$2");
+}
+
 export const INGREDIENTS: Ingredient[] = [
   {
     id: "spider-silk",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   glossaryFor,
   GLOSSARY_GROUPS,
+  GLOSSARY_GROUP_LABEL_KEYS,
   type GlossaryEntry,
   type TermId,
 } from "@/lib/glossary";
@@ -31,7 +32,7 @@ export default async function GlossaryPage() {
         {groups.map(([group, ids]) => (
           <section className="glossary-group panel" key={group} aria-labelledby={`glossary-${group.toLowerCase()}`}>
                     <h2 id={`glossary-${group.toLowerCase()}`}>
-                      {t(`glossary.group${group}` as "glossary.groupBench" | "glossary.groupElements" | "glossary.groupPlay")}
+                      {t(GLOSSARY_GROUP_LABEL_KEYS[group])}
                     </h2>
             <dl>
               {ids.map((id) => {

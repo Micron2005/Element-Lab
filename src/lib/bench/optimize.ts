@@ -10,6 +10,7 @@ import {
   simulate,
 } from "./simulate";
 import { localizeReactionEvent } from "./reactions";
+import { BENCH_REACTION_STATUS_LABEL_KEYS } from "./displayLabels";
 import type {
   Atmosphere,
   Candidate,
@@ -316,7 +317,7 @@ function explainCandidate(
     const reason = localized.reasons.find((item) => item.length > 0);
     return tr(locale, "bench.model.optimize.event", {
       reaction: localized.name,
-      status: tr(locale, `bench.reaction.status.${event.status}` as MessageKey),
+      status: tr(locale, BENCH_REACTION_STATUS_LABEL_KEYS[event.status]),
       reason: reason ? `: ${reason}` : ".",
     });
   });

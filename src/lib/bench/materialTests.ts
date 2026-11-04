@@ -647,7 +647,7 @@ export interface DissolveReport extends TestReport<DissolveVerdict> {
   leftBehind: string[];
 }
 
-const LIQUID_LABEL_KEYS: Record<DissolveLiquid, MessageKey> = {
+export const DISSOLVE_LIQUID_LABEL_KEYS: Record<DissolveLiquid, MessageKey> = {
   water: "bench.model.material.water",
   "salt-water": "bench.model.material.saltWater",
   acidic: "bench.model.material.acidicWater",
@@ -661,7 +661,7 @@ function dissolveTestCore(
   locale: Locale,
 ): DissolveReport {
   const parts = presentIngredients(experiment);
-  const liquidLabel = tr(locale, LIQUID_LABEL_KEYS[setup.liquid]);
+  const liquidLabel = tr(locale, DISSOLVE_LIQUID_LABEL_KEYS[setup.liquid]);
   const noChange = (
     verdict: "no-change" | "already-liquid" | "unsafe",
     headline: string,
@@ -859,7 +859,7 @@ export const STICK_SURFACE_LABELS: Record<StickSurface, string> = {
   skin: tr("en", "bench.model.material.surface.skin"),
 };
 
-const STICK_SURFACE_KEYS: Record<StickSurface, MessageKey> = {
+export const STICK_SURFACE_LABEL_KEYS: Record<StickSurface, MessageKey> = {
   glass: "bench.model.material.surface.glass",
   steel: "bench.model.material.surface.steel",
   wood: "bench.model.material.surface.wood",
@@ -944,7 +944,7 @@ function stickTestCore(
     );
   }
   if (liquidNoStick) notes.unshift(tr(locale, "bench.model.material.runsOff"));
-  const surface = tr(locale, STICK_SURFACE_KEYS[setup.surface]);
+  const surface = tr(locale, STICK_SURFACE_LABEL_KEYS[setup.surface]);
   return {
     verdict,
     tone: verdict === "sticks" ? "good" : "warn",
@@ -972,6 +972,10 @@ function stickTestCore(
 }
 
 export type DropFloor = "hard" | "soft";
+export const DROP_FLOOR_LABEL_KEYS: Record<DropFloor, MessageKey> = {
+  hard: "bench.test.hard",
+  soft: "bench.test.soft",
+};
 export type DropVerdict =
   | "survives"
   | "cracks"

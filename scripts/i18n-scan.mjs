@@ -5,7 +5,7 @@ import * as ts from "typescript";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, "..");
-// These source table initializers are covered by src/lib/i18n/overlays.test.ts.
+// Data table initializers are covered by overlays.test.ts or the adjacent tests noted below.
 // Runtime code in these files remains in the scan.
 const OVERLAY_COVERED_DATA_TABLES = new Map([
   ["src/lib/play/atoms.ts", new Set(["ATOMS"])],
@@ -14,7 +14,8 @@ const OVERLAY_COVERED_DATA_TABLES = new Map([
   ["src/lib/play/quests.ts", new Set(["moleculeStarGoals", "moleculeQuests", "mixQuests", "atomQuests", "QUESTS", "CHAPTERS"])],
   ["src/lib/bench/library.ts", new Set(["benchLibrary"])],
   ["src/lib/bench/presets.ts", new Set(["benchPresets"])],
-  ["src/lib/ingredients.ts", new Set(["INGREDIENTS"])],
+  ["src/lib/ingredients.ts", new Set(["INGREDIENTS", "INGREDIENT_FORMULA_ES"])], // Formula labels: src/lib/bench/displayLabels.test.ts.
+  ["src/lib/ghsSpanish.ts", new Set(["GHS_HAZARD_STATEMENTS_ES", "GHS_PICTOGRAMS_ES", "GHS_SIGNAL_WORDS_ES"])], // GHS coverage: src/lib/ghsSpanish.test.ts.
   ["src/lib/glossary.ts", new Set(["GLOSSARY"])],
 ]);
 const REACTION_OVERLAY_FIELDS = new Set(["name", "mechanism", "note"]);

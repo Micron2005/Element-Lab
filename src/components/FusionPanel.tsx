@@ -37,8 +37,8 @@ function recipeBeam(recipe: FusionRecipe, projectile: Projectile): number {
     : beamForBarrier(projectile, recipe.target, recipe.beam.barrierFactor);
 }
 
-function particleSummary(emitted: { type: string; count: number }[]): string {
-  if (emitted.length === 0) return "None";
+function particleSummary(emitted: { type: string; count: number }[], noneLabel: string): string {
+  if (emitted.length === 0) return noneLabel;
   return emitted
     .map(({ type, count }) => {
       const name =
@@ -268,7 +268,7 @@ export default function FusionPanel({
             </div>
             <div className="metric-card">
               <span className="metric-label">{t("fusion.particlesOff")}</span>
-              <p className="metric-value">{particleSummary(report.emitted)}</p>
+              <p className="metric-value">{particleSummary(report.emitted, t("elements.fusion.none"))}</p>
             </div>
             <div className="metric-card">
               <span className="metric-label">
@@ -296,7 +296,7 @@ export default function FusionPanel({
             ) : (
               <>
                 <div className="metric-card">
-                  <span className="metric-label"><Term id="cross-section">Cross-section</Term></span>
+                  <span className="metric-label"><Term id="cross-section">{t("elements.label.crossSection")}</Term></span>
                   <p className="metric-value">{fmtCrossSection(report.crossSectionBarn ?? 0, locale)}</p>
                 </div>
                 <div className="metric-card">

@@ -11,7 +11,14 @@ import "./accessibility.css";
 
 export const instant = false;
 
-const navItems = [["Play", "/play"], ["Bench", "/bench"], ["Lab", "/lab"], ["Chemicals", "/chemicals"], ["Elements", "/elements"], ["Assistant", "/assistant"]] as const;
+const navItems = [
+  ["nav.play", "/play"],
+  ["nav.bench", "/bench"],
+  ["nav.lab", "/lab"],
+  ["nav.chemicals", "/chemicals"],
+  ["nav.elements", "/elements"],
+  ["nav.assistant", "/assistant"],
+] as const;
 
 export async function generateMetadata(): Promise<Metadata> {
   const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
@@ -40,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <Link className="brand" href="/"><span className="brand-mark" aria-hidden="true">S</span><span>SCIENCE <b>LAB</b></span></Link>
                 <DisplaySettings />
               </div>
-              <div className="nav-links">{navItems.map(([, href]) => <Link href={href} key={href}>{t(`nav.${href.slice(1)}` as Parameters<typeof tr>[1])}</Link>)}</div>
+              <div className="nav-links">{navItems.map(([labelKey, href]) => <Link href={href} key={href}>{t(labelKey)}</Link>)}</div>
               <span className="lab-status"><span className="status-dot" /> {t("shell.status")}</span>
             </nav>
             <main className="main-content" id="main-content" tabIndex={-1}>{children}</main>

@@ -44,6 +44,7 @@ import {
 import { benchLibrary, localizeBenchIngredient } from "@/lib/bench/library";
 import { localizeReaction, REACTIONS } from "@/lib/bench/reactions";
 import type { Product } from "@/lib/bench/types";
+import { PLAY_PRODUCT_LABEL_KEYS } from "@/lib/play/labels";
 import { decodeShare, readShareHash } from "@/lib/share";
 import { useT } from "./LocaleProvider";
 import LearnCard from "./LearnCard";
@@ -95,7 +96,7 @@ function MoleculeCard({ molecule }: { molecule: KnownMolecule }) {
         <h3>
           {localized.name} <span className="play-formula">{prettyFormula(localized.formula)}</span>
         </h3>
-        <p><strong><Term id="molecule">{t("ui.molecule")}</Term> {t("ui.shape")}:</strong> {localized.shape}</p>
+        <p><strong><Term id="molecule">{t("play.ui.molecularShape")}</Term>:</strong> {localized.shape}</p>
         <p><strong><Term id="bond-angle">{t("ui.bondAngle")}</Term>:</strong> {localized.angle ?? t("ui.notListed")}</p>
         <p><strong>{t("ui.usedFor")}:</strong> {localized.uses}</p>
         <p>{localized.fact}</p>
@@ -378,7 +379,7 @@ function PackQuestEditor({
                     updateMix({ product: product.length ? product : undefined });
                   }}
                 />
-                {t(`play.ui.product.${id}`)}
+                {t(PLAY_PRODUCT_LABEL_KEYS[id])}
               </label>
             ))}
           </fieldset>
