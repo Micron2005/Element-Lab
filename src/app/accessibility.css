@@ -59,7 +59,7 @@
   position: absolute;
   z-index: 40;
   top: calc(100% + 8px);
-  right: 0;
+  left: 0;
   display: grid;
   width: min(340px, calc(100vw - 24px));
   gap: 7px;
@@ -473,6 +473,7 @@ html[data-contrast="1"] .chart-wrap svg text {
 
   .display-panel {
     right: 0;
+    left: auto;
   }
 
   .nav-links a {
