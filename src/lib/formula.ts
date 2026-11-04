@@ -1,5 +1,5 @@
-import { byId, CureMechanism, Hazard, Ingredient } from "./ingredients";
-import { DEFAULT_LOCALE, translateTree, type Locale } from "./i18n";
+import { byId, CureMechanism, Hazard, Ingredient, localizeIngredient } from "./ingredients";
+import { DEFAULT_LOCALE, tr, type Locale } from "./i18n";
 
 export interface Part {
   id: string;
@@ -32,8 +32,38 @@ export interface FormulaResult {
   checks: Check[];
 }
 
-const HAZARD_WORD = ["Safe", "Mild", "Harmful", "Toxic"] as const;
-export const hazardWord = (h: Hazard) => HAZARD_WORD[h];
+const HAZARD_KEYS = [
+  "formula.hazard.safe",
+  "formula.hazard.mild",
+  "formula.hazard.harmful",
+  "formula.hazard.toxic",
+] as const;
+const CURE_KEYS: Record<CureMechanism, Parameters<typeof tr>[1]> = {
+  evaporation: "formula.cure.evaporation",
+  "ionic-bath": "formula.cure.ionicBath",
+  moisture: "formula.cure.moisture",
+  anionic: "formula.cure.anionic",
+  shear: "formula.cure.shear",
+  cooling: "formula.cure.cooling",
+  covalent: "formula.cure.covalent",
+  none: "formula.cure.none",
+};
+const WATER_KEYS = {
+  dissolves: "formula.water.dissolves",
+  swells: "formula.water.swells",
+  resists: "formula.water.resists",
+} as const;
+
+export const hazardWord = (h: Hazard, locale: Locale = DEFAULT_LOCALE) =>
+  tr(locale, HAZARD_KEYS[h]);
+export const cureLabel = (cure: CureMechanism, locale: Locale = DEFAULT_LOCALE) =>
+  tr(locale, CURE_KEYS[cure]);
+export const waterLabel = (water: FormulaResult["water"], locale: Locale = DEFAULT_LOCALE) =>
+  tr(locale, WATER_KEYS[water]);
+
+function ingredientName(ingredient: Ingredient, locale: Locale): string {
+  return localizeIngredient(ingredient, locale).name;
+}
 
 function normalize(parts: Part[]) {
   const total = parts.reduce((s, p) => s + Math.max(0, p.pct), 0) || 1;
@@ -60,7 +90,7 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
     : 0;
 
   if (!polymers.length) {
-    checks.push({ level: "bad", text: "No structural polymer. Add a polymer (silk, PVA, polyurethane...) or nothing will hold load." });
+    checks.push({ level: "bad", text: tr(locale, "formula.check.noPolymer") });
   }
 
   // Immiscible polymer blends lose strength at the interfaces.
@@ -68,7 +98,7 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
     const top = Math.max(...polymers.map(share)) / (polyW || 1);
     if (top < 0.8) {
       tensile *= 0.75;
-      checks.push({ level: "warn", text: "Blend of different polymers: they rarely mix perfectly, so weak boundaries form (about -25% strength). Keep one main polymer above 80%." });
+      checks.push({ level: "warn", text: tr(locale, "formula.check.blend") });
     }
   }
 
@@ -77,7 +107,7 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
   if (plast > 0) {
     tensile *= Math.max(0.15, 1 - 1.8 * plast);
     elong *= 1 + 4 * plast;
-    if (plast > 0.35) checks.push({ level: "warn", text: "Too much plasticizer: it'll feel gummy and weak." });
+    if (plast > 0.35) checks.push({ level: "warn", text: tr(locale, "formula.check.plasticizer") });
   }
 
   // Fillers reinforce at low loading, embrittle when they clump.
@@ -89,7 +119,13 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
     if (s > limit) {
       tensile *= Math.max(0.5, 1 - (s - limit) * 3);
       elong *= 0.6;
-      checks.push({ level: "warn", text: `${f.ing.name} above ~${limit * 100}% clumps and makes it brittle.` });
+      checks.push({
+        level: "warn",
+        text: tr(locale, "formula.check.filler", {
+          name: ingredientName(f.ing, locale),
+          limit: limit * 100,
+        }),
+      });
     } else {
       elong *= 1 - s * 2;
     }
@@ -100,7 +136,16 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
   for (const c of items.filter((i) => i.ing.crosslinks)) {
     const matches = c.ing.crosslinks!.filter((id) => presentIds.has(id));
     if (!matches.length) {
-      checks.push({ level: "warn", text: `${c.ing.name} has nothing to react with here (works on: ${c.ing.crosslinks!.map((id) => byId[id]?.name ?? id).join(", ")}).` });
+      checks.push({
+        level: "warn",
+        text: tr(locale, "formula.check.crosslinkNoMatch", {
+          name: ingredientName(c.ing, locale),
+          worksOn: c.ing.crosslinks!.map((id) => {
+            const ingredient = byId[id];
+            return ingredient ? ingredientName(ingredient, locale) : id;
+          }).join(", "),
+        }),
+      });
       continue;
     }
     const s = share(c);
@@ -108,7 +153,10 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
       const ideal = s >= 0.005 && s <= 0.08;
       tensile *= ideal ? 1.35 : s > 0.08 ? 1.1 : 1.1;
       elong *= ideal ? 0.75 : 0.5;
-      if (s > 0.08) checks.push({ level: "warn", text: `Too much ${c.ing.name}: over-crosslinked chains can't stretch, so it snaps.` });
+      if (s > 0.08) checks.push({
+        level: "warn",
+        text: tr(locale, "formula.check.crosslinkTooMuch", { name: ingredientName(c.ing, locale) }),
+      });
     } else {
       tensile *= 1.1;
     }
@@ -117,18 +165,37 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
   // Polymer without a matching solvent won't flow out of a nozzle.
   for (const p of polymers) {
     if (p.ing.dissolvesIn && solvents.length && !solvents.some((s) => p.ing.dissolvesIn!.includes(s.ing.id))) {
-      checks.push({ level: "bad", text: `${p.ing.name} won't dissolve in your solvent. It needs: ${p.ing.dissolvesIn.map((id) => byId[id]?.name ?? id).join(" or ")}.` });
+      checks.push({
+        level: "bad",
+        text: tr(locale, "formula.check.polymerSolvent", {
+          name: ingredientName(p.ing, locale),
+          solvents: p.ing.dissolvesIn.map((id) => {
+            const ingredient = byId[id];
+            return ingredient ? ingredientName(ingredient, locale) : id;
+          }).join(` ${tr(locale, "formula.list.or")} `),
+        }),
+      });
     }
     if (p.ing.dissolvesIn && !solvents.length && !p.ing.cure.includes("cooling")) {
-      checks.push({ level: "bad", text: `${p.ing.name} is a solid; add a solvent (${p.ing.dissolvesIn.map((id) => byId[id]?.name ?? id).join(" or ")}) so it can be sprayed.` });
+      checks.push({
+        level: "bad",
+        text: tr(locale, "formula.check.solidSolvent", {
+          name: ingredientName(p.ing, locale),
+          solvents: p.ing.dissolvesIn.map((id) => {
+            const ingredient = byId[id];
+            return ingredient ? ingredientName(ingredient, locale) : id;
+          }).join(` ${tr(locale, "formula.list.or")} `),
+        }),
+      });
     }
   }
 
   // Solid content controls viscosity: too thin = droplets, too thick = clog.
   if (solvents.length) {
-    if (solidW < 0.05) checks.push({ level: "bad", text: `Only ${(solidW * 100).toFixed(0)}% solids: too watery, the jet will break into droplets instead of a strand.` });
-    else if (solidW > 0.45) checks.push({ level: "warn", text: `${(solidW * 100).toFixed(0)}% solids: very thick, needs high pressure and may clog the nozzle.` });
-    else checks.push({ level: "good", text: `${(solidW * 100).toFixed(0)}% solids: sprayable range for a strand.` });
+    const percent = (solidW * 100).toFixed(0);
+    if (solidW < 0.05) checks.push({ level: "bad", text: tr(locale, "formula.check.solidsWatery", { percent }) });
+    else if (solidW > 0.45) checks.push({ level: "warn", text: tr(locale, "formula.check.solidsThick", { percent }) });
+    else checks.push({ level: "good", text: tr(locale, "formula.check.solidsSprayable", { percent }) });
   }
 
   // Weak-when-wet adjustment.
@@ -139,7 +206,7 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
       : "resists";
 
   const tack = Math.min(10, items.reduce((m, i) => Math.max(m, i.ing.tack * Math.min(1, share(i) * 6 + (i.ing.role === "adhesive" ? 0.4 : 0))), 0));
-  if (tack < 4) checks.push({ level: "warn", text: "Low stickiness. Add an adhesive (dopamine for wet grip, polyisobutylene for skin-safe tack)." });
+  if (tack < 4) checks.push({ level: "warn", text: tr(locale, "formula.check.lowTack") });
 
   const cure = Array.from(new Set(items.flatMap((i) => i.ing.cure).filter((c) => c !== "none")));
   let cureSeconds = 3600;
@@ -152,7 +219,10 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
   } else if (cure.includes("moisture")) cureSeconds = 300;
   else if (cure.includes("covalent")) cureSeconds = 600;
   else if (cure.includes("cooling")) cureSeconds = 30;
-  if (cureSeconds > 30) checks.push({ level: "warn", text: `Takes ~${fmtTime(cureSeconds, locale)} to set: a sprayed or extruded strand would still be liquid when it lands. Fast-setting fibers like natural silk set in under a second.` });
+  if (cureSeconds > 30) checks.push({
+    level: "warn",
+    text: tr(locale, "formula.check.slowCure", { time: fmtTime(cureSeconds, locale) }),
+  });
 
   const wetToxicity = items.reduce<number>((m, i) => Math.max(m, i.w > 0.001 ? i.ing.toxicity : 0), 0) as Hazard;
   const curedToxicity = items
@@ -160,15 +230,15 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
     .reduce<number>((m, i) => Math.max(m, i.ing.role === "crosslinker" ? Math.min(i.ing.toxicity, 1) : i.ing.toxicity), 0) as Hazard;
   const skin = items.reduce<number>((m, i) => Math.max(m, i.ing.skin), 0) as Hazard;
   const edible = items.every((i) => i.ing.edible);
-  if (skin >= 3) checks.push({ level: "bad", text: "Contains something that can burn or glue skin. Do not apply it to skin or handle it without appropriate protection." });
-  if (items.some((i) => i.ing.id === "borax")) checks.push({ level: "warn", text: "Borax is a reproductive toxicant; fine for toy slime handling, not for constant skin contact." });
+  if (skin >= 3) checks.push({ level: "bad", text: tr(locale, "formula.check.skin") });
+  if (items.some((i) => i.ing.id === "borax")) checks.push({ level: "warn", text: tr(locale, "formula.check.borax") });
 
   const dissolveTime =
-    avgWater === "dissolves" ? "Minutes in water; humidity softens it" :
-    avgWater === "swells" ? "Swells and weakens in water over hours; doesn't fully dissolve" :
-    items.every((i) => i.ing.biodegradable) ? "Water-resistant; biodegrades over weeks to months" :
-    "Water-resistant; lasts years (not biodegradable)";
-  if (avgWater === "dissolves") checks.push({ level: "warn", text: "Dissolves in water: rain or sweat will ruin it. Add a matching crosslinker." });
+    avgWater === "dissolves" ? tr(locale, "formula.waterTime.dissolves") :
+    avgWater === "swells" ? tr(locale, "formula.waterTime.swells") :
+    items.every((i) => i.ing.biodegradable) ? tr(locale, "formula.waterTime.biodegradable") :
+    tr(locale, "formula.waterTime.durable");
+  if (avgWater === "dissolves") checks.push({ level: "warn", text: tr(locale, "formula.check.waterDissolves") });
 
   const densityCured = solidW
     ? solids.reduce((s, i) => s + share(i) * i.ing.density, 0)
@@ -177,16 +247,16 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
   const toughnessMJm3 = 0.5 * tensile * (elong / 100);
 
   const environment: string[] = [];
-  if (cure.includes("moisture")) environment.push("Mix and store bone-dry under nitrogen or argon (a glovebox or sealed bag). Air humidity starts the cure.");
-  if (cure.includes("anionic")) environment.push("Store sealed, dry and slightly acidic; any moisture sets it off inside the cartridge.");
-  if (cure.includes("evaporation")) environment.push("Mix in a normal room, then seal airtight so the solvent can't escape. It sets when the solvent evaporates after it leaves the nozzle.");
-  if (cure.includes("ionic-bath")) environment.push("Keep the gelling salt in a separate chamber and combine at the nozzle (two-part cartridge), or it gels inside.");
-  if (cure.includes("shear")) environment.push("Narrow, tapered nozzle: the stretching flow lines the molecules up, which is what turns silk dope into fiber.");
-  if (cure.includes("cooling")) environment.push("Store warm or as a melt; it sets as it cools in the air.");
-  environment.push("Degas under vacuum after mixing (a few minutes): bubbles become weak spots in the strand. You do not need to mix inside a vacuum.");
-  if (solvents.some((s) => s.ing.toxicity >= 2)) environment.push("Toxic solvent: mix only in a fume hood with gloves and goggles.");
+  if (cure.includes("moisture")) environment.push(tr(locale, "formula.environment.moisture"));
+  if (cure.includes("anionic")) environment.push(tr(locale, "formula.environment.anionic"));
+  if (cure.includes("evaporation")) environment.push(tr(locale, "formula.environment.evaporation"));
+  if (cure.includes("ionic-bath")) environment.push(tr(locale, "formula.environment.ionicBath"));
+  if (cure.includes("shear")) environment.push(tr(locale, "formula.environment.shear"));
+  if (cure.includes("cooling")) environment.push(tr(locale, "formula.environment.cooling"));
+  environment.push(tr(locale, "formula.environment.vacuum"));
+  if (solvents.some((s) => s.ing.toxicity >= 2)) environment.push(tr(locale, "formula.environment.toxicSolvent"));
 
-  return translateTree(locale, {
+  return {
     solidsPct: solidW * 100,
     tensileMPa: tensile,
     elongationPct: elong,
@@ -205,7 +275,7 @@ export function analyze(parts: Part[], locale: Locale = DEFAULT_LOCALE): Formula
     densityCured,
     environment,
     checks,
-  });
+  };
 }
 
 export function fmtTime(s: number, locale: Locale = DEFAULT_LOCALE) {
@@ -214,9 +284,10 @@ export function fmtTime(s: number, locale: Locale = DEFAULT_LOCALE) {
   return `${(s / 3600).toLocaleString(locale === "es" ? "es" : "en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`;
 }
 
-export const PRESETS: { name: string; parts: Part[] }[] = [
+export const PRESETS = [
   {
-    name: "Silk adhesive (silk + mussel glue)",
+    nameKey: "formula.preset.silkAdhesive",
+    name: tr(DEFAULT_LOCALE, "formula.preset.silkAdhesive"),
     parts: [
       { id: "spider-silk", pct: 20 },
       { id: "dopamine", pct: 2 },
@@ -226,7 +297,8 @@ export const PRESETS: { name: string; parts: Part[] }[] = [
     ],
   },
   {
-    name: "Budget silk fiber (fibroin + chitosan)",
+    nameKey: "formula.preset.budgetSilk",
+    name: tr(DEFAULT_LOCALE, "formula.preset.budgetSilk"),
     parts: [
       { id: "silk-fibroin", pct: 18 },
       { id: "genipin", pct: 0.5 },
@@ -236,7 +308,8 @@ export const PRESETS: { name: string; parts: Part[] }[] = [
     ],
   },
   {
-    name: "Stretchy rubber fiber",
+    nameKey: "formula.preset.rubber",
+    name: tr(DEFAULT_LOCALE, "formula.preset.rubber"),
     parts: [
       { id: "pu", pct: 70 },
       { id: "pib", pct: 25 },
@@ -244,11 +317,20 @@ export const PRESETS: { name: string; parts: Part[] }[] = [
     ],
   },
   {
-    name: "Slime (PVA + borax)",
+    nameKey: "formula.preset.slime",
+    name: tr(DEFAULT_LOCALE, "formula.preset.slime"),
     parts: [
       { id: "pva", pct: 8 },
       { id: "borax", pct: 0.5 },
       { id: "water", pct: 91.5 },
     ],
   },
-];
+] satisfies {
+  name: string;
+  nameKey:
+    | "formula.preset.silkAdhesive"
+    | "formula.preset.budgetSilk"
+    | "formula.preset.rubber"
+    | "formula.preset.slime";
+  parts: Part[];
+}[];

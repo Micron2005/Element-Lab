@@ -15,6 +15,7 @@ const OVERLAY_COVERED_DATA_TABLES = new Map([
   ["src/lib/bench/library.ts", new Set(["benchLibrary"])],
   ["src/lib/bench/presets.ts", new Set(["benchPresets"])],
   ["src/lib/ingredients.ts", new Set(["INGREDIENTS"])],
+  ["src/lib/glossary.ts", new Set(["GLOSSARY"])],
 ]);
 const REACTION_OVERLAY_FIELDS = new Set(["name", "mechanism", "note"]);
 
@@ -49,7 +50,7 @@ PubChem PUG REST GHS IUPAC JSON PDF SVG PNG URL API
 
 const CODE_ATTRIBUTE_NAMES = new Set([
   "aria-describedby", "aria-expanded", "aria-hidden", "aria-label", "aria-live", "aria-selected",
-  "aria-valuemax", "aria-valuemin", "aria-valuenow", "aria-controls", "class", "className", "data-testid",
+  "aria-valuemax", "aria-valuemin", "aria-valuenow", "aria-controls", "accept", "class", "className", "data-testid",
   "dateTime", "fill", "for", "height", "href", "id", "key", "name", "rel", "role", "src", "stroke",
   "target", "type", "viewBox", "width", "x", "x1", "x2", "y", "y1", "y2",
 ]);
@@ -119,6 +120,7 @@ function dictionary(root, relativePath) {
       ["benchEn", "src/lib/i18n/messages/bench.ts"],
       ["benchComponentsEn", "src/lib/i18n/messages/benchComponents.ts"],
       ["elementsEn", "src/lib/i18n/messages/elements.ts"],
+      ["labEn", "src/lib/i18n/messages/lab.ts"],
     ]) {
       const messageSource = parseFile(root, messagePath);
       function findNamespace(node) {

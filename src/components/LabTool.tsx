@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { analyze, fmtTime, hazardWord, PRESETS, type Part } from "@/lib/formula";
+import { analyze, cureLabel, fmtTime, hazardWord, PRESETS, waterLabel, type Part } from "@/lib/formula";
 import { INGREDIENTS, localizeIngredient, type Ingredient, type Role } from "@/lib/ingredients";
 import { strandForLoad } from "@/lib/physics";
-import { PageIntro, Panel, roleNames } from "./shared";
+import { PageIntro, Panel } from "./shared";
 import ShareButton from "./ShareButton";
 import ShareNotice from "./ShareNotice";
 import { decodeShare, readShareHash } from "@/lib/share";
@@ -13,21 +13,20 @@ import { shareUrl } from "@/lib/share";
 import { formulaReport } from "@/lib/labReport";
 import LabReportButton from "./LabReportButton";
 import { useT } from "./LocaleProvider";
-import { trText } from "@/lib/i18n";
+import { tr, type MessageKey, type MessageVars } from "@/lib/i18n";
 
 type SavedFormula = { name: string; parts: Part[] };
+type LabMessage = { key: MessageKey; vars?: MessageVars };
 const STORAGE_CURRENT = "elementlab.current";
 const STORAGE_SAVED = "elementlab.saved";
 const roles: Role[] = ["polymer", "crosslinker", "adhesive", "plasticizer", "solvent", "filler"];
-const cureNames: Record<string, string> = {
-  evaporation: "Solvent evaporates, leaving chains behind",
-  "ionic-bath": "Ions bridge chains into a gel",
-  moisture: "Humidity triggers a chemical cure",
-  anionic: "Trace moisture starts a rapid chain reaction",
-  shear: "Flow aligns and locks the molecules",
-  cooling: "The melt or gel firms as it cools",
-  covalent: "New covalent links join the chains",
-  none: "No active setting mechanism",
+const ROLE_KEYS: Record<Role, MessageKey> = {
+  polymer: "lab.role.polymer",
+  crosslinker: "lab.role.crosslinker",
+  adhesive: "lab.role.adhesive",
+  plasticizer: "lab.role.plasticizer",
+  solvent: "lab.role.solvent",
+  filler: "lab.role.filler",
 };
 
 function safeParts(value: unknown): Part[] | null {
@@ -50,7 +49,7 @@ export default function LabTool() {
   const [saveName, setSaveName] = useState("");
   const [saved, setSaved] = useState<SavedFormula[]>([]);
   const [selectedSave, setSelectedSave] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<LabMessage | null>(null);
   const [shareNotice, setShareNotice] = useState<{ invalid: boolean; dropped: string[] } | null>(null);
   const [shareUndo, setShareUndo] = useState<{ parts: Part[]; selectedPreset: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -69,7 +68,7 @@ export default function LabTool() {
         const stored = JSON.parse(localStorage.getItem(STORAGE_SAVED) ?? "[]");
         if (Array.isArray(stored)) setSaved(stored.filter((item) => item && typeof item.name === "string" && safeParts(item.parts)).map((item) => ({ name: item.name, parts: safeParts(item.parts) ?? [] })));
       } catch {
-        setMessage("Saved data could not be read; starting with the silk adhesive preset.");
+        setMessage({ key: "lab.ui.error.restore" });
       }
       setReady(true);
     });
@@ -113,7 +112,7 @@ export default function LabTool() {
       }
       setParts(decoded.payload.parts);
       setSelectedPreset("");
-      setMessage("");
+      setMessage(null);
       setShareNotice({ invalid: false, dropped: decoded.dropped });
     };
 
@@ -133,16 +132,16 @@ export default function LabTool() {
   const saveFormula = () => {
     const name = saveName.trim();
     if (!name) {
-      setMessage("Give this formula a name before saving.");
+      setMessage({ key: "lab.ui.error.nameRequired" });
       return;
     }
     setSaved((current) => [...current.filter((item) => item.name !== name), { name, parts }]);
     setSelectedSave(name);
     setSaveName("");
-    setMessage(`Saved “${name}”.`);
+    setMessage({ key: "lab.ui.message.saved", vars: { name } });
   };
   const downloadFormula = () => {
-    const blob = new Blob([JSON.stringify({ name: "Science Lab formula", parts }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ name: tr("en", "lab.ui.exportName"), parts }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -155,25 +154,25 @@ export default function LabTool() {
     try {
       const imported = JSON.parse(await file.text());
       const nextParts = safeParts(imported.parts ?? imported);
-      if (!nextParts) throw new Error("invalid parts");
+      if (!nextParts) throw new Error("invalid_parts");
       setParts(nextParts);
       setSelectedPreset("");
-      setMessage("Formula imported.");
+      setMessage({ key: "lab.ui.message.imported" });
     } catch {
-      setMessage("That file does not contain a valid Science Lab formula.");
+      setMessage({ key: "lab.ui.error.invalidJson" });
     }
   };
   const loadFormula = () => {
     const formula = saved.find((item) => item.name === selectedSave);
     if (formula) {
       setParts(formula.parts);
-      setMessage(`Loaded “${formula.name}”.`);
+      setMessage({ key: "lab.ui.message.loaded", vars: { name: formula.name } });
     }
   };
   const deleteFormula = () => {
     setSaved((current) => current.filter((item) => item.name !== selectedSave));
     setSelectedSave("");
-    setMessage("Saved formula deleted.");
+    setMessage({ key: "lab.ui.message.deleted" });
   };
   const load = strandForLoad({ ...loadInputs, tensileMPa: result.tensileMPa });
   const sortedChecks = [...result.checks].sort((a, b) => ({ bad: 0, warn: 1, good: 2 }[a.level] - { bad: 0, warn: 1, good: 2 }[b.level]));
@@ -199,49 +198,50 @@ export default function LabTool() {
           }}
         />
       )}
-      <PageIntro eyebrow="TOOL 01 / MATERIALS & ENGINEERING" title="Formula lab" description="Explore how ingredient and process choices may shape a formula’s strength, stretch, tack, and setting behavior." />
+      <PageIntro eyebrow={t("lab.ui.eyebrow")} title={t("meta.lab")} description={t("lab.ui.intro")} />
       <div className="lab-layout">
         <div className="stack">
-          <Panel title="Build your mix" subtitle="Adjust percentages freely. The model normalizes the composition when it analyzes your formula.">
+          <Panel title={t("lab.buildMix")} subtitle={t("lab.adjustPercentages")}>
             <div className="preset-row">
-              <div><label className="field-label" htmlFor="preset-select">Start from a preset</label><select id="preset-select" className="select" value={selectedPreset} onChange={(event) => {
+              <div><label className="field-label" htmlFor="preset-select">{t("lab.ui.startPreset")}</label><select id="preset-select" className="select" value={selectedPreset} onChange={(event) => {
                 const preset = PRESETS[Number(event.target.value)];
                 setSelectedPreset(event.target.value);
                 if (preset) setParts(preset.parts.map((part) => ({ ...part })));
-              }}><option value="">Custom formula</option>{PRESETS.map((preset, index) => <option value={index} key={preset.name}>{trText(locale, preset.name)}</option>)}</select></div>
-              <button className="button button-secondary button-small" type="button" onClick={() => setParts((current) => current.map((part) => ({ ...part, pct: total ? part.pct * 100 / total : 0 })))}>Normalize 100%</button>
-              <label className="button button-secondary button-small" htmlFor="import-formula">Import .json</label>
+              }}><option value="">{t("lab.ui.customFormula")}</option>{PRESETS.map((preset, index) => <option value={index} key={preset.name}>{t(preset.nameKey)}</option>)}</select></div>
+              <button className="button button-secondary button-small" type="button" onClick={() => setParts((current) => current.map((part) => ({ ...part, pct: total ? part.pct * 100 / total : 0 })))}>{t("lab.ui.normalize")}</button>
+              <label className="button button-secondary button-small" htmlFor="import-formula">{t("lab.ui.import")}</label>
             </div>
             <input ref={importRef} id="import-formula" className="file-input" type="file" accept="application/json,.json" onChange={(event) => importFormula(event.target.files?.[0])} />
-            {parts.length === 0 && <p className="small muted">Your mix is empty. Add an ingredient to begin.</p>}
+            {parts.length === 0 && <p className="small muted">{t("lab.emptyMix")}</p>}
             {parts.map((part, index) => {
               const ingredient = INGREDIENTS.find((item) => item.id === part.id) as Ingredient;
+              const ingredientName = localizeIngredient(ingredient, locale).name;
               return (
                 <div className="ingredient-row" key={`${part.id}-${index}`}>
-                  <div className="ingredient-head"><span className="ingredient-name">{localizeIngredient(ingredient, locale).name}</span><span className="badge badge-neutral">{roleNames[ingredient.role]}</span></div>
+                  <div className="ingredient-head"><span className="ingredient-name">{ingredientName}</span><span className="badge badge-neutral">{t(ROLE_KEYS[ingredient.role])}</span></div>
                   <div className="ingredient-control">
-                    <label className="field-label" htmlFor={`amount-${index}`}><input id={`amount-${index}`} className="input" aria-label={`${localizeIngredient(ingredient, locale).name} percentage`} type="number" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} /></label>
-                    <input aria-label={`${localizeIngredient(ingredient, locale).name} slider`} type="range" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} />
-                    <button className="icon-button" type="button" aria-label={`Remove ${localizeIngredient(ingredient, locale).name}`} onClick={() => setParts((current) => current.filter((_, i) => i !== index))}>×</button>
+                    <label className="field-label" htmlFor={`amount-${index}`}><input id={`amount-${index}`} className="input" aria-label={tr(locale, "lab.ui.ingredientPercent", { name: ingredientName })} type="number" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} /></label>
+                    <input aria-label={tr(locale, "lab.ui.ingredientSlider", { name: ingredientName })} type="range" min="0" max="100" step="0.5" value={part.pct} onChange={(event) => changePart(index, Number(event.target.value))} />
+                    <button className="icon-button" type="button" aria-label={tr(locale, "lab.ui.removeIngredient", { name: ingredientName })} onClick={() => setParts((current) => current.filter((_, i) => i !== index))}>×</button>
                   </div>
                   <details><summary>{t("bench.ingredient.details")}</summary><p><strong>{t("bench.ingredient.bonding")}</strong> {localizeIngredient(ingredient, locale).bonding}</p><p><strong>{t("bench.ingredient.notes")}</strong> {localizeIngredient(ingredient, locale).notes}</p></details>
                 </div>
               );
             })}
-            <div className="totals-row"><span className={`total-value ${Math.abs(total - 100) > 0.01 ? "warn" : "good"}`}>Total {total.toFixed(1)}%</span><span className="small muted">Analysis normalizes automatically</span></div>
+            <div className="totals-row"><span className={`total-value ${Math.abs(total - 100) > 0.01 ? "warn" : "good"}`}>{t("lab.ui.total")} {total.toFixed(1)}%</span><span className="small muted">{t("lab.analysisNormalizes")}</span></div>
             <div className="button-row" style={{ marginTop: 13 }}>
-              <select className="select" aria-label="Add ingredient" value={addId} onChange={(event) => setAddId(event.target.value)} style={{ flex: 1, minWidth: 180 }}>
-                <option value="">Add ingredient…</option>
-                {roles.map((role) => <optgroup label={roleNames[role]} key={role}>{INGREDIENTS.filter((item) => item.role === role && !parts.some((part) => part.id === item.id)).map((item) => <option value={item.id} key={item.id}>{localizeIngredient(item, locale).name}</option>)}</optgroup>)}
+              <select className="select" aria-label={t("lab.ui.addIngredient")} value={addId} onChange={(event) => setAddId(event.target.value)} style={{ flex: 1, minWidth: 180 }}>
+                <option value="">{t("lab.addIngredient")}</option>
+                {roles.map((role) => <optgroup label={t(ROLE_KEYS[role])} key={role}>{INGREDIENTS.filter((item) => item.role === role && !parts.some((part) => part.id === item.id)).map((item) => <option value={item.id} key={item.id}>{localizeIngredient(item, locale).name}</option>)}</optgroup>)}
               </select>
-              <button className="button button-primary" type="button" onClick={addIngredient} disabled={!addId}>Add ingredient</button>
+              <button className="button button-primary" type="button" onClick={addIngredient} disabled={!addId}>{t("lab.ui.addIngredient")}</button>
               <ShareButton
                 build={() => ({
                   v: 1,
                   kind: "formula",
                   parts: parts.map((part) => ({ ...part })),
                 })}
-                label="Share formula"
+                label={t("lab.ui.share")}
               />
               <LabReportButton
                 build={(extra) => {
@@ -255,66 +255,66 @@ export default function LabTool() {
               />
             </div>
           </Panel>
-          <Panel title="Save your work" subtitle="Your active formula is auto-saved in this browser.">
+          <Panel title={t("lab.ui.save")} subtitle={t("lab.autosave")}>
             <div className="save-grid">
-              <div><label className="field-label" htmlFor="save-name">Name this formula</label><input className="input" id="save-name" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder="e.g. Summer silk blend" /></div>
-              <div><label className="field-label" htmlFor="saved-formula">Saved formulas</label><select className="select" id="saved-formula" value={selectedSave} onChange={(event) => setSelectedSave(event.target.value)}><option value="">Choose a saved mix</option>{saved.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select></div>
-              <button className="button button-primary" type="button" onClick={saveFormula}>Save</button>
+              <div><label className="field-label" htmlFor="save-name">{t("lab.ui.nameFormula")}</label><input className="input" id="save-name" value={saveName} onChange={(event) => setSaveName(event.target.value)} placeholder={t("lab.ui.namePlaceholder")} /></div>
+              <div><label className="field-label" htmlFor="saved-formula">{t("lab.ui.savedFormulas")}</label><select className="select" id="saved-formula" value={selectedSave} onChange={(event) => setSelectedSave(event.target.value)}><option value="">{t("lab.ui.chooseSaved")}</option>{saved.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select></div>
+              <button className="button button-primary" type="button" onClick={saveFormula}>{t("lab.ui.saveButton")}</button>
             </div>
             <div className="button-row" style={{ marginTop: 10 }}>
-              <button className="button button-secondary button-small" type="button" onClick={loadFormula} disabled={!selectedSave}>Load</button>
-              <button className="button button-danger button-small" type="button" onClick={deleteFormula} disabled={!selectedSave}>Delete</button>
-              <button className="button button-secondary button-small" type="button" onClick={downloadFormula}>Download .json</button>
+              <button className="button button-secondary button-small" type="button" onClick={loadFormula} disabled={!selectedSave}>{t("lab.ui.loadButton")}</button>
+              <button className="button button-danger button-small" type="button" onClick={deleteFormula} disabled={!selectedSave}>{t("lab.ui.deleteButton")}</button>
+              <button className="button button-secondary button-small" type="button" onClick={downloadFormula}>{t("lab.ui.download")}</button>
             </div>
-            {message && <p className="small muted" role="status">{message}</p>}
+            {message && <p className="small muted" role="status">{tr(locale, message.key, message.vars)}</p>}
           </Panel>
         </div>
         <div className="stack">
-          <Panel title="Live material estimate" subtitle="A rough model based on ingredient property ranges.">
+          <Panel title={t("lab.ui.liveEstimate")} subtitle={t("lab.ui.roughModel")}>
             <div className="metric-grid">
-              <div className="metric-card"><span className="metric-label">STRENGTH</span><p className="metric-value">{result.tensileMPa.toFixed(0)} <span className="metric-label">MPa</span></p></div>
-              <div className="metric-card"><span className="metric-label">STRETCH</span><p className="metric-value">{result.elongationPct.toFixed(0)} <span className="metric-label">%</span></p></div>
-              <div className="metric-card"><span className="metric-label">TOUGHNESS</span><p className="metric-value">{result.toughnessMJm3.toFixed(1)} <span className="metric-label">MJ/m³</span></p></div>
-              <div className="metric-card"><span className="metric-label">SET TIME</span><p className="metric-value">{fmtTime(result.cureSeconds)}</p></div>
+              <div className="metric-card"><span className="metric-label">{t("lab.ui.strength")}</span><p className="metric-value">{result.tensileMPa.toFixed(0)} <span className="metric-label">MPa</span></p></div>
+              <div className="metric-card"><span className="metric-label">{t("lab.ui.stretch")}</span><p className="metric-value">{result.elongationPct.toFixed(0)} <span className="metric-label">%</span></p></div>
+              <div className="metric-card"><span className="metric-label">{t("lab.ui.toughness")}</span><p className="metric-value">{result.toughnessMJm3.toFixed(1)} <span className="metric-label">MJ/m³</span></p></div>
+              <div className="metric-card"><span className="metric-label">{t("lab.ui.setTime")}</span><p className="metric-value">{fmtTime(result.cureSeconds, locale)}</p></div>
             </div>
-            <div className="stickiness"><span className="metric-label">STICKINESS</span><div className="stick-bar" role="meter" aria-label="Stickiness" aria-valuemin={0} aria-valuemax={10} aria-valuenow={result.tack}><span style={{ width: `${Math.max(0, Math.min(100, result.tack * 10))}%` }} /></div><strong className="small">{result.tack.toFixed(1)}/10</strong></div>
+            <div className="stickiness"><span className="metric-label">{t("lab.ui.stickiness")}</span><div className="stick-bar" role="meter" aria-label={t("lab.ui.stickiness")} aria-valuemin={0} aria-valuemax={10} aria-valuenow={result.tack}><span style={{ width: `${Math.max(0, Math.min(100, result.tack * 10))}%` }} /></div><strong className="small">{result.tack.toFixed(1)}/10</strong></div>
             <div className="divider" />
-            <p className="section-label">How it sets</p>
-            <ul className="plain-list">{result.cure.map((mechanism) => <li key={mechanism}><span className="check-icon good">↗</span>{cureNames[mechanism] ?? mechanism}</li>)}</ul>
+            <p className="section-label">{t("lab.ui.howItSets")}</p>
+            <ul className="plain-list">{result.cure.map((mechanism) => <li key={mechanism}><span className="check-icon good">↗</span>{cureLabel(mechanism, locale)}</li>)}</ul>
             <div className="info-grid">
-              <div className="info-item"><span className="metric-label">TOXICITY · MIXING</span><strong className={result.wetToxicity >= 2 ? "bad" : result.wetToxicity === 1 ? "warn" : "good"}>{hazardWord(result.wetToxicity)}</strong></div>
-              <div className="info-item"><span className="metric-label">TOXICITY · CURED</span><strong className={result.curedToxicity >= 2 ? "bad" : result.curedToxicity === 1 ? "warn" : "good"}>{hazardWord(result.curedToxicity)}</strong></div>
-              <div className="info-item"><span className="metric-label">SKIN CONTACT</span><strong>{hazardWord(result.skin)}</strong></div>
-              <div className="info-item"><span className="metric-label">EDIBLE</span><strong>{result.edible ? "Yes" : "No"}</strong></div>
-              <div className="info-item"><span className="metric-label">WATER</span><strong>{result.water} · {result.dissolveTime}</strong></div>
-              <div className="info-item"><span className="metric-label">BREAKDOWN</span><strong>{result.biodegradable ? "Biodegradable" : "Not biodegradable"}</strong></div>
-              <div className="info-item"><span className="metric-label">COST ESTIMATE</span><strong>${result.costPerKg.toFixed(2)} / kg</strong></div>
-              <div className="info-item"><span className="metric-label">SOLIDS</span><strong>{result.solidsPct.toFixed(1)}%</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.toxicityMixing")}</span><strong className={result.wetToxicity >= 2 ? "bad" : result.wetToxicity === 1 ? "warn" : "good"}>{hazardWord(result.wetToxicity, locale)}</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.toxicityCured")}</span><strong className={result.curedToxicity >= 2 ? "bad" : result.curedToxicity === 1 ? "warn" : "good"}>{hazardWord(result.curedToxicity, locale)}</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.skinContact")}</span><strong>{hazardWord(result.skin, locale)}</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.edible")}</span><strong>{result.edible ? t("report.yes") : t("report.no")}</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.water")}</span><strong>{waterLabel(result.water, locale)} · {result.dissolveTime}</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.breakdown")}</span><strong>{result.biodegradable ? t("report.biodegradable") : t("lab.ui.notBiodegradable")}</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.costEstimate")}</span><strong>${result.costPerKg.toFixed(2)} / kg</strong></div>
+              <div className="info-item"><span className="metric-label">{t("lab.ui.solids")}</span><strong>{result.solidsPct.toFixed(1)}%</strong></div>
             </div>
           </Panel>
-          <Panel title="Strength context" subtitle="Reference fibers vary widely; these values are not directly comparable test conditions.">
-            {[["Spider dragline", 1100], ["Steel wire", 1000], ["Nylon fiber", 900], ["Kevlar", 3600], ["Human hair", 200]].map(([name, value]) => (
+          <Panel title={t("lab.ui.strengthContext")} subtitle={t("lab.ui.strengthContextNote")}>
+            {[[t("lab.ui.spiderSilk"), 1100], [t("lab.ui.steelWire"), 1000], [t("lab.ui.nylonFiber"), 900], ["Kevlar", 3600], [t("lab.ui.humanHair"), 200]].map(([name, value]) => (
               <div className="strength-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${Math.min(100, result.tensileMPa / Math.max(3600, Number(value)) * 100)}%`, opacity: Number(value) === 3600 ? 0.6 : 1 }} /></div><span>{value} MPa</span></div>
             ))}
-            <p className="small muted" style={{ marginBottom: 0 }}>Your estimate: <strong>{result.tensileMPa.toFixed(0)} MPa</strong></p>
+            <p className="small muted" style={{ marginBottom: 0 }}>{t("lab.ui.yourEstimate")} <strong>{result.tensileMPa.toFixed(0)} MPa</strong></p>
           </Panel>
-          <Panel title="Checks">
-            {sortedChecks.length ? <ul className="check-list">{sortedChecks.map((check, index) => <li key={`${check.text}-${index}`}><span className={`check-icon ${check.level}`}>{check.level === "bad" ? "×" : check.level === "warn" ? "!" : "✓"}</span>{check.text}</li>)}</ul> : <p className="small good">No issues flagged by this simplified model.</p>}
+          <Panel title={t("report.checks")}>
+            {sortedChecks.length ? <ul className="check-list">{sortedChecks.map((check, index) => <li key={`${check.text}-${index}`}><span className={`check-icon ${check.level}`}>{check.level === "bad" ? "×" : check.level === "warn" ? "!" : "✓"}</span>{check.text}</li>)}</ul> : <p className="small good">{t("lab.ui.noIssues")}</p>}
           </Panel>
-          <Panel title="Where & how to make it">
+          <Panel title={t("lab.ui.whereHow")}>
             <ul className="plain-list">{result.environment.map((line, index) => <li key={index}><span className="check-icon good">›</span>{line}</li>)}</ul>
           </Panel>
-          <Panel title="Load capacity estimate" subtitle="A simplified estimate under a modeled load—not a safety guarantee. Never test a person.">
+          <Panel title={t("lab.ui.loadEstimate")} subtitle={t("lab.ui.loadCaveat")}>
             <div className="load-inputs">
               {([
-                ["Body mass", "massKg", "kg", 1, 300],
-                ["Strands", "strands", "count", 1, 100],
-                ["Dynamic load factor", "dynamicFactor", "×", 1, 10],
-                ["Safety factor", "safetyFactor", "×", 1, 10],
+                [t("lab.ui.bodyMass"), "massKg", "kg", 1, 300],
+                [t("lab.ui.strands"), "strands", "count", 1, 100],
+                [t("lab.ui.dynamicFactor"), "dynamicFactor", "×", 1, 10],
+                [t("lab.ui.safetyFactor"), "safetyFactor", "×", 1, 10],
               ] as const).map(([label, key, unit, min, max]) => <div key={key}><label className="field-label" htmlFor={`load-${key}`}>{label} ({unit})</label><input className="input" id={`load-${key}`} type="number" min={min} max={max} step={key === "strands" ? 1 : 0.1} value={loadInputs[key]} onChange={(event) => setLoadInputs((current) => ({ ...current, [key]: Math.max(min, Number(event.target.value) || min) }))} /></div>)}
             </div>
-            <div className="load-output"><span className="metric-label">REQUIRED STRAND DIAMETER</span><strong>{Number.isFinite(load.diameterMm) ? load.diameterMm.toFixed(2) : "∞"} mm</strong><p className="small muted">Human hair ≈ 0.07 mm · spaghetti ≈ 1.8 mm</p></div>
-            <Link href="/assistant" className="button button-primary" style={{ marginTop: 13, width: "100%" }}>Ask the assistant about this mix ↗</Link>
+            <div className="load-output"><span className="metric-label">{t("lab.ui.requiredDiameter")}</span><strong>{Number.isFinite(load.diameterMm) ? load.diameterMm.toFixed(2) : "∞"} mm</strong><p className="small muted">{t("lab.ui.diameterCompare")}</p></div>
+            <Link href="/assistant" className="button button-primary" style={{ marginTop: 13, width: "100%" }}>{t("lab.ui.askAssistant")}</Link>
           </Panel>
         </div>
       </div>

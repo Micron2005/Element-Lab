@@ -43,14 +43,3 @@ export function trText(locale: Locale, text: string, vars?: MessageVars): string
   const key = englishTextKeys.get(text);
   return key ? tr(locale, key, vars) : text;
 }
-
-export function translateTree<T>(locale: Locale, value: T): T {
-  if (typeof value === "string") return trText(locale, value) as T;
-  if (Array.isArray(value)) return value.map((item) => translateTree(locale, item)) as T;
-  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, translateTree(locale, item)]),
-    ) as T;
-  }
-  return value;
-}

@@ -1,12 +1,12 @@
 import { fmtCrossSection, fmtOneIn, measuredHalfLife } from "./nuclearFusion";
 import { analyzeNucleus } from "./nuclear";
-import { fmtTime, hazardWord, type Part as FormulaPart, type FormulaResult } from "./formula";
-import { byId, type CureMechanism } from "./ingredients";
-import { allBenchIngredients } from "./bench/library";
+import { cureLabel, fmtTime, hazardWord, waterLabel, type Part as FormulaPart, type FormulaResult } from "./formula";
+import { byId, localizeIngredient, type Role } from "./ingredients";
+import { allBenchIngredients, localizeBenchIngredient } from "./bench/library";
 import { CUSTOM_PREFIX } from "./bench/custom";
-import type { Experiment, RunResult } from "./bench/types";
+import type { Atmosphere, Experiment, RunResult } from "./bench/types";
 import type { FusionReport } from "./nuclearFusion";
-import { DEFAULT_LOCALE, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, tr, type Locale, type MessageKey } from "./i18n";
 
 export interface ReportSection {
   heading: string;
@@ -19,7 +19,7 @@ export interface ReportSection {
 
 export interface LabReportDoc {
   title: string;
-  kind: "Bench" | "Elements" | "Formula Lab";
+  kind: "bench" | "elements" | "formula";
   createdAt: Date;
   student?: string;
   question?: string;
@@ -45,11 +45,6 @@ export interface ReportExtra {
   locale?: Locale;
 }
 
-const BENCH_DISCLAIMER =
-  "Estimate from Science Lab's rule-based model, not a lab measurement. Don't make or handle this mix for real without a qualified supervisor.";
-const FUSION_DISCLAIMER =
-  "liquid-drop model, no shell corrections, and real values can differ a lot.";
-
 function baseDoc(
   title: string,
   kind: LabReportDoc["kind"],
@@ -57,15 +52,16 @@ function baseDoc(
   disclaimer: string,
   sections: ReportSection[],
 ): LabReportDoc {
+  const locale = extra?.locale ?? DEFAULT_LOCALE;
   return {
     title,
     kind,
     createdAt: extra?.now ?? new Date(),
-    locale: extra?.locale ?? DEFAULT_LOCALE,
+    locale,
     ...(extra?.student ? { student: extra.student } : {}),
     ...(extra?.question ? { question: extra.question } : {}),
     sections: [
-      ...(extra?.question ? [{ heading: "Question", paragraph: extra.question }] : []),
+      ...(extra?.question ? [{ heading: tr(locale, "report.question"), paragraph: extra.question }] : []),
       ...sections,
     ],
     ...(extra?.shareUrl ? { shareUrl: extra.shareUrl } : {}),
@@ -73,13 +69,62 @@ function baseDoc(
   };
 }
 
-const FORMING_LABELS: Record<Experiment["conditions"]["forming"], string> = {
-  beaker: "Beaker",
-  "extrude-air": "Extrude into air",
-  "extrude-bath": "Extrude into bath",
-  "cast-film": "Cast film",
-  "heat-cure": "Heat cure",
+const FORMING_KEYS: Record<Experiment["conditions"]["forming"], MessageKey> = {
+  beaker: "report.beaker",
+  "extrude-air": "report.extrudeAir",
+  "extrude-bath": "report.extrudeBath",
+  "cast-film": "report.castFilm",
+  "heat-cure": "report.heatCure",
 };
+const ATMOSPHERE_KEYS: Record<Atmosphere, MessageKey> = {
+  air: "bench.model.compare.atmosphere.air",
+  vacuum: "bench.model.compare.atmosphere.vacuum",
+  nitrogen: "bench.model.compare.atmosphere.nitrogen",
+};
+const CATEGORY_KEYS: Record<string, MessageKey> = {
+  element: "report.category.element",
+  salt: "report.category.salt",
+  protein: "report.category.protein",
+  enzyme: "report.category.enzyme",
+  polymer: "report.category.polymer",
+  solvent: "report.category.solvent",
+  "acid-base": "report.category.acidBase",
+  additive: "report.category.additive",
+  filler: "report.category.filler",
+};
+const ROLE_KEYS: Record<Role, MessageKey> = {
+  polymer: "lab.role.polymer",
+  crosslinker: "lab.role.crosslinker",
+  adhesive: "lab.role.adhesive",
+  plasticizer: "lab.role.plasticizer",
+  solvent: "lab.role.solvent",
+  filler: "lab.role.filler",
+};
+const EVENT_STATUS_KEYS: Record<string, MessageKey> = {
+  happened: "bench.reaction.status.happened",
+  partial: "bench.reaction.status.partial",
+  blocked: "bench.reaction.status.blocked",
+};
+const EMISSION_KEYS: Record<FusionReport["emitted"][number]["type"], MessageKey> = {
+  alpha: "report.emission.alpha",
+  gamma: "report.emission.gamma",
+  n: "report.emission.n",
+  p: "report.emission.p",
+  "e-": "report.emission.eMinus",
+  "e+": "report.emission.ePlus",
+  neutrino: "report.emission.neutrino",
+};
+const REPORT_LEVEL_KEYS: Record<string, MessageKey> = {
+  bad: "report.level.bad",
+  warn: "report.level.warn",
+  good: "report.level.good",
+};
+
+function ingredientType(type: string | undefined, locale: Locale): string {
+  if (type && type in ROLE_KEYS) return tr(locale, ROLE_KEYS[type as Role]);
+  if (type && type in CATEGORY_KEYS) return tr(locale, CATEGORY_KEYS[type]);
+  return type ?? tr(locale, "report.unknown");
+}
 
 export function benchReport(
   experiment: Experiment,
@@ -89,64 +134,67 @@ export function benchReport(
   locale: Locale = DEFAULT_LOCALE,
 ): LabReportDoc {
   extra = { ...extra, locale };
-  const ingredients = new Map(allBenchIngredients().map((ingredient) => [ingredient.id, ingredient]));
+  const ingredients = new Map(allBenchIngredients().map((ingredient) => [
+    ingredient.id,
+    localizeBenchIngredient(ingredient, locale),
+  ]));
   const sections: ReportSection[] = [
     {
-      heading: "Materials",
+      heading: tr(locale, "report.materials"),
       table: {
-        head: ["Ingredient", "Type", "%"],
+        head: [tr(locale, "report.ingredient"), tr(locale, "report.type"), "%"],
         rows: experiment.parts.map((part) => {
           const ingredient = ingredients.get(part.id);
           const name = ingredient?.name ?? part.id;
           return [
-            `${name}${part.id.startsWith(CUSTOM_PREFIX) ? " (your ingredient)" : ""}`,
-            ingredient?.category ?? "Unknown",
+            `${name}${part.id.startsWith(CUSTOM_PREFIX) ? tr(locale, "report.yourIngredient") : ""}`,
+            ingredientType(ingredient?.category, locale),
             `${part.pct}%`,
           ];
         }),
       },
     },
     {
-      heading: "Method",
+      heading: tr(locale, "report.method"),
       rows: [
-        ["Temperature", `${experiment.conditions.tempC} °C`],
-        ["Pressure", `${experiment.conditions.pressureKPa} kPa`],
-        ["Atmosphere", experiment.conditions.atmosphere],
-        ["Humidity", `${experiment.conditions.humidityPct}%`],
-        ["Mixing", `${experiment.conditions.mixRpm} rpm × ${experiment.conditions.mixMinutes} min`],
-        ["Cure time", `${experiment.conditions.cureMinutes} min`],
-        ["Forming", FORMING_LABELS[experiment.conditions.forming]],
+        [tr(locale, "report.temperature"), `${experiment.conditions.tempC} °C`],
+        [tr(locale, "report.pressure"), `${experiment.conditions.pressureKPa} kPa`],
+        [tr(locale, "report.atmosphere"), tr(locale, ATMOSPHERE_KEYS[experiment.conditions.atmosphere])],
+        [tr(locale, "report.humidity"), `${experiment.conditions.humidityPct}%`],
+        [tr(locale, "report.mixing"), `${experiment.conditions.mixRpm} rpm × ${experiment.conditions.mixMinutes} min`],
+        [tr(locale, "report.cureTime"), `${experiment.conditions.cureMinutes} min`],
+        [tr(locale, "report.forming"), tr(locale, FORMING_KEYS[experiment.conditions.forming])],
         ...(experiment.conditions.bathId
-          ? [["Bath", ingredients.get(experiment.conditions.bathId)?.name ?? experiment.conditions.bathId] as [string, string]]
+          ? [[tr(locale, "report.bath"), ingredients.get(experiment.conditions.bathId)?.name ?? experiment.conditions.bathId] as [string, string]]
           : []),
-        ["pH (from ingredients)", result.effectivePH.toFixed(1)],
+        [tr(locale, "report.phFromIngredients"), result.effectivePH.toFixed(1)],
       ],
     },
     {
-      heading: "Results",
+      heading: tr(locale, "report.results"),
       paragraph: `${result.productLabel}. ${result.summary}`,
       rows: [
-        ["Strength", `${result.tensileMPa.toFixed(2)} MPa`],
-        ["Stretch", `${result.elongationPct.toFixed(1)}%`],
-        ["Stickiness", `${result.tack.toFixed(1)}/10`],
-        ["Toughness", `${result.toughnessMJm3.toFixed(2)} MJ/m³`],
-        ["Set time", fmtTime(result.setSeconds)],
-        ["How it dissolves", `${result.water}; ${result.dissolveTime}`],
-        ["Cost/kg", `$${result.costPerKg.toFixed(2)}`],
+        [tr(locale, "report.strength"), `${result.tensileMPa.toFixed(2)} MPa`],
+        [tr(locale, "report.stretch"), `${result.elongationPct.toFixed(1)}%`],
+        [tr(locale, "report.stickiness"), `${result.tack.toFixed(1)}/10`],
+        [tr(locale, "report.toughness"), `${result.toughnessMJm3.toFixed(2)} MJ/m³`],
+        [tr(locale, "report.setTime"), fmtTime(result.setSeconds, locale)],
+        [tr(locale, "report.howDissolves"), `${waterLabel(result.water, locale)}; ${result.dissolveTime}`],
+        [tr(locale, "report.costKg"), `$${result.costPerKg.toFixed(2)}`],
       ],
     },
     {
-      heading: "What happened",
+      heading: tr(locale, "report.whatHappened"),
       bullets: result.events.map(
         (event) =>
-          `${event.name} (${event.status}): ${event.mechanism}${event.reasons.length ? ` ${event.reasons.join("; ")}` : ""}`,
+          `${event.name} (${EVENT_STATUS_KEYS[event.status] ? tr(locale, EVENT_STATUS_KEYS[event.status]) : event.status}): ${event.mechanism}${event.reasons.length ? ` ${event.reasons.join("; ")}` : ""}`,
       ),
     },
   ];
 
   if (test) {
     sections.push({
-      heading: `Test: ${test.name}`,
+      heading: tr(locale, "report.testTitle", { name: test.name }),
       rows: [...test.setup, ...test.metrics.map(({ label, value }) => [label, value] as [string, string])],
       paragraph: test.headline,
       ...(test.notes.length ? { bullets: test.notes } : {}),
@@ -155,46 +203,46 @@ export function benchReport(
 
   sections.push(
     {
-      heading: "Safety",
+      heading: tr(locale, "report.safety"),
       rows: [
-        ["Wet toxicity", hazardWord(result.wetToxicity)],
-        ["Cured toxicity", hazardWord(result.curedToxicity)],
-        ["Skin contact", hazardWord(result.skin)],
-        ["Edible", result.edible ? "Yes" : "No"],
-        ["Biodegradable", result.biodegradable ? "Yes" : "No"],
+        [tr(locale, "report.wetToxicity"), hazardWord(result.wetToxicity, locale)],
+        [tr(locale, "report.curedToxicity"), hazardWord(result.curedToxicity, locale)],
+        [tr(locale, "report.skinContact"), hazardWord(result.skin, locale)],
+        [tr(locale, "report.edible"), result.edible ? tr(locale, "report.yes") : tr(locale, "report.no")],
+        [tr(locale, "report.biodegradable"), result.biodegradable ? tr(locale, "report.yes") : tr(locale, "report.no")],
       ],
       ...(result.warnings.length
         ? { bullets: result.warnings.map((warning) => `${warning.level}: ${warning.text}`) }
         : {}),
     },
     {
-      heading: "Model limits",
-      rows: [["Confidence", `${Math.round(result.confidence * 100)}%`]],
+      heading: tr(locale, "report.modelLimits"),
+      rows: [[tr(locale, "report.confidence"), `${Math.round(result.confidence * 100)}%`]],
       ...(result.notModelled.length ? { bullets: result.notModelled } : {}),
     },
-    { heading: "Notes", ruledLines: 5 },
+    { heading: tr(locale, "report.notes"), ruledLines: 5 },
   );
 
   return baseDoc(
-    `Bench experiment: ${result.productLabel}`,
-    "Bench",
+    tr(locale, "report.benchTitle", { product: result.productLabel }),
+    "bench",
     extra,
-    BENCH_DISCLAIMER,
+    tr(locale, "report.benchDisclaimer"),
     sections,
   );
 }
 
-function formatMeasuredHalfLife(z: number, n: number, modelValue: string): string {
+function formatMeasuredHalfLife(z: number, n: number, modelValue: string, locale: Locale): string {
   const measured = measuredHalfLife(z, n);
-  if (measured === "stable") return "Stable (measured)";
-  if (measured !== undefined) return `${measured} (measured)`;
-  return `${modelValue} (model)`;
+  if (measured === "stable") return tr(locale, "report.stableMeasured");
+  if (measured !== undefined) return tr(locale, "report.measuredValue", { value: measured });
+  return tr(locale, "report.modelValue", { value: modelValue });
 }
 
-function formatEmission(report: FusionReport): string {
+function formatEmission(report: FusionReport, locale: Locale): string {
   return report.emitted.length
-    ? report.emitted.map(({ type, count }) => `${count > 1 ? `${count} ` : ""}${type}`).join(", ")
-    : "None";
+    ? report.emitted.map(({ type, count }) => `${count > 1 ? `${count} ` : ""}${tr(locale, EMISSION_KEYS[type])}`).join(", ")
+    : tr(locale, "report.none");
 }
 
 export function nucleusReport(
@@ -209,34 +257,34 @@ export function nucleusReport(
   const hypothetical = z > 118 || !nucleus.known;
   const sections: ReportSection[] = [
     {
-      heading: "Nucleus",
+      heading: tr(locale, "report.nucleus"),
       rows: [
-        ["Element", nucleus.name],
-        ["Symbol", nucleus.symbol],
-        ["Z (protons)", `${z}`],
-        ["N (neutrons)", `${n}`],
-        ["A (mass number)", `${nucleus.a}`],
+        [tr(locale, "report.element"), nucleus.name],
+        [tr(locale, "report.symbol"), nucleus.symbol],
+        [tr(locale, "report.zProtons"), `${z}`],
+        [tr(locale, "report.nNeutrons"), `${n}`],
+        [tr(locale, "report.aMassNumber"), `${nucleus.a}`],
         [
-          "Status",
-          hypothetical ? "Hypothetical: a model prediction, not a discovered element" : "Known element",
+          tr(locale, "report.status"),
+          hypothetical ? tr(locale, "report.hypothetical") : tr(locale, "report.knownElement"),
         ],
-        ["Half-life", formatMeasuredHalfLife(z, n, nucleus.halfLife)],
-        ["Binding energy", `${nucleus.bindingMeV.toFixed(2)} MeV`],
-        ["Binding energy per nucleon", `${nucleus.perNucleonMeV.toFixed(2)} MeV`],
-        ["Modes", nucleus.modes.length ? nucleus.modes.join("; ") : "None predicted"],
-        ["Verdict", nucleus.verdict],
+        [tr(locale, "report.halfLife"), formatMeasuredHalfLife(z, n, nucleus.halfLife, locale)],
+        [tr(locale, "report.bindingEnergy"), `${nucleus.bindingMeV.toFixed(2)} MeV`],
+        [tr(locale, "report.bindingEnergyPerNucleon"), `${nucleus.perNucleonMeV.toFixed(2)} MeV`],
+        [tr(locale, "report.modes"), nucleus.modes.length ? nucleus.modes.join("; ") : tr(locale, "report.nonePredicted")],
+        [tr(locale, "report.verdict"), nucleus.verdict],
         ["Q-alpha", `${nucleus.qAlpha.toFixed(2)} MeV`],
         ["Q-beta−", `${nucleus.qBetaMinus.toFixed(2)} MeV`],
         ["Q-beta+", `${nucleus.qBetaPlus.toFixed(2)} MeV`],
         ["Sn", `${nucleus.sn.toFixed(2)} MeV`],
         ["Sp", `${nucleus.sp.toFixed(2)} MeV`],
-        ["Fissility", nucleus.fissility.toFixed(3)],
+        [tr(locale, "report.fissility"), nucleus.fissility.toFixed(3)],
         [
-          "Magic numbers",
+          tr(locale, "report.magicNumbers"),
           [
             ...(nucleus.magicZ ? [`Z = ${z}`] : []),
             ...(nucleus.magicN ? [`N = ${n}`] : []),
-          ].join(", ") || "Neither",
+          ].join(", ") || tr(locale, "report.neither"),
         ],
       ],
     },
@@ -246,26 +294,26 @@ export function nucleusReport(
     const report = fusion.report;
     const noResidue = report.residue.length === 0;
     sections.push({
-      heading: "Fusion",
+      heading: tr(locale, "report.fusion"),
       rows: [
-        ["Projectile", fusion.projectileLabel],
-        ["Beam energy (lab)", `${fusion.beamLabMeV.toPrecision(4)} MeV`],
-        ["Reaction", report.reaction],
-        ["Headline", report.headline],
-        ["Barrier", `${report.barrierMeV.toFixed(2)} MeV`],
+        [tr(locale, "report.projectile"), fusion.projectileLabel],
+        [tr(locale, "report.beamEnergy"), `${fusion.beamLabMeV.toPrecision(4)} MeV`],
+        [tr(locale, "report.reaction"), report.reaction],
+        [tr(locale, "report.headline"), report.headline],
+        [tr(locale, "report.barrier"), `${report.barrierMeV.toFixed(2)} MeV`],
         ["E_cm", `${report.ecmMeV.toFixed(2)} MeV`],
         ["Q", `${report.qMeV.toFixed(2)} MeV`],
         ["E*", `${report.excitationMeV.toFixed(2)} MeV`],
-        ["Emitted", formatEmission(report)],
+        [tr(locale, "report.emitted"), formatEmission(report, locale)],
         [
-          report.energyReleasedMeV < 0 ? "Energy cost" : "Energy released",
+          tr(locale, report.energyReleasedMeV < 0 ? "report.energyCost" : "report.energyReleased"),
           noResidue ? "—" : `${Math.abs(report.energyReleasedMeV).toFixed(2)} MeV`,
         ],
-        ["Chance per collision", fmtOneIn(report.chancePerCollision)],
-        ["Cross section", report.crossSectionBarn === undefined ? "—" : fmtCrossSection(report.crossSectionBarn)],
-        ["Atoms/day", report.atomsPerDay === undefined ? "—" : report.atomsPerDay.toPrecision(3)],
+        [tr(locale, "report.chanceCollision"), fmtOneIn(report.chancePerCollision)],
+        [tr(locale, "report.crossSection"), report.crossSectionBarn === undefined ? "—" : fmtCrossSection(report.crossSectionBarn)],
+        [tr(locale, "report.atomsDay"), report.atomsPerDay === undefined ? "—" : report.atomsPerDay.toPrecision(3)],
         [
-          "Residue",
+          tr(locale, "report.residue"),
           report.residue.length
             ? report.residue.map((item) => `${item.name} (${item.symbol}-${item.z + item.n})`).join(", ")
             : "—",
@@ -275,26 +323,15 @@ export function nucleusReport(
     });
   }
 
-  sections.push({ heading: "Notes", ruledLines: 5 });
+  sections.push({ heading: tr(locale, "report.notes"), ruledLines: 5 });
   return baseDoc(
-    `Nucleus: ${nucleus.name}-${nucleus.a}`,
-    "Elements",
+    tr(locale, "report.nucleusTitle", { name: nucleus.name, mass: nucleus.a }),
+    "elements",
     extra,
-    FUSION_DISCLAIMER,
+    tr(locale, "report.fusionDisclaimer"),
     sections,
   );
 }
-
-const CURE_LABELS: Record<CureMechanism, string> = {
-  evaporation: "Solvent evaporates, leaving chains behind",
-  "ionic-bath": "Ions bridge chains into a gel",
-  moisture: "Humidity triggers a chemical cure",
-  anionic: "Trace moisture starts a rapid chain reaction",
-  shear: "Flow aligns and locks the molecules",
-  cooling: "The melt or gel firms as it cools",
-  covalent: "New covalent links join the chains",
-  none: "No active setting mechanism",
-};
 
 export function formulaReport(
   parts: FormulaPart[],
@@ -305,55 +342,63 @@ export function formulaReport(
   extra = { ...extra, locale };
   const sections: ReportSection[] = [
     {
-      heading: "Materials",
+      heading: tr(locale, "report.materials"),
       table: {
-        head: ["Ingredient", "Type", "%"],
+        head: [tr(locale, "report.ingredient"), tr(locale, "report.type"), "%"],
         rows: parts.map((part) => {
           const ingredient = byId[part.id];
-          return [ingredient?.name ?? part.id, ingredient?.role ?? "Unknown", `${part.pct}%`];
+          const localized = ingredient ? localizeIngredient(ingredient, locale) : undefined;
+          return [localized?.name ?? part.id, ingredientType(ingredient?.role, locale), `${part.pct}%`];
         }),
       },
     },
     {
-      heading: "Results",
+      heading: tr(locale, "report.results"),
       rows: [
-        ["Solids", `${result.solidsPct.toFixed(1)}%`],
-        ["Strength", `${result.tensileMPa.toFixed(2)} MPa`],
-        ["Stretch", `${result.elongationPct.toFixed(1)}%`],
-        ["Toughness", `${result.toughnessMJm3.toFixed(2)} MJ/m³`],
-        ["Stickiness", `${result.tack.toFixed(1)}/10`],
-        ["Set time", fmtTime(result.cureSeconds)],
-        ["Density (cured)", `${result.densityCured.toFixed(2)} g/cm³`],
-        ["Cost/kg", `$${result.costPerKg.toFixed(2)}`],
-        ["How it dissolves", `${result.water}; ${result.dissolveTime}`],
+        [tr(locale, "report.solids"), `${result.solidsPct.toFixed(1)}%`],
+        [tr(locale, "report.strength"), `${result.tensileMPa.toFixed(2)} MPa`],
+        [tr(locale, "report.stretch"), `${result.elongationPct.toFixed(1)}%`],
+        [tr(locale, "report.toughness"), `${result.toughnessMJm3.toFixed(2)} MJ/m³`],
+        [tr(locale, "report.stickiness"), `${result.tack.toFixed(1)}/10`],
+        [tr(locale, "report.setTime"), fmtTime(result.cureSeconds, locale)],
+        [tr(locale, "report.densityCured"), `${result.densityCured.toFixed(2)} g/cm³`],
+        [tr(locale, "report.costKg"), `$${result.costPerKg.toFixed(2)}`],
+        [tr(locale, "report.howDissolves"), `${waterLabel(result.water, locale)}; ${result.dissolveTime}`],
       ],
     },
     {
-      heading: "Cure mechanisms",
-      bullets: result.cure.map((mechanism) => CURE_LABELS[mechanism]),
+      heading: tr(locale, "report.cureMechanisms"),
+      bullets: result.cure.map((mechanism) => cureLabel(mechanism, locale)),
     },
-    { heading: "Environment", bullets: result.environment },
+    { heading: tr(locale, "report.environment"), bullets: result.environment },
     {
-      heading: "Checks",
-      bullets: result.checks.map((check) => `${check.level}: ${check.text}`),
+      heading: tr(locale, "report.checks"),
+      bullets: result.checks.map((check) => `${REPORT_LEVEL_KEYS[check.level] ? tr(locale, REPORT_LEVEL_KEYS[check.level]) : check.level}: ${check.text}`),
     },
     {
-      heading: "Safety",
+      heading: tr(locale, "report.safety"),
       rows: [
-        ["Wet toxicity", hazardWord(result.wetToxicity)],
-        ["Cured toxicity", hazardWord(result.curedToxicity)],
-        ["Skin contact", hazardWord(result.skin)],
-        ["Edible", result.edible ? "Yes" : "No"],
-        ["Biodegradable", result.biodegradable ? "Yes" : "No"],
+        [tr(locale, "report.wetToxicity"), hazardWord(result.wetToxicity, locale)],
+        [tr(locale, "report.curedToxicity"), hazardWord(result.curedToxicity, locale)],
+        [tr(locale, "report.skinContact"), hazardWord(result.skin, locale)],
+        [tr(locale, "report.edible"), result.edible ? tr(locale, "report.yes") : tr(locale, "report.no")],
+        [tr(locale, "report.biodegradable"), result.biodegradable ? tr(locale, "report.yes") : tr(locale, "report.no")],
       ],
     },
-    { heading: "Notes", ruledLines: 5 },
+    { heading: tr(locale, "report.notes"), ruledLines: 5 },
   ];
   return baseDoc(
-    `Formula Lab: ${parts.length ? parts.map((part) => byId[part.id]?.name ?? part.id).join(" + ") : "Empty formula"}`,
-    "Formula Lab",
+    tr(locale, "report.formulaTitle", {
+      formula: parts.length
+        ? parts.map((part) => {
+            const ingredient = byId[part.id];
+            return ingredient ? localizeIngredient(ingredient, locale).name : part.id;
+          }).join(" + ")
+        : tr(locale, "report.emptyFormula"),
+    }),
+    "formula",
     extra,
-    BENCH_DISCLAIMER,
+    tr(locale, "report.benchDisclaimer"),
     sections,
   );
 }

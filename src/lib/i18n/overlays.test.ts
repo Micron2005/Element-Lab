@@ -18,6 +18,8 @@ import { INGREDIENT_TEXT_ES } from "./data/es/ingredients";
 import { ELEMENT_NAMES_ES } from "./data/es/elements";
 import { ELEMENT_NAMES_EN } from "./data/en/elements";
 import { localizeElementName } from "../nuclear";
+import { GLOSSARY, glossaryFor, type GlossaryEntry } from "../glossary";
+import { GLOSSARY_ES } from "./data/es/glossary";
 
 const placeholders = (value: string) => [...value.matchAll(/\{([A-Za-z0-9_]+)\}/g)]
   .map((match) => match[1])
@@ -145,6 +147,29 @@ describe("Spanish data overlays", () => {
       expect(localizeElementName(Number(atomicNumber), "es")).toBe(translated);
     }
     expect(localizeElementName(120, "es")).toBe("Unbinilio");
+  });
+
+  it("covers every glossary term and Spanish text field", () => {
+    const identicalTerms = new Set(["base.term", "mev.term", "mpa.term", "ph.term", "pka.term"]);
+    expect(Object.keys(GLOSSARY_ES).sort()).toEqual(Object.keys(GLOSSARY).sort());
+    for (const [id, source] of Object.entries(GLOSSARY)) {
+      const sourceEntry = source as GlossaryEntry;
+      const translated = GLOSSARY_ES[id as keyof typeof GLOSSARY_ES] as GlossaryEntry;
+      expect(glossaryFor("es")[id as keyof typeof GLOSSARY]).toEqual(translated);
+      for (const field of ["term", "plain", "example"] as const) {
+        const original = sourceEntry[field];
+        const localized = translated[field];
+        if (original === undefined) {
+          expect(localized).toBeUndefined();
+          continue;
+        }
+        expect(localized?.trim(), `${id}.${field}`).toBeTruthy();
+        if (localized === original) {
+          expect(identicalTerms.has(`${id}.${field}`), `${id}.${field}`).toBe(true);
+        }
+        expect(placeholders(localized!), `${id}.${field}`).toEqual(placeholders(original));
+      }
+    }
   });
 
   it("covers every molecule id and keeps overlaid text complete", () => {

@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GLOSSARY, GLOSSARY_ES } from "./glossary";
+import { GLOSSARY } from "./glossary";
+import { GLOSSARY_ES } from "./i18n/data/es/glossary";
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
