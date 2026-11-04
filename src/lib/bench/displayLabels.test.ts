@@ -175,6 +175,7 @@ describe("Bench display enum labels", () => {
       "Milk phosphoprotein",
       "Milk protein mixture",
       "Plant protein mixture",
+      "Polysaccharide",
       "Corn prolamin protein",
       "Structural protein",
       "Repeating elastin-like peptide",

@@ -260,8 +260,11 @@ export function beamForBarrier(
   return (barrierMeV(projectile, target) * factor * (a1 + a2)) / a2;
 }
 
-function compactNumber(value: number): string {
-  return Number(value.toPrecision(3)).toString();
+function compactNumber(value: number, locale: Locale = "en"): string {
+  const rounded = Number(value.toPrecision(3));
+  return locale === "es"
+    ? rounded.toLocaleString("es", { useGrouping: false, maximumSignificantDigits: 3 })
+    : rounded.toString();
 }
 
 export function fmtCrossSection(barn: number, locale: "en" | "es" = "en"): string {
@@ -289,7 +292,7 @@ export function fmtOneIn(probability: number, locale: "en" | "es" = "en"): strin
     return coefficient === 1
       ? tr(locale, "elements.fusion.oneInPower", { exponent })
       : tr(locale, "elements.fusion.oneInScaled", {
-        coefficient: compactNumber(coefficient),
+        coefficient: compactNumber(coefficient, locale),
         exponent,
       });
   }

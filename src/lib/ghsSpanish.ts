@@ -87,34 +87,43 @@ export const GHS_HAZARD_STATEMENTS_ES: Record<string, string> = {
 };
 
 export const GHS_PICTOGRAMS_ES: Record<string, string> = {
-  "Exploding bomb": "Bomba explotando",
-  Flame: "Inflamable",
-  Flammable: "Inflamable",
-  "Flame over circle": "Comburente",
-  Oxidizer: "Comburente",
-  "Gas cylinder": "Gas a presión",
-  Corrosion: "Corrosivo",
-  "Skull and crossbones": "Tóxico",
-  "Exclamation mark": "Irritante",
-  Irritant: "Irritante",
-  "Health hazard": "Peligro para la salud",
-  "Environment": "Peligroso para el medio ambiente",
+  "exploding bomb": "Bomba explotando",
+  flame: "Inflamable",
+  flammable: "Inflamable",
+  "flame over circle": "Comburente",
+  oxidizer: "Comburente",
+  "gas cylinder": "Gas a presión",
+  corrosion: "Corrosivo",
+  "skull and crossbones": "Tóxico",
+  "exclamation mark": "Irritante",
+  irritant: "Irritante",
+  "health hazard": "Peligro para la salud",
+  environment: "Peligroso para el medio ambiente",
+  ghs01: "Bomba explotando",
+  ghs02: "Inflamable",
+  ghs03: "Comburente",
+  ghs04: "Gas a presión",
+  ghs05: "Corrosivo",
+  ghs06: "Tóxico",
+  ghs07: "Irritante",
+  ghs08: "Peligro para la salud",
+  ghs09: "Peligroso para el medio ambiente",
 };
 
 export const GHS_SIGNAL_WORDS_ES: Record<string, string> = {
-  Danger: "Peligro",
-  Warning: "Atención",
-  "Not Classified": "No clasificado",
+  danger: "Peligro",
+  warning: "Atención",
+  "not classified": "No clasificado",
 };
 
 export function localizeGhsSignalWord(value: string | null, locale: Locale): string | null {
   if (!value || locale !== "es") return value;
-  return GHS_SIGNAL_WORDS_ES[value] ?? value;
+  return GHS_SIGNAL_WORDS_ES[value.trim().replace(/\s+/g, " ").toLowerCase()] ?? value;
 }
 
 export function localizeGhsPictogram(value: string, locale: Locale): string {
   if (locale !== "es") return value;
-  return GHS_PICTOGRAMS_ES[value] ?? value;
+  return GHS_PICTOGRAMS_ES[value.trim().replace(/\s+/g, " ").toLowerCase()] ?? value;
 }
 
 export function localizeGhsHazardStatement(value: string, locale: Locale): string {
@@ -130,16 +139,41 @@ export function localizeGhsHazardStatement(value: string, locale: Locale): strin
 export function localizeGhsClassificationNote(value: string, locale: Locale): string {
   if (locale !== "es") return value;
   if (value === tr("en", "chem.ghsNotClassified")) return tr(locale, "chem.ghsNotClassified");
-  const match = value.match(
-    /(?:reported as not meeting GHS hazard criteria by|does not meet GHS hazard criteria for)\s*(?:<\s*[\d.]+%\s*)?\(?([\d,]+)\s+of\s+([\d,]+)\)?(?:\s+of)?\s+(companies|reports)/i,
+  const companyNote = value.match(
+    /reported as not meeting GHS hazard criteria\s+(?:by|per)\s+([\d,]+)\s+of\s+([\d,]+)\s+(companies?|reports?)(?:\s+by companies)?/i,
   );
-  if (!match) return value;
-  const source = match[3].toLowerCase() === "companies"
-    ? tr(locale, "chem.ghsCompanies")
-    : tr(locale, "chem.ghsReports");
-  return tr(locale, "chem.ghsNotClassifiedReports", {
-    reported: match[1],
-    total: match[2],
-    source,
+  if (companyNote) {
+    const [, reported, total, sourceName] = companyNote;
+    const singular = total.replaceAll(",", "") === "1";
+    const isCompanySource = sourceName.toLowerCase().startsWith("compan");
+    const source = isCompanySource
+      ? tr(locale, singular ? "chem.ghsCompany" : "chem.ghsCompanies")
+      : tr(locale, singular ? "chem.ghsReport" : "chem.ghsReports");
+    const summary = tr(locale, "chem.ghsNotClassifiedReports", {
+      reported,
+      total,
+      source,
+    }).replace(/\.$/, "");
+    const informationPercent = value.match(
+      /\(only\s+([\d.]+)%\s+companies provided GHS information\)/i,
+    )?.[1];
+    const companyInfo = informationPercent
+      ? ` (${tr(locale, "chem.ghsCompanyInfo", { percent: informationPercent })})`
+      : "";
+    const echaInfo = /for more detailed information,\s*please visit\s+ECHA C&L website/i.test(value)
+      ? ` ${tr(locale, "chem.ghsEchaInfo")}`
+      : "";
+    return `${summary}${companyInfo}.${echaInfo}`;
+  }
+
+  const reportNote = value.match(
+    /this chemical does not meet GHS hazard criteria for\s*(<\s*)?([\d.]+)%\s*\(\s*([\d,]+)\s+of\s+([\d,]+)\s*\)\s+of\s+(?:all\s+)?reports/i,
+  );
+  if (!reportNote) return value;
+  const [, lessThan = "", percent, reported, total] = reportNote;
+  return tr(locale, "chem.ghsReportPercentNote", {
+    percent: `${lessThan.trim()}${lessThan ? " " : ""}${percent}`,
+    reported,
+    total,
   });
 }

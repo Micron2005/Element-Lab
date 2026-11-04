@@ -1397,10 +1397,21 @@
 
 .bench-compare-table th,
 .bench-compare-table td {
+  min-width: 0;
   padding: 10px;
   border: 1px solid #2b4147;
   text-align: left;
   vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bench-compare-table td > span {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .bench-compare-table thead th {

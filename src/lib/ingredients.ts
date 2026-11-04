@@ -63,6 +63,7 @@ const INGREDIENT_FORMULA_ES: Record<string, string> = {
   "Milk phosphoprotein": "Fosfoproteína de la leche",
   "Milk protein mixture": "Mezcla de proteínas de la leche",
   "Plant protein mixture": "Mezcla de proteínas vegetales",
+  Polysaccharide: "Polisacárido",
   "Corn prolamin protein": "Proteína prolamina del maíz",
   "Structural protein": "Proteína estructural",
   "Repeating elastin-like peptide": "Péptido repetitivo similar a elastina",

@@ -431,7 +431,7 @@ export default function ShootTest({
             {twoPartReport.combined ? (
               <>
                 <p className="bench-tip-product">
-                  {tipOutcome(twoPartReport.combined.result)}
+                  {tipOutcome(twoPartReport.combined.result, locale)}
                 </p>
                 <dl className="bench-tip-metrics">
                   <div>

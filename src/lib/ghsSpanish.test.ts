@@ -37,12 +37,15 @@ describe("PubChem GHS Spanish display mappings", () => {
   });
 
   it("localizes signal words, pictograms, and company-count notes", () => {
-    expect(GHS_SIGNAL_WORDS_ES).toMatchObject({ Danger: "Peligro", Warning: "Atención" });
-    expect(GHS_PICTOGRAMS_ES.Flame).toBe("Inflamable");
-    expect(GHS_PICTOGRAMS_ES.Irritant).toBe("Irritante");
-    expect(GHS_PICTOGRAMS_ES["Health hazard"]).toBe("Peligro para la salud");
+    expect(GHS_SIGNAL_WORDS_ES).toMatchObject({ danger: "Peligro", warning: "Atención" });
+    expect(GHS_PICTOGRAMS_ES.flame).toBe("Inflamable");
+    expect(GHS_PICTOGRAMS_ES.irritant).toBe("Irritante");
+    expect(GHS_PICTOGRAMS_ES["health hazard"]).toBe("Peligro para la salud");
     expect(localizeGhsSignalWord("Not Classified", "es")).toBe("No clasificado");
     expect(localizeGhsPictogram("Unknown pictogram", "es")).toBe("Unknown pictogram");
+    expect(localizeGhsPictogram("Health Hazard", "es")).toBe("Peligro para la salud");
+    expect(localizeGhsPictogram("Health hazard", "es")).toBe("Peligro para la salud");
+    expect(localizeGhsPictogram("GHS08", "es")).toBe("Peligro para la salud");
     expect(localizeGhsClassificationNote(
       "This chemical does not meet GHS hazard criteria for < 0.1% (5 of 13886) of reports.",
       "es",
@@ -51,5 +54,17 @@ describe("PubChem GHS Spanish display mappings", () => {
       "Reported as not meeting GHS hazard criteria by 5 of 10 companies.",
       "es",
     )).toContain("5 de 10");
+    expect(localizeGhsClassificationNote(
+      "Reported as not meeting GHS hazard criteria by 1866 of 1876 companies (only 0.5% companies provided GHS information). For more detailed information, please visit ECHA C&L website.",
+      "es",
+    )).toBe("No cumple los criterios de peligro del SGA según 1866 de 1876 empresas (solo el 0.5% de las empresas proporcionó información del SGA). Para más información, visita el sitio web de clasificación y etiquetado de la ECHA.");
+    expect(localizeGhsClassificationNote(
+      "Reported as not meeting GHS hazard criteria by 1 of 1 companies. For more detailed information, please visit ECHA C&L website.",
+      "es",
+    )).toBe("No cumple los criterios de peligro del SGA según 1 de 1 empresa. Para más información, visita el sitio web de clasificación y etiquetado de la ECHA.");
+    expect(localizeGhsClassificationNote(
+      "This chemical does not meet GHS hazard criteria for 99.5% (1866 of 1876) of all reports.",
+      "es",
+    )).toBe("Esta sustancia no cumple los criterios de peligro del SGA en el 99.5% de todos los informes (1866 de 1876).");
   });
 });
