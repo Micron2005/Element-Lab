@@ -55,7 +55,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                   <Link className="brand" href="/"><span className="brand-mark" aria-hidden="true">S</span><span>SCIENCE <b>LAB</b></span><BetaBadge /></Link>
                   <DisplaySettings />
                 </div>
-                <div className="nav-links">{navItems.map(([labelKey, href]) => <Link href={href} key={href}>{t(labelKey)}</Link>)}</div>
+                <div className="nav-links">{navItems.map(([labelKey, href]) => href === "/play"
+                  ? <a href={href} key={href}>{t(labelKey)}</a>
+                  : <Link href={href} key={href}>{t(labelKey)}</Link>)}</div>
                 <span className="lab-status"><span className="status-dot" /> {t("shell.status")}</span>
               </nav>
               <Suspense fallback={null}>

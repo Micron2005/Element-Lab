@@ -157,13 +157,26 @@ describe("learning cards", () => {
       title: "A fiber quest",
       targets: { minStrengthMPa: 5, mustInclude: ["alginate"] },
     };
-    const mixQuest = compileTemplate("daily:mix", mixTemplate);
     const preset = benchPresets.find(({ id }) => id === "alginate-fiber")!;
     const result = simulate(preset.experiment);
-    if (mixQuest.chapter !== "mixing") throw new Error("Expected a mix quest.");
-    const materialCard = mixCard(mixQuest, preset.experiment, result);
-    expect(materialCard.sections.find((section) => section.heading === "What it does")?.body).toContain("Strength at least 5 MPa");
-    expect(materialCard.sections.find((section) => section.heading === "What happened in your run")?.body).toContain(result.productLabel);
+    for (const id of ["daily:mix", "weekly:adhesive", "pack:sample:0"]) {
+      const mixQuest = compileTemplate(id, mixTemplate);
+      if (mixQuest.chapter !== "mixing") throw new Error("Expected a mix quest.");
+      const materialCard = mixCard(mixQuest, preset.experiment, result);
+      const runDetails = materialCard.sections.find((section) => section.heading === "What happened in your run")?.body ?? "";
+      expect(materialCard.simple).toContain(result.productLabel);
+      expect(materialCard.simple).not.toMatch(/acid|bicarbonate|fizz/i);
+      expect(materialCard.deeper).not.toMatch(/acid|bicarbonate|fizz/i);
+      expect(materialCard.sections.find((section) => section.heading === "What it does")?.body).toContain("Strength at least 5 MPa");
+      expect(runDetails).toContain(result.productLabel);
+      expect(runDetails).toContain(result.summary);
+      expect(runDetails).toContain("Safety:");
+      expect(runDetails).toContain("Effective pH:");
+      for (const event of result.events) {
+        expect(runDetails).not.toContain(event.name);
+        expect(runDetails).not.toContain(event.mechanism);
+      }
+    }
 
     const atomQuest = compileTemplate("daily:nucleus", {
       type: "nucleus",

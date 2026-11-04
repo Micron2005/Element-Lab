@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { QUESTS } from "./quests";
 import { isUnlocked, type PlayProgress } from "./progress";
 import {
@@ -9,7 +9,9 @@ import {
   isLevelVisible,
   parseGradeLevel,
   splitQuestsByLevel,
+  saveGradeLevel,
 } from "./levels";
+import { PREFS_KEY, savePrefs, DEFAULT_PREFS } from "../prefs";
 
 describe("grade levels", () => {
   it("parses valid shared-link level values and defaults invalid or absent values to high", () => {
@@ -19,6 +21,26 @@ describe("grade levels", () => {
     expect(gradeLevelFromStorage("middle")).toBe("middle");
     expect(isGradeLevel("college")).toBe(true);
     expect(isGradeLevel("primary")).toBe(false);
+  });
+
+  it("enables Beginner for middle level unless the preference was explicitly set", () => {
+    const values = new Map<string, string>();
+    const localStorage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+    vi.stubGlobal("window", { localStorage, dispatchEvent: vi.fn() });
+    vi.stubGlobal("document", { documentElement: { dataset: {} } });
+    try {
+      saveGradeLevel("middle");
+      expect(JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null").beginner).toBe(true);
+      savePrefs({ ...DEFAULT_PREFS, beginner: false });
+      saveGradeLevel("middle");
+      expect(JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null").beginner).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("has a complete typed level map and filters quests without deleting them", () => {

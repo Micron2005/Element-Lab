@@ -1,4 +1,5 @@
 import type { BuiltinQuestId } from "../i18n/data/es/quests";
+import { enableBeginnerDefaultIfUnset } from "../prefs";
 
 export type GradeLevel = "middle" | "high" | "college";
 
@@ -74,6 +75,7 @@ export function loadGradeLevel(): GradeLevel {
 
 export function saveGradeLevel(level: GradeLevel): void {
   if (!isGradeLevel(level) || typeof window === "undefined") return;
+  if (level === "middle") enableBeginnerDefaultIfUnset();
   try {
     window.localStorage.setItem(GRADE_LEVEL_KEY, level);
   } catch {

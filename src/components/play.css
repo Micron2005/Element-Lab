@@ -2,10 +2,11 @@
 .grade-level-picker { border: 0; padding: 0; margin: 0; }
 .grade-level-picker legend { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 .grade-level-picker [role="group"] { display: flex; flex-wrap: wrap; gap: 6px; }
-.grade-level-picker button { min-height: 40px; border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; background: var(--surface); color: var(--text); }
+.grade-level-picker button { min-height: 44px; border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; background: var(--surface); color: var(--text); }
 .grade-level-picker button.is-active { border-color: var(--accent); background: var(--accent-soft); }
 .play-higher-quests { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-.play-higher-quests summary { cursor: pointer; font-weight: 650; }
+.play-higher-quests summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 650; }
+.play-learn-card details summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .play-score { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
 .play-score strong { color: var(--text); }
 .play-stars { display: inline-flex; gap: 2px; font-size: 16px; line-height: 1; color: #8a9998; }
