@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { questById, type Grade } from "@/lib/play/quests";
 import type { Experiment, RunResult } from "@/lib/bench/types";
 import { atomCard, mixCard } from "@/lib/play/learn";
 import { StarRow } from "./PlayTool";
 import LearnCard from "./LearnCard";
+import { useBeta } from "./BetaProvider";
 import { awardDaily, awardStars, awardWeekly, useDailyProgress, usePlayProgress, useQuestParam, useWeeklyProgress } from "./usePlayProgress";
 import { dailyKey } from "@/lib/play/daily";
 import { hasPlayedPack, isoWeekKey, rewardChange, weeklyFor, type RewardState } from "@/lib/play/rewards";
@@ -20,6 +20,7 @@ type Props =
 
 export default function QuestBanner(props: Props) {
   const { locale, t } = useT();
+  const rewardsOn = useBeta().isOn("rewards");
   const questId = useQuestParam();
   const progress = usePlayProgress();
   const dailyProgress = useDailyProgress();
@@ -89,15 +90,17 @@ export default function QuestBanner(props: Props) {
         after = { ...before, progress: { stars: { ...before.progress.stars, [quest.id]: grade.stars } } };
       }
       if (dayKey) after = { ...before, daily: { done: { ...before.daily.done, [dayKey]: grade.stars } } };
-      const change = rewardChange(before, after);
-      if (change.rankUp || change.newBadge) {
-        const toast = change.rankUp
-          ? t("play.reward.rankUp")
-          : t("play.reward.badgeEarned", { badge: t(change.newBadge!.titleKey) });
-        window.setTimeout(() => setRewardToast(toast), 0);
+      if (rewardsOn) {
+        const change = rewardChange(before, after);
+        if (change.rankUp || change.newBadge) {
+          const toast = change.rankUp
+            ? t("play.reward.rankUp")
+            : t("play.reward.badgeEarned", { badge: t(change.newBadge!.titleKey) });
+          window.setTimeout(() => setRewardToast(toast), 0);
+        }
       }
     }
-  }, [quest, grade, best, dayKey, weeklyId, progress, dailyProgress, weeklyProgress, t]);
+  }, [quest, grade, best, dayKey, weeklyId, progress, dailyProgress, weeklyProgress, t, rewardsOn]);
 
   useEffect(() => {
     if (!rewardToast) return;
@@ -111,7 +114,7 @@ export default function QuestBanner(props: Props) {
     <section className="quest-banner" aria-label={t("play.banner.quest")}>
       <div className="quest-banner-top">
         <span className="eyebrow">{t("play.banner.quest")}</span>
-        <Link href="/play">{t("play.banner.allQuests")}</Link>
+        <a href="/play">{t("play.banner.allQuests")}</a>
       </div>
       <h2>{quest.title}</h2>
       <p className="play-story">{quest.story}</p>
@@ -143,7 +146,7 @@ export default function QuestBanner(props: Props) {
         <button type="button" className="button button-secondary" onClick={() => setShowHint((open) => !open)}>
           {showHint ? t("play.banner.hideHint") : t("play.banner.hint")}
         </button>
-        {best > 0 && <Link className="button button-secondary" href="/play">{t("play.banner.backBest", { stars: best })} <StarRow stars={best} /></Link>}
+        {best > 0 && <a className="button button-secondary" href="/play">{t("play.banner.backBest", { stars: best })} <StarRow stars={best} /></a>}
       </div>
       {showHint && <p className="play-hint">{quest.hint}</p>}
       {rewardToast && <p className="reward-toast" role="status">{rewardToast}</p>}

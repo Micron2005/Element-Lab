@@ -346,6 +346,12 @@ export function lessonDepth(id: string, locale: Locale, domain: "molecule" | "mi
     ? LESSON_DEPTH_ES[id as keyof typeof LESSON_DEPTH_ES]
     : LESSON_DEPTH[id as keyof typeof LESSON_DEPTH];
   if (depth) return depth;
+  if (domain === "mix") {
+    return {
+      simple: tr(locale, "play.learn.generated.mixSimple", { product: tr(locale, "play.learn.generated.neutralProduct") }),
+      deeper: tr(locale, "play.learn.generated.mixDeeper", { product: tr(locale, "play.learn.generated.neutralProduct") }),
+    };
+  }
   return locale === "es"
     ? LESSON_DEPTH_ES[domain === "nuclear" ? "atom-alpha" : domain === "molecule" ? "water" : "mix-fizz"]
     : LESSON_DEPTH[domain === "nuclear" ? "atom-alpha" : domain === "molecule" ? "water" : "mix-fizz"];
@@ -423,19 +429,21 @@ export function moleculeCard(
   );
 }
 
-function mixRunDetails(experiment: Experiment, result: RunResult, locale: Locale): string {
+function mixRunDetails(experiment: Experiment, result: RunResult, locale: Locale, includeMechanisms: boolean): string {
   const ingredients = experiment.parts
     .filter((part) => part.pct > 0)
     .map((part) => `${benchById[part.id]?.name ?? part.id} ${formatNumber(part.pct, locale, 1)}%`)
     .join(", ");
-  const events = result.events
-    .filter((event) => event.status === "happened" || event.status === "partial")
-    .map((event) => {
-      const status = tr(locale, event.status === "happened"
-        ? "play.ui.status.happened"
-        : "play.ui.status.partial");
-      return `${event.name} (${status}): ${event.mechanism}`;
-    });
+  const events = includeMechanisms
+    ? result.events
+      .filter((event) => event.status === "happened" || event.status === "partial")
+      .map((event) => {
+        const status = tr(locale, event.status === "happened"
+          ? "play.ui.status.happened"
+          : "play.ui.status.partial");
+        return `${event.name} (${status}): ${event.mechanism}`;
+      })
+    : [];
   const lines = [
     tr(locale, "play.learn.mix.ingredients", {
       ingredients: ingredients || tr(locale, "play.learn.mix.none"),
@@ -444,7 +452,11 @@ function mixRunDetails(experiment: Experiment, result: RunResult, locale: Locale
       product: tr(locale, PRODUCT_LABEL_KEYS[result.product]),
       summary: result.summary,
     }),
-    ...(events.length ? events : [tr(locale, "play.learn.mix.noEvents")]),
+    ...(includeMechanisms
+      ? events.length
+        ? events
+        : [tr(locale, "play.learn.mix.noEvents")]
+      : []),
     tr(locale, "play.learn.mix.ph", { value: formatNumber(result.effectivePH, locale, 1) }),
     result.setSeconds > 0
       ? tr(locale, "play.learn.mix.setTime", { time: fmtTime(result.setSeconds, locale) })
@@ -476,20 +488,27 @@ export function mixCard(
   locale: Locale = DEFAULT_LOCALE,
 ): LearnCard {
   const localizedQuest = localizeQuest(quest, locale);
+  const hasAuthoredLesson = Object.hasOwn(QUEST_LESSONS, quest.id);
   const lesson = localizedQuestLesson(quest.id, locale) ?? templateLesson(quest, locale);
   const sections = [
     { heading: tr(locale, "play.learn.heading.whatItIs"), body: lesson.whatItIs },
-    { heading: tr(locale, "play.learn.heading.run"), body: mixRunDetails(experiment, result, locale) },
+    { heading: tr(locale, "play.learn.heading.run"), body: mixRunDetails(experiment, result, locale, hasAuthoredLesson) },
     { heading: tr(locale, "play.learn.heading.whatItDoes"), body: lesson.whatItDoes },
     { heading: tr(locale, "play.learn.heading.whyItMatters"), body: lesson.whyItMatters },
   ];
+  const depth = hasAuthoredLesson
+    ? lessonDepth(quest.id, locale, "mix")
+    : {
+        simple: tr(locale, "play.learn.generated.mixSimple", { product: result.productLabel }),
+        deeper: tr(locale, "play.learn.generated.mixDeeper", { product: result.productLabel }),
+      };
   return createCard(
     localizedQuest.title,
     sections,
     lesson.usedFor,
     lesson.askPrompt,
     locale,
-    lessonDepth(quest.id, locale, "mix"),
+    depth,
   );
 }
 

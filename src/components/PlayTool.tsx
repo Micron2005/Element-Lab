@@ -25,7 +25,6 @@ import {
 } from "@/lib/play/quests";
 import { isUnlocked, totalStars } from "@/lib/play/progress";
 import { parseGradeLevel, saveGradeLevel, splitQuestsByLevel, QUEST_MIN_LEVEL, type GradeLevel } from "@/lib/play/levels";
-import { enableBeginnerDefaultIfUnset } from "@/lib/prefs";
 import {
   awardDaily,
   awardWeekly,
@@ -553,10 +552,6 @@ export default function PlayTool() {
   }, [levelFeatureOn, requestedLevel]);
 
   useEffect(() => {
-    if (levelFeatureOn && gradeLevel === "middle") enableBeginnerDefaultIfUnset();
-  }, [gradeLevel, levelFeatureOn]);
-
-  useEffect(() => {
     function openPackLink() {
       const encoded = readShareHash(window.location.hash);
       if (encoded === null) return;
@@ -643,11 +638,13 @@ export default function PlayTool() {
       awardStars(questId, stars);
       after = { ...before, progress: { stars: { ...before.progress.stars, [questId]: Math.max(before.progress.stars[questId] ?? 0, stars) as Stars } } };
     }
-    const change = rewardChange(before, after);
-    if (change.rankUp) {
-      setRewardToast(t("play.reward.rankUp"));
-    } else if (change.newBadge) {
-      setRewardToast(t("play.reward.badgeEarned", { badge: t(change.newBadge.titleKey) }));
+    if (rewardsOn) {
+      const change = rewardChange(before, after);
+      if (change.rankUp) {
+        setRewardToast(t("play.reward.rankUp"));
+      } else if (change.newBadge) {
+        setRewardToast(t("play.reward.badgeEarned", { badge: t(change.newBadge.titleKey) }));
+      }
     }
   }
 

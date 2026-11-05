@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BADGES,
   GEAR,
@@ -97,11 +97,24 @@ function Scientist({ coat, goggles, label }: { coat: keyof typeof COAT_COLORS; g
 export default function RewardsPanel({ xp, state }: { xp: number; state: RewardState }) {
   const { t, locale } = useT();
   const [showBadges, setShowBadges] = useState(false);
+  const badgeDialog = useRef<HTMLDialogElement>(null);
+  const badgeTrigger = useRef<HTMLButtonElement>(null);
   const gear = useGearLoadout();
   const rank = rankFor(xp);
   const rankIndex = RANKS.findIndex(({ id }) => id === rank.current.id);
   const unlocked = unlockedGear(rankIndex);
   const earned = new Set(earnedBadges(state).map(({ id }) => id));
+
+  useEffect(() => {
+    const dialog = badgeDialog.current;
+    if (showBadges && dialog && !dialog.open) {
+      dialog.showModal();
+      dialog.querySelector<HTMLButtonElement>("[data-badge-close]")?.focus();
+    } else if (!showBadges && dialog?.open) {
+      dialog.close();
+      badgeTrigger.current?.focus();
+    }
+  }, [showBadges]);
 
   return (
     <section className="rewards-panel" aria-label={t("play.reward.labGear")}>
@@ -115,10 +128,25 @@ export default function RewardsPanel({ xp, state }: { xp: number; state: RewardS
           <span style={{ width: `${rank.progress * 100}%` }} />
         </div>
       </div>
-      <button className="button button-secondary" type="button" aria-expanded={showBadges} onClick={() => setShowBadges((value) => !value)}>
+      <button ref={badgeTrigger} className="button button-secondary" type="button" aria-haspopup="dialog" aria-expanded={showBadges} onClick={() => setShowBadges(true)}>
         {t("play.reward.badges")} · {earned.size}/{BADGES.length}
       </button>
-      {showBadges && (
+      <dialog
+        ref={badgeDialog}
+        className="reward-badges-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reward-badges-title"
+        onCancel={(event) => { event.preventDefault(); setShowBadges(false); }}
+        onClose={() => {
+          setShowBadges(false);
+          badgeTrigger.current?.focus();
+        }}
+      >
+        <div className="reward-badges-heading">
+          <h2 id="reward-badges-title">{t("play.reward.badges")}</h2>
+          <button data-badge-close className="icon-button" type="button" aria-label={t("play.reward.closeBadges")} onClick={() => setShowBadges(false)}>×</button>
+        </div>
         <div className="reward-badge-grid">
           {BADGES.map((badge) => (
             <article className={`reward-badge${earned.has(badge.id) ? " is-earned" : " is-locked"}`} key={badge.id}>
@@ -128,7 +156,7 @@ export default function RewardsPanel({ xp, state }: { xp: number; state: RewardS
             </article>
           ))}
         </div>
-      )}
+      </dialog>
       <div className="reward-gear">
         <h2>{t("play.reward.labGear")}</h2>
         <Scientist coat={gear.coat} goggles={gear.goggles} label={t("play.reward.scientistAvatar")} />
